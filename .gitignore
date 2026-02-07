@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.production
+.env.test
+
+# Build output
+dist/
+out/
+
+# Drizzle
+drizzle/
+sqlite.db
+
+# OS System Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+/.idea
+.vscode/
+*.swp
+*.swo

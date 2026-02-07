@@ -1,0 +1,31 @@
+import { IApp, IUserApp } from "../../common/interfaces/IContextApp";
+import { EUserRole } from "../../features/user/enums/EUserRole";
+import { EXAMPLE_USER_ID } from "../../common/constants";
+import EnvManager from "@/infrastructure/env/EnvManager";
+import DbManager from "@/infrastructure/db/DbManager";
+
+class ContextBuilder {
+  build() {
+    EnvManager.init();
+    const env = EnvManager.get();
+    void DbManager.init(env);
+    const db = DbManager.get();
+
+    const MockContext: IApp = {
+      db,
+      nowDatetime: new Date(),
+    };
+
+    const MockUserContext: IUserApp = {
+      ...MockContext,
+      session: {
+        userId: EXAMPLE_USER_ID,
+        role: "USER" as EUserRole,
+      },
+    };
+
+    return { MockContext, MockUserContext };
+  }
+}
+
+export default new ContextBuilder();
