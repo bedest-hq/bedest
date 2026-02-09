@@ -19,6 +19,7 @@ class ContextBuilder {
     const MockUserContext: IUserApp = {
       ...MockContext,
       session: {
+        sessionId: EXAMPLE_USER_ID,
         userId: EXAMPLE_USER_ID,
         role: "USER" as EUserRole,
       },

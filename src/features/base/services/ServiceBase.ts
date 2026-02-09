@@ -1,21 +1,37 @@
-import { AnyPgTable, SelectedFields } from "drizzle-orm/pg-core";
-import { IUserApp } from "../../../common/interfaces/IContextApp";
-import { and, eq, Table } from "drizzle-orm";
-import { IBaseTable } from "../interfaces/IBaseTable";
+import {
+  and,
+  eq,
+  getTableColumns,
+  type SQL,
+  type InferInsertModel,
+  type InferSelectModel,
+} from "drizzle-orm";
+import { PgTable, type SelectedFields } from "drizzle-orm/pg-core";
+import { type IUserApp } from "../../../common/interfaces/IContextApp";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
+import { type IBaseTable } from "../interfaces/IBaseTable";
+import { Prettify } from "elysia/types";
 
-export class ServiceBase<
-  TTable extends AnyPgTable & IBaseTable,
-  TId,
-  TContext extends IUserApp,
+export abstract class ServiceBase<
+  TTable extends IBaseTable,
+  TId extends string | number = string,
 > {
-  constructor(table: TTable) {
-    this.table = table;
-  }
-  protected table: TTable;
+  constructor(protected table: TTable) {}
 
-  protected getFilters(_c: TContext, id?: TId) {
-    const filters = [eq(this.table.isDeleted, false)];
+  protected get columns() {
+    return getTableColumns(this.table);
+  }
+
+  protected getFilters(c: IUserApp, id?: TId): SQL[] {
+    const filters: SQL[] = [eq(this.table.isDeleted, false)];
+
+    if (
+      "tenantId" in this.columns &&
+      this.columns.tenantId &&
+      c.session.tenantId
+    ) {
+      filters.push(eq(this.columns.tenantId, c.session.tenantId));
+    }
 
     if (id) {
       filters.push(eq(this.table.id, id));
@@ -24,23 +40,34 @@ export class ServiceBase<
     return filters;
   }
 
-  async create(c: TContext, data: TTable["$inferInsert"]) {
+  async create(
+    c: IUserApp,
+    data: Prettify<Omit<InferInsertModel<TTable>, "tenantId">>,
+  ): Promise<{ id: TId }> {
+    const payload = {
+      ...data,
+      tenantId: c.session.tenantId,
+      createdAt: c.nowDatetime,
+      isDeleted: false,
+    } as InferInsertModel<TTable>;
+
     const [result] = await c.db
       .insert(this.table)
-      .values({
-        ...data,
-        createdAt: c.nowDatetime,
-      })
+      .values(payload)
       .returning({ id: this.table.id });
 
     if (!result) {
       throw ErrorHandler.internal("Creation failed");
     }
 
-    return result.id as string;
+    return result as { id: TId };
   }
 
-  async update(c: TContext, id: TId, data: Partial<TTable["$inferInsert"]>) {
+  async update(
+    c: IUserApp,
+    id: TId,
+    data: Prettify<Partial<InferInsertModel<TTable>>>,
+  ): Promise<void> {
     const update = await c.db
       .update(this.table)
       .set(data)
@@ -51,22 +78,42 @@ export class ServiceBase<
     }
   }
 
-  async get<T extends SelectedFields>(c: TContext, columns: T) {
+  async remove(c: IUserApp, id: TId): Promise<void> {
+    const payload = {
+      isDeleted: true,
+      deletedAt: c.nowDatetime,
+    } as unknown as Partial<InferInsertModel<TTable>>;
+
+    await c.db
+      .update(this.table)
+      .set(payload)
+      .where(and(...this.getFilters(c, id)));
+  }
+
+  async getAll<TSelection extends SelectedFields>(
+    c: IUserApp,
+    columns: TSelection,
+  ): Promise<Prettify<InferSelectModel<TTable>>[]> {
     const result = await c.db
       .select(columns)
-      .from(this.table as Table)
+      .from(this.table as PgTable)
       .where(and(...this.getFilters(c)));
 
     if (!result || result.length === 0) {
       throw ErrorHandler.notFound();
     }
+
     return result;
   }
 
-  async getById<T extends SelectedFields>(c: TContext, columns: T, id: TId) {
+  async getById<TSelection extends SelectedFields>(
+    c: IUserApp,
+    id: TId,
+    columns: TSelection,
+  ): Promise<Prettify<InferSelectModel<TTable>>> {
     const [result] = await c.db
       .select(columns)
-      .from(this.table as Table)
+      .from(this.table as PgTable)
       .where(and(...this.getFilters(c, id)));
 
     if (!result) {
@@ -74,15 +121,5 @@ export class ServiceBase<
     }
 
     return result;
-  }
-
-  async remove(c: TContext, id: TId) {
-    await c.db
-      .update(this.table)
-      .set({
-        isDeleted: true,
-        deletedAt: c.nowDatetime,
-      } as Partial<TTable["$inferInsert"]>)
-      .where(and(...this.getFilters(c, id)));
   }
 }

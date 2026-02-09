@@ -1,9 +1,9 @@
-import { PgColumn } from "drizzle-orm/pg-core";
+import { PgColumn, PgTable } from "drizzle-orm/pg-core";
 
-export interface IBaseTable {
+export type IBaseTable = PgTable & {
   id: PgColumn;
   createdAt: PgColumn;
   isDeleted: PgColumn;
   deletedAt: PgColumn;
   tenantId?: PgColumn;
-}
+};

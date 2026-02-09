@@ -4,84 +4,90 @@ import { SString } from "../../../common/schemas/SString";
 import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
 import Context from "@/app/Context";
+import { UtilRouter } from "@/common/utils/UtilRouter";
 
 export const RouterUser = new Elysia({
   prefix: "/user",
   tags: ["User"],
-}).use(Context.User());
-
-RouterUser.get(
-  "/:id",
-  async ({ params, userRuntime }) => {
-    return ServiceUser.getById(userRuntime, params.id);
-  },
-  {
-    params: t.Object({
-      id: SId,
-    }),
-    response: t.Object({
-      name: SString,
-      role: t.Enum(EUserRole),
-      createdAt: t.Date(),
-    }),
-  },
-);
-
-RouterUser.get(
-  "/",
-  async ({ userRuntime }) => {
-    return ServiceUser.get(userRuntime);
-  },
-  {
-    response: t.Array(
-      t.Object({
-        name: SString,
-        role: t.Enum(EUserRole),
-        createdAt: t.Date(),
+})
+  .use(Context.User())
+  .get(
+    "/:id",
+    async ({ params, userRuntime }) => {
+      const res = await ServiceUser.getById(userRuntime, params.id);
+      return UtilRouter.defResponse(res);
+    },
+    {
+      params: t.Object({
+        id: SId,
       }),
-    ),
-  },
-);
-
-RouterUser.post(
-  "/",
-  async ({ body, userRuntime }) => {
-    return ServiceUser.create(userRuntime, body);
-  },
-  {
-    body: t.Object({
-      name: SString,
-      phone: SString,
-      email: SString,
-      role: t.Enum(EUserRole),
-      password: SString,
-      planStart: t.Date(),
-      planEnd: t.Date(),
-    }),
-  },
-);
-
-RouterUser.put(
-  "/:id",
-  async ({ body, userRuntime }) => {
-    return ServiceUser.update(userRuntime, body);
-  },
-  {
-    body: t.Object({
-      name: t.Optional(SString),
-      password: t.Optional(SString),
-    }),
-  },
-);
-
-RouterUser.delete(
-  "/:id",
-  async ({ params, userRuntime }) => {
-    return ServiceUser.remove(userRuntime, params.id);
-  },
-  {
-    params: t.Object({
-      id: SId,
-    }),
-  },
-);
+      response: UtilRouter.defSchema(
+        t.Object({
+          name: SString,
+          role: t.Enum(EUserRole),
+          createdAt: t.Date(),
+        }),
+      ),
+    },
+  )
+  .get(
+    "/",
+    async ({ userRuntime }) => {
+      const res = await ServiceUser.getAll(userRuntime);
+      return UtilRouter.defResponse(res);
+    },
+    {
+      response: UtilRouter.defSchema(
+        t.Array(
+          t.Object({
+            name: SString,
+            role: t.Enum(EUserRole),
+            createdAt: t.Date(),
+          }),
+        ),
+      ),
+    },
+  )
+  .post(
+    "/",
+    async ({ body, userRuntime }) => {
+      const res = await ServiceUser.create(userRuntime, body);
+      return UtilRouter.defResponse(res);
+    },
+    {
+      body: t.Object({
+        name: SString,
+        phone: SString,
+        email: SString,
+        role: t.Enum(EUserRole),
+        password: SString,
+        planStart: t.Date(),
+        planEnd: t.Date(),
+      }),
+      response: UtilRouter.defSchema(t.Object({ id: SId })),
+    },
+  )
+  .put(
+    "/:id",
+    async ({ body, userRuntime }) => {
+      const res = await ServiceUser.update(userRuntime, body);
+      return UtilRouter.defResponse(res);
+    },
+    {
+      body: t.Object({
+        name: t.Optional(SString),
+        password: t.Optional(SString),
+      }),
+    },
+  )
+  .delete(
+    "/:id",
+    async ({ params, userRuntime }) => {
+      return ServiceUser.remove(userRuntime, params.id);
+    },
+    {
+      params: t.Object({
+        id: SId,
+      }),
+    },
+  );

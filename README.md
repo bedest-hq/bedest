@@ -151,3 +151,8 @@ import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 if (!record) {
     throw ErrorHandler.notFound("Record not found");
 }
+```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

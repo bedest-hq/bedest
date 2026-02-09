@@ -18,13 +18,13 @@ class ServiceAuth {
       .limit(1);
 
     if (!user) {
-      ErrorHandler.notFound("User doesn't exist");
+      throw ErrorHandler.notFound("User doesn't exist");
     }
 
     const verifyPass = await Bun.password.verify(data.password, user.password);
 
     if (!verifyPass) {
-      ErrorHandler.validationError("Wrong password");
+      throw ErrorHandler.validationError("Wrong password");
     }
     return {
       userId: user.userId,

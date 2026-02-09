@@ -25,10 +25,10 @@ class ServiceUser {
       ErrorHandler.databaseError("Failed to create user");
     }
 
-    return user.id;
+    return user;
   }
 
-  async get(c: IUserApp) {
+  async getAll(c: IUserApp) {
     const result = await c.db
       .select({
         name: TbUser.name,

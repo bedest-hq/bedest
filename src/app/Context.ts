@@ -30,7 +30,7 @@ class Context {
       verify: (token: string) => Promise<Record<string, unknown> | false>;
     },
     token: string | undefined,
-  ): Promise<{ userId: string; agencyId: string; role: string }> {
+  ): Promise<{ sessionId: string; userId: string; role: string }> {
     if (!token) {
       throw ErrorHandler.unauthorized("Access token missing");
     }
@@ -41,15 +41,15 @@ class Context {
       throw ErrorHandler.unauthorized("Unauthorized");
     }
 
-    const { userId, agencyId, role } = payload;
+    const { sessionId, userId, role } = payload;
 
-    if (!userId || !agencyId || !role) {
+    if (!sessionId || !userId || !role) {
       throw ErrorHandler.unauthorized("Invalid token payload");
     }
 
     return {
+      sessionId: String(sessionId),
       userId: String(userId),
-      agencyId: String(agencyId),
       role: String(role),
     };
   }
@@ -94,6 +94,7 @@ class Context {
           const role = this.parseRole(payload.role);
 
           const session: ISession = {
+            sessionId: payload.sessionId,
             userId: payload.userId,
             role,
           };
