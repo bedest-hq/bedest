@@ -9,7 +9,7 @@ export const RouterRefresh = new Elysia({
 }).use(Context.App());
 
 RouterRefresh.post(
-  "/auth/refresh",
+  "/refresh",
   async ({ accessJwt, refreshJwt, cookie, nowDatetime, db }) => {
     const refreshToken = cookie.refreshToken.value;
     const payload = await refreshJwt.verify(refreshToken as string);

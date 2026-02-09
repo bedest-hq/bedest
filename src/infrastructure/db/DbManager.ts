@@ -13,6 +13,7 @@ class DbManager {
       port: env.DATABASE_PORT,
       user: env.DATABASE_USER,
       password: env.DATABASE_PASSWORD,
+      database: "postgres",
       ssl: false,
     });
     await client.connect();
