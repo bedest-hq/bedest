@@ -1,44 +1,54 @@
 import Context from "@/app/Context";
+import { SString } from "@/common/schemas/SString";
+import { UtilRouter } from "@/common/utils/UtilRouter";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
+import { UtilAuth } from "../utils/UtilAuth";
 
 export const RouterRefresh = new Elysia({
   prefix: "/auth",
   tags: ["Auth"],
-}).use(Context.App());
+})
+  .use(Context.App())
+  .post(
+    "/refresh",
+    async ({ accessJwt, refreshJwt, cookie, nowDatetime, db }) => {
+      const refreshToken = cookie.refreshToken.value;
+      const payload = await refreshJwt.verify(refreshToken as string);
 
-RouterRefresh.post(
-  "/refresh",
-  async ({ accessJwt, refreshJwt, cookie, nowDatetime, db }) => {
-    const refreshToken = cookie.refreshToken.value;
+      if (!refreshToken) {
+        throw ErrorHandler.unauthorized("Refresh token missing");
+      }
 
-    if (!refreshToken) {
-      throw ErrorHandler.unauthorized("Refresh token missing");
-    }
+      if (!payload) {
+        throw ErrorHandler.unauthorized("Invalid refresh token");
+      }
 
-    const payload = await refreshJwt.verify(refreshToken as string);
+      const isValid = await ServiceSession.isValid(
+        { db, nowDatetime },
+        payload.sessionId as string,
+      );
 
-    if (!payload) {
-      throw ErrorHandler.unauthorized("Invalid refresh token");
-    }
+      if (!isValid) {
+        throw ErrorHandler.unauthorized("Session expired or invalid");
+      }
 
-    const session = await ServiceSession.isValid(
-      { db, nowDatetime },
-      payload.userId as string,
-      payload.sessionId as string,
-    );
+      const newAccessToken = await accessJwt.sign({
+        tenantId: payload.tenantId,
+        userId: payload.userId,
+        sessionId: payload.sessionId,
+        role: payload.role,
+      });
 
-    if (!session.isActive) {
-      throw ErrorHandler.unauthorized("Session expired or revoked");
-    }
+      cookie.accessToken.set({
+        value: newAccessToken,
+        ...UtilAuth.cookieConf("access"),
+      });
 
-    const newAccessToken = await accessJwt.sign({
-      sessionId: payload.sessionId,
-      userId: payload.userId,
-      role: session.user.role,
-    });
-
-    return { accessToken: newAccessToken };
-  },
-);
+      return UtilRouter.defResponse({ accessToken: newAccessToken });
+    },
+    {
+      response: UtilRouter.defSchema(t.Object({ accessToken: SString })),
+    },
+  );

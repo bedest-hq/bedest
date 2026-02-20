@@ -1,21 +1,26 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { IApp, IUserApp } from "../../../common/interfaces/IContextApp";
 import { TbUser } from "../../user/tables/TbUser";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
+import { UtilDb } from "@/common/utils/UtilDb";
 
 class ServiceAuth {
   async login(c: IApp, data: { email: string; password: string }) {
-    const [user] = await c.db
-      .select({
-        userId: TbUser.id,
-        role: TbUser.role,
-        name: TbUser.name,
-        password: TbUser.password,
-      })
-      .from(TbUser)
-      .where(eq(TbUser.email, data.email))
-      .limit(1);
+    const user = await UtilDb.systemScope(c.db, async (tx) => {
+      const [res] = await tx
+        .select({
+          userId: TbUser.id,
+          tenantId: TbUser.tenantId,
+          role: TbUser.role,
+          name: TbUser.name,
+          password: TbUser.password,
+        })
+        .from(TbUser)
+        .where(and(eq(TbUser.email, data.email), eq(TbUser.isDeleted, false)))
+        .limit(1);
+      return res;
+    });
 
     if (!user) {
       throw ErrorHandler.notFound("User doesn't exist");
@@ -28,13 +33,14 @@ class ServiceAuth {
     }
     return {
       userId: user.userId,
+      tenantId: user.tenantId,
       name: user.name,
       role: user.role,
     };
   }
 
   async logout(c: IUserApp) {
-    await ServiceSession.remove(c);
+    await ServiceSession.remove(c, c.session.sessionId);
   }
 }
 

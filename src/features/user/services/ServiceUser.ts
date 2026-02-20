@@ -1,98 +1,63 @@
-import { and, eq, SQL } from "drizzle-orm";
 import { EUserRole } from "../enums/EUserRole";
 import { IUserApp } from "../../../common/interfaces/IContextApp";
 import { TbUser } from "../tables/TbUser";
-import ErrorHandler from "@/infrastructure/error/ErrorHandler";
+import { ServiceBase } from "../../base/services/ServiceBase";
 
-class ServiceUser {
+class ServiceUser extends ServiceBase<typeof TbUser, string> {
+  constructor() {
+    super(TbUser);
+  }
+
   async create(
     c: IUserApp,
-    data: { name: string; email: string; password: string; role: EUserRole },
+    data: {
+      name: string;
+      email: string;
+      password: string;
+      role: EUserRole;
+    },
   ) {
     const hash = await Bun.password.hash(data.password);
-    const [user] = await c.db
-      .insert(TbUser)
-      .values({
-        name: data.name,
-        password: hash,
-        email: data.email,
-        role: data.role,
-        createdAt: c.nowDatetime,
-      })
-      .returning({ id: TbUser.id });
 
-    if (!user) {
-      ErrorHandler.databaseError("Failed to create user");
-    }
-
-    return user;
+    return super.create(c, {
+      ...data,
+      password: hash,
+    });
   }
 
   async getAll(c: IUserApp) {
-    const result = await c.db
-      .select({
-        name: TbUser.name,
-        role: TbUser.role,
-        createdAt: TbUser.createdAt,
-      })
-      .from(TbUser)
-      .where(eq(TbUser.isDeleted, false));
-
-    return result;
+    return super.getAll(c, {
+      name: TbUser.name,
+      role: TbUser.role,
+      createdAt: TbUser.createdAt,
+    });
   }
 
   async getById(c: IUserApp, id: string) {
-    const [result] = await c.db
-      .select({
-        name: TbUser.name,
-        role: TbUser.role,
-        createdAt: TbUser.createdAt,
-      })
-      .from(TbUser)
-      .where(and(eq(TbUser.isDeleted, false), eq(TbUser.id, id)));
-
-    if (!result) {
-      throw ErrorHandler.notFound("User not found");
-    }
-
-    return result;
+    return super.getById(c, id, {
+      name: TbUser.name,
+      role: TbUser.role,
+      createdAt: TbUser.createdAt,
+    });
   }
 
   async update(
     c: IUserApp,
-    data: { userId?: string; name?: string; password?: string },
+    id: string,
+    data: { name?: string; password?: string },
   ) {
-    let hash = undefined;
+    const targetId = c.session.role !== EUserRole.ADMIN ? c.session.userId : id;
 
-    // If there is no data to update.
-    if (!data.name && !data.password) {
-      return;
+    const payload: Partial<typeof TbUser.$inferInsert> = {};
+
+    if (data.name) {
+      payload.name = data.name;
     }
-
     if (data.password) {
-      hash = await Bun.password.hash(data.password);
+      payload.password = await Bun.password.hash(data.password);
     }
 
-    const filter: SQL[] = [];
-
-    // If the user is not an admin or the user id is not provided, filter by the current user's id.
-    if (c.session.role !== EUserRole.ADMIN || !data.userId) {
-      filter.push(eq(TbUser.id, c.session.userId));
-    } else {
-      filter.push(eq(TbUser.id, data.userId));
-    }
-
-    await c.db
-      .update(TbUser)
-      .set({ name: data.name, password: hash })
-      .where(and(...filter));
-  }
-
-  async remove(c: IUserApp, userId: string) {
-    await c.db
-      .update(TbUser)
-      .set({ isDeleted: true })
-      .where(eq(TbUser.id, userId));
+    await super.update(c, targetId, payload);
   }
 }
 

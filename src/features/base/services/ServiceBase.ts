@@ -11,6 +11,7 @@ import { type IUserApp } from "../../../common/interfaces/IContextApp";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { type IBaseTable } from "../interfaces/IBaseTable";
 import { Prettify } from "elysia/types";
+import { UtilDb } from "@/common/utils/UtilDb";
 
 export abstract class ServiceBase<
   TTable extends IBaseTable,
@@ -22,16 +23,8 @@ export abstract class ServiceBase<
     return getTableColumns(this.table);
   }
 
-  protected getFilters(c: IUserApp, id?: TId): SQL[] {
+  protected getFilters(id?: TId): SQL[] {
     const filters: SQL[] = [eq(this.table.isDeleted, false)];
-
-    if (
-      "tenantId" in this.columns &&
-      this.columns.tenantId &&
-      c.session.tenantId
-    ) {
-      filters.push(eq(this.columns.tenantId, c.session.tenantId));
-    }
 
     if (id) {
       filters.push(eq(this.table.id, id));
@@ -46,15 +39,18 @@ export abstract class ServiceBase<
   ): Promise<{ id: TId }> {
     const payload = {
       ...data,
-      tenantId: c.session.tenantId,
+      tenantId: c.tenantId,
       createdAt: c.nowDatetime,
       isDeleted: false,
     } as InferInsertModel<TTable>;
 
-    const [result] = await c.db
-      .insert(this.table)
-      .values(payload)
-      .returning({ id: this.table.id });
+    const result = await UtilDb.tenantScope(c, async (tx) => {
+      const [res] = await tx
+        .insert(this.table)
+        .values(payload)
+        .returning({ id: this.table.id });
+      return res;
+    });
 
     if (!result) {
       throw ErrorHandler.internal("Creation failed");
@@ -68,14 +64,16 @@ export abstract class ServiceBase<
     id: TId,
     data: Prettify<Partial<InferInsertModel<TTable>>>,
   ): Promise<void> {
-    const update = await c.db
-      .update(this.table)
-      .set(data)
-      .where(and(...this.getFilters(c, id)));
+    await UtilDb.tenantScope(c, async (tx) => {
+      const update = await tx
+        .update(this.table)
+        .set(data)
+        .where(and(...this.getFilters(id)));
 
-    if (update.rowCount === 0) {
-      throw ErrorHandler.notFound("The record not found to update");
-    }
+      if (update.rowCount === 0) {
+        throw ErrorHandler.notFound("The record not found to update");
+      }
+    });
   }
 
   async remove(c: IUserApp, id: TId): Promise<void> {
@@ -84,26 +82,35 @@ export abstract class ServiceBase<
       deletedAt: c.nowDatetime,
     } as unknown as Partial<InferInsertModel<TTable>>;
 
-    await c.db
-      .update(this.table)
-      .set(payload)
-      .where(and(...this.getFilters(c, id)));
+    await UtilDb.tenantScope(c, async (tx) => {
+      await tx
+        .update(this.table)
+        .set(payload)
+        .where(and(...this.getFilters(id)));
+    });
   }
 
   async getAll<TSelection extends SelectedFields>(
     c: IUserApp,
     columns: TSelection,
+    limit: number = 100,
+    offset: number = 0,
   ): Promise<Prettify<InferSelectModel<TTable>>[]> {
-    const result = await c.db
-      .select(columns)
-      .from(this.table as PgTable)
-      .where(and(...this.getFilters(c)));
+    const result = await UtilDb.tenantScope(c, async (tx) => {
+      const query = tx
+        .select(columns)
+        .from(this.table as PgTable)
+        .where(and(...this.getFilters()))
+        .$dynamic();
+
+      return query.limit(limit).offset(offset);
+    });
 
     if (!result || result.length === 0) {
       throw ErrorHandler.notFound();
     }
 
-    return result;
+    return result as unknown as Prettify<InferSelectModel<TTable>>[];
   }
 
   async getById<TSelection extends SelectedFields>(
@@ -111,15 +118,18 @@ export abstract class ServiceBase<
     id: TId,
     columns: TSelection,
   ): Promise<Prettify<InferSelectModel<TTable>>> {
-    const [result] = await c.db
-      .select(columns)
-      .from(this.table as PgTable)
-      .where(and(...this.getFilters(c, id)));
+    const result = await UtilDb.tenantScope(c, async (tx) => {
+      const [res] = await tx
+        .select(columns)
+        .from(this.table as PgTable)
+        .where(and(...this.getFilters(id)));
+      return res;
+    });
 
     if (!result) {
       throw ErrorHandler.notFound();
     }
 
-    return result;
+    return result as unknown as Prettify<InferSelectModel<TTable>>;
   }
 }

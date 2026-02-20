@@ -69,11 +69,12 @@ export const RouterUser = new Elysia({
   )
   .put(
     "/:id",
-    async ({ body, userRuntime }) => {
-      const res = await ServiceUser.update(userRuntime, body);
+    async ({ params, body, userRuntime }) => {
+      const res = await ServiceUser.update(userRuntime, params.id, body);
       return UtilRouter.defResponse(res);
     },
     {
+      params: t.Object({ id: SId }),
       body: t.Object({
         name: t.Optional(SString),
         password: t.Optional(SString),

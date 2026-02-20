@@ -6,21 +6,21 @@ import { ISession } from "../features/session/interfaces/ISession";
 import { EUserRole } from "../features/user/enums/EUserRole";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import DbManager from "@/infrastructure/db/DbManager";
+import EnvManager from "@/infrastructure/env/EnvManager";
 
 class Context {
-  private SECRET_KEY = Bun.env.SECRET_KEY || "secret-key";
-  private REFRESH_KEY = Bun.env.REFRESH_KEY || "refresh-key";
+  private env = EnvManager.get();
 
   private refreshPlugin = jwt({
     name: "refreshJwt",
-    secret: this.REFRESH_KEY,
+    secret: this.env.REFRESH_KEY!,
     exp: "7d",
     iat: true,
   });
 
   private accessPlugin = jwt({
     name: "accessJwt",
-    secret: this.SECRET_KEY,
+    secret: this.env.SECRET_KEY!,
     exp: "15m",
     iat: true,
   });
@@ -30,7 +30,12 @@ class Context {
       verify: (token: string) => Promise<Record<string, unknown> | false>;
     },
     token: string | undefined,
-  ): Promise<{ sessionId: string; userId: string; role: string }> {
+  ): Promise<{
+    tenantId: string;
+    userId: string;
+    sessionId: string;
+    role: string;
+  }> {
     if (!token) {
       throw ErrorHandler.unauthorized("Access token missing");
     }
@@ -41,15 +46,16 @@ class Context {
       throw ErrorHandler.unauthorized("Unauthorized");
     }
 
-    const { sessionId, userId, role } = payload;
+    const { tenantId, userId, sessionId, role } = payload;
 
-    if (!sessionId || !userId || !role) {
+    if (!tenantId || !userId || !sessionId || !role) {
       throw ErrorHandler.unauthorized("Invalid token payload");
     }
 
     return {
-      sessionId: String(sessionId),
+      tenantId: String(tenantId),
       userId: String(userId),
+      sessionId: String(sessionId),
       role: String(role),
     };
   }
@@ -94,13 +100,14 @@ class Context {
           const role = this.parseRole(payload.role);
 
           const session: ISession = {
-            sessionId: payload.sessionId,
             userId: payload.userId,
+            sessionId: payload.sessionId,
             role,
           };
 
           const userRuntime: IUserApp = {
             db,
+            tenantId: payload.tenantId,
             nowDatetime,
             session,
           };

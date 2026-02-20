@@ -1,4 +1,3 @@
-import type { Context } from "elysia";
 import type { TDb } from "../types/TDb";
 import type { ISession } from "../../features/session/interfaces/ISession";
 
@@ -7,15 +6,10 @@ export interface IApp {
   nowDatetime: Date;
 }
 
-export interface IUserApp extends IApp {
-  session: ISession;
+export interface ITenantApp extends IApp {
+  tenantId: string;
 }
 
-export interface IAppContext extends Context {
-  db: TDb;
-  nowDatetime: Date;
-}
-
-export interface IUserAppContext extends IAppContext {
+export interface IUserApp extends ITenantApp {
   session: ISession;
 }

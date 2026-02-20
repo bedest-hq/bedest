@@ -2,157 +2,211 @@
   <img src="docs/images/bedest.png" alt="Bedest Logo" width="200" />
 </p>
 
-# Bedest - B.E.D. Stack Boilerplate
+<h1 align="center">Bedest - B.E.D. Stack Boilerplate</h1>
 
-**Bedest** is a high-performance, strictly typed backend boilerplate built on the B.E.D. stack (**B**un, **E**lysia, **D**rizzle). It is designed to serve as a robust foundation for scalable SaaS applications and microservices, enforcing a modular, feature-based architecture.
+<p align="center">
+  <strong>A high-performance, strictly typed backend boilerplate built for scale.</strong><br>
+  Powered by <b>B</b>un, <b>E</b>lysiaJS, and <b>D</b>rizzle ORM.
+</p>
 
-This project provides a pre-configured environment with production-ready authentication, database management, and error handling, allowing developers to focus on business logic rather than infrastructure setup.
+<p align="center">
+  <img src="https://img.shields.io/badge/Bun-%23000000.svg?style=for-the-badge&logo=bun&logoColor=white" alt="Bun">
+  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+</p>
 
-## Technology Stack
+---
 
-- **Runtime:** [Bun](https://bun.sh/) - A fast all-in-one JavaScript runtime.
-- **Framework:** [ElysiaJS](https://elysiajs.com/) - A high-performance, type-safe web framework.
-- **ORM:** [Drizzle ORM](https://orm.drizzle.team/) - A lightweight, type-safe SQL ORM.
-- **Database:** PostgreSQL.
-- **Validation:** TypeBox (via Elysia) and Zod (for Environment variables).
-- **Documentation:** Swagger/OpenAPI (Auto-generated).
+**Bedest** is not just another starter template; it is a robust, production-ready foundation for SaaS applications and scalable microservices. By enforcing a **Feature-Based Architecture**, it eliminates spaghetti code and provides built-in solutions for authentication, multi-tenancy, standardized responses, and error handling. 
 
-## Project Architecture
+Stop wrestling with setup and focus on shipping your business logic.
 
-Bedest moves away from the traditional Layered Architecture (Controllers/Services/Models folders) in favor of a **Feature-Based Architecture**. Each logical domain of the application is self-contained within the `src/features` directory.
+## ✨ Features
 
-### Directory Structure
+- ⚡️ **Blazing Fast**: Runs on the ultra-fast Bun runtime and ElysiaJS.
+- 🛡️ **End-to-End Type Safety**: From database schemas (Drizzle) to API routes (TypeBox) and Environment variables (Zod).
+- 🏗️ **Feature-Based Architecture**: Domains are isolated in `src/features`, making scaling and refactoring a breeze.
+- 🔐 **Production-Ready Auth**: Dual-Token architecture (JWT Access + Refresh Tokens) with DB-backed session management and role-based access control (RBAC).
+- 🏢 **Multi-Tenancy Auto-Filtering**: Built-in abstraction (`ServiceBase`) dynamically applies `tenantId` and `isDeleted` filters to queries.
+- 📚 **Auto-Generated Docs**: Swagger/OpenAPI documentation is instantly available.
+
+## 🚀 Quick Start
+
+### 1. Prerequisites
+- [Bun](https://bun.sh/) (v1.0+)
+- PostgreSQL Database
+
+### 2. Installation
+```bash
+git clone git@github.com:barisatay0/bedest.git my-app
+cd my-app
+bun install
+
+```
+
+### 3. Environment Setup
+
+```bash
+cp .env.example .env
+
+```
+
+*Configure your PostgreSQL credentials and JWT secrets in the `.env` file.*
+
+### 4. Database Initialization & Run
+
+Bedest includes custom scripts to handle migrations and seeding seamlessly:
+
+```bash
+# Drops DB, recreates, runs migrations, and seeds mock data
+bun run app:dev
+
+# Start the development server
+bun run dev
+
+```
+
+🎉 Your API is now running at `http://localhost:3000`.
+Explore the Swagger UI at `http://localhost:3000/api/docs`.
+
+---
+
+## 🏗️ Architecture & Core Concepts
+
+Bedest moves away from the traditional MVC layer structure. Everything related to a specific domain (e.g., Users) lives together.
 
 ```text
 src/
-├── app/                  # Application core configuration
-│   ├── Context.ts        # Dependency injection and request context (User, DB, Session)
-│   ├── Router.ts         # Main entry point for route aggregation
-│   └── Swagger.ts        # OpenAPI documentation configuration
-├── common/               # Shared resources across features
-│   ├── constants.ts      # Global constants
-│   ├── interfaces/       # Global interfaces (IContextApp, etc.)
-│   ├── schemas/          # Reusable validation schemas (SId, SEmail, etc.)
-│   └── types/            # Global Types (TDb, TEnv)
-├── features/             # Business Logic Modules
-│   ├── auth/             # Authentication logic (Login, Logout, Refresh)
-│   ├── base/             # Abstract base services for CRUD and Multi-tenancy
-│   ├── session/          # Session management logic
-│   ├── user/             # User management domain
-│   └── [feature_name]/   # Scalable pattern for new features
-│       ├── enums/
-│       ├── routers/
-│       ├── services/
-│       └── tables/
-├── infrastructure/       # Low-level infrastructure implementations
-│   ├── db/               # Database connection and migration managers
-│   ├── env/              # Environment variable validation and parsing
-│   └── error/            # Centralized error handling logic
-└── scripts/              # Automation scripts (DB Reset, Seeding, Context Building)
+├── app/              # App initialization, Router, Context Injection
+├── common/           # Shared utilities (UtilRouter), validation schemas (SId, SEmail)
+├── features/         # 📦 The heart of your app (Domain Modules)
+│   ├── base/         # Abstract Generic CRUD Services (ServiceBase)
+│   ├── user/         # User domain (tables, services, routers)
+│   └── [feature]/    # Create your own domains here!
+└── infrastructure/   # Error handling, DB pools, Env validation
+
 ```
-## Key Concepts & Design Patterns
 
-### 1. The Context Pattern
-Bedest utilizes Elysia’s `derive` pattern to inject a strictly typed context into every request.
-- **`IApp`**: Contains the database instance (`db`) and the request timestamp (`nowDatetime`).
-- **`IUserApp`**: Extends `IApp` to include the authenticated user's session (`session`), containing `userId`, `role`, and `tenantId`.
+### 🧠 The Context Pattern (Dependency Injection)
 
-This ensures that services do not need to instantiate their own dependencies; they are passed down from the Router.
+Instead of importing DB instances everywhere, Bedest passes a strictly typed `Context` into every route using Elysia's `.derive()` pattern. `userRuntime` contains the active DB instance, request time, and the user's session (`userId`, `role`, `tenantId`).
 
-### 2. Service Abstraction & Multi-Tenancy
-To reduce boilerplate code for CRUD operations, Bedest implements a generic service layer located in `src/features/base`.
+---
 
-- **`ServiceBase`**: Provides standard `create`, `get`, `getById`, `update`, and `remove` methods for any Drizzle table.
-- **`ServiceTenant`**: Extends `ServiceBase` but enforces **Multi-Tenancy** constraints. It automatically injects the `tenantId` from the request context into creation queries and filters by `tenantId` for read/update operations.
+## 🛠️ Step-by-Step Examples
 
-### 3. Authentication Flow
-The system uses a Dual-Token architecture (Access Token + Refresh Token) with database-backed sessions.
-1.  **Login**: Returns an HTTP-Only Refresh Token and a short-lived Access Token. Creates a session record in the database.
-2.  **Access**: The Access Token payload contains `userId` and `role`.
-3.  **Refresh**: Verifies the Refresh Token against the database session to issue new Access Tokens.
-4.  **Logout**: Invalidates the session in the database and clears cookies.
+Bedest is packed with utilities like `ServiceBase`, `UtilRouter`, and `ErrorHandler` to keep your code DRY and type-safe.
 
-### 4. Database Management
-The project uses `drizzle-kit` for migrations. The `DbManager` class in infrastructure handles connection pooling and graceful shutdowns.
+### 1. Multi-Tenancy & Global Filters (`ServiceBase`)
 
-## Getting Started
+`ServiceBase` automatically detects if your table has a `tenantId` column. If it does, it **forces** tenant isolation for every `create`, `get`, `update`, and `remove` operation using the active session's `tenantId`.
 
-### Prerequisites
-- [Bun](https://bun.sh/) (latest version)
-- PostgreSQL Database
-
-### Installation
-
-1.  **Clone the repository:**
-    ```bash
-    git clone git@github.com:barisatay0/bedest.git
-    cd bedest
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    bun install
-    ```
-
-3.  **Environment Setup:**
-    Copy the example environment file and configure your database credentials.
-    ```bash
-    cp .env.example .env
-    ```
-    *Update `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_PASSWORD`, and `DATABASE_NAME` in `.env`.*
-
-### Database Initialization
-
-Bedest includes comprehensive scripts to handle the database lifecycle.
-
-1.  **Full Reset & Migration (Development):**
-    This command drops the database, recreates it, runs migrations, and seeds mock data.
-    ```bash
-    bun run app:dev
-    ```
-
-2.  **Manual Migration Commands:**
-    - `bun run db:gen`: Generate SQL migrations from Drizzle schema.
-    - `bun run db:mig`: Apply migrations to the database.
-    - `bun run db:re`: Drop and recreate the database (Schema reset).
-
-### Running the Application
-
-- **Development Mode:**
-    ```bash
-    bun run dev
-    ```
-    The server will start at `http://localhost:3000`. Swagger documentation is available at `http://localhost:3000/api/docs`.
-
-- **Production Build:**
-    ```bash
-    bun run build
-    bun run start
-    ```
-
-## Extending the Project
-
-To add a new feature (e.g., "Product"):
-
-1.  **Create Directory:** `src/features/product`
-2.  **Define Schema:** Create `tables/TbProduct.ts`. Ensure it imports `uuid` and includes `tenantId` if it is tenant-specific.
-3.  **Create Service:** Create `services/ServiceProduct.ts`. Extend `ServiceTenant` for automatic tenant isolation.
-4.  **Create Router:** Create `routers/RouterProduct.ts`. Use `Context.User()` to access the authenticated context.
-5.  **Register:** Add the router to `src/app/Router.ts`.
-6.  **Migrate:** Run `bun run db:gen` and `bun run db:mig`.
-
-## Error Handling
-
-Errors are managed centrally via the `ErrorHandler` class (`src/infrastructure/error/ErrorHandler.ts`). Do not throw generic JavaScript errors; instead, use the static methods provided:
+**Table Definitions (`TbTask.ts`):**
 
 ```typescript
-import ErrorHandler from "@/infrastructure/error/ErrorHandler";
+import { uuid, pgTable, varchar, timestamp, boolean } from "drizzle-orm/pg-core";
 
-if (!record) {
-    throw ErrorHandler.notFound("Record not found");
-}
+// EXAMPLE A: Global Table (No Tenant ID)
+export const TbGlobalCategory = pgTable("global_categories", {
+  id: uuid().defaultRandom().primaryKey(),
+  isDeleted: boolean().default(false).notNull(), // Required by ServiceBase
+  createdAt: timestamp({ withTimezone: true }).notNull(), // Required by ServiceBase
+  name: varchar({ length: 255 }).notNull(),
+});
+
+// EXAMPLE B: Tenant-Isolated Table
+export const TbTask = pgTable("tasks", {
+  id: uuid().defaultRandom().primaryKey(),
+  tenantId: uuid(), // Automatically handled by ServiceBase!
+  isDeleted: boolean().default(false).notNull(), 
+  createdAt: timestamp({ withTimezone: true }).notNull(),
+  title: varchar({ length: 255 }).notNull(),
+});
+
 ```
 
-## License
+**Service Layer (`ServiceTask.ts`):**
 
-This project is licensed under the [MIT License](LICENSE).
+```typescript
+import { TbTask } from "../tables/TbTask";
+import { ServiceBase } from "../../base/services/ServiceBase";
+import ErrorHandler from "@/infrastructure/error/ErrorHandler";
+
+class ServiceTask extends ServiceBase<typeof TbTask, string> {
+  constructor() {
+    super(TbTask);
+  }
+  
+  // Custom business logic utilizing ErrorHandler
+  async markAsUrgent(c: IUserApp, id: string) {
+    // getById automatically filters by tenantId and isDeleted = false!
+    const task = await this.getById(c, id, { id: TbTask.id });
+    
+    if (!task) {
+      throw ErrorHandler.notFound("Task not found or does not belong to your tenant.");
+    }
+    
+    if (c.session.role === "GUEST") {
+      throw ErrorHandler.forbidden("Guests cannot mark tasks as urgent.");
+    }
+
+    await this.update(c, id, { title: "URGENT Task" });
+  }
+}
+
+export default new ServiceTask();
+
+```
+
+### 2. Standardizing API Responses (`UtilRouter`)
+
+`UtilRouter` forces you to strictly type both your route definitions (for Swagger) and your actual returned data. This prevents leaking sensitive database columns to the client.
+
+**Router Layer (`RouterTask.ts`):**
+
+```typescript
+import { Elysia, t } from "elysia";
+import Context from "@/app/Context";
+import ServiceTask from "../services/ServiceTask";
+import { UtilRouter } from "@/common/utils/UtilRouter";
+import { SId, SString } from "@/common/schemas";
+
+export const RouterTask = new Elysia({ prefix: "/tasks", tags: ["Tasks"] })
+  .use(Context.User()) // Protect route & inject context
+  .get("/:id", async ({ params, userRuntime }) => {
+      // 1. Fetch data
+      const res = await ServiceTask.getById(userRuntime, params.id, { 
+        id: TbTask.id, 
+        title: TbTask.title 
+      });
+      
+      // 2. Return data wrapped in UtilRouter
+      return UtilRouter.defResponse(res);
+  }, {
+      // 3. Define params and strictly validate the response schema for Swagger
+      params: t.Object({ id: SId }),
+      response: UtilRouter.defSchema(
+        t.Object({
+          id: SId,
+          title: SString,
+        })
+      )
+  });
+
+```
+
+## 🚨 Error Handling Architecture
+
+Never throw standard `Error()` objects. The centralized `ErrorHandler` automatically parses exceptions and formats consistent HTTP JSON responses.
+
+Available methods include:
+
+* `ErrorHandler.badRequest()` (400)
+* `ErrorHandler.unauthorized()` (401)
+* `ErrorHandler.forbidden()` (403)
+* `ErrorHandler.notFound()` (404)
+* `ErrorHandler.alreadyExists()` (409)
+
+## 📝 License
+
+Distributed under the MIT License. See `LICENSE` for more information.

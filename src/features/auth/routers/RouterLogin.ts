@@ -6,52 +6,47 @@ import {
 import ServiceAuth from "../services/ServiceAuth";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import Context from "@/app/Context";
+import { UtilRouter } from "@/common/utils/UtilRouter";
+import { SString } from "@/common/schemas/SString";
+import { SUserRole } from "@f/user/schemas/SUserRole";
+import { UtilAuth } from "../utils/UtilAuth";
 
 export const RouterLogin = new Elysia({ prefix: "/auth", tags: ["Auth"] })
   .use(Context.App())
   .post(
     "/login",
-    async ({ body, nowDatetime, db, refreshJwt, accessJwt, set }) => {
+    async ({ body, nowDatetime, db, refreshJwt, accessJwt, cookie }) => {
       const c = { nowDatetime, db };
       const result = await ServiceAuth.login(c, {
         email: body.email ?? EXAMPLE_EMAIL,
         password: body.password ?? EXAMPLE_USER_PASSWORD,
       });
-
       const session = await ServiceSession.create(c, {
+        tenantId: result.tenantId,
         userId: result.userId,
       });
 
       const payload = {
-        sessionId: session.id,
+        tenantId: result.tenantId,
         userId: result.userId,
-        name: result.name,
+        sessionId: session.id,
         role: result.role,
       };
 
       const refreshToken = await refreshJwt.sign(payload);
       const accessToken = await accessJwt.sign(payload);
 
-      set.cookie = {
-        refreshToken: {
-          value: refreshToken,
-          path: "/",
-          httpOnly: true,
-          secure: Bun.env.NODE_ENV === "production",
-          maxAge: 7 * 24 * 60 * 60,
-          sameSite: "lax",
-        },
-        accessToken: {
-          value: accessToken,
-          path: "/",
-          httpOnly: true,
-          secure: Bun.env.NODE_ENV === "production",
-          maxAge: 15 * 60,
-          sameSite: "lax",
-        },
-      };
+      cookie.refreshToken.set({
+        value: refreshToken,
+        ...UtilAuth.cookieConf("refresh"),
+      });
 
-      return { name: result.name, role: result.role };
+      cookie.accessToken.set({
+        value: accessToken,
+        ...UtilAuth.cookieConf("access"),
+      });
+
+      return UtilRouter.defResponse({ name: result.name, role: result.role });
     },
     {
       body: t.Object({
@@ -68,5 +63,8 @@ export const RouterLogin = new Elysia({ prefix: "/auth", tags: ["Auth"] })
           }),
         }),
       }),
+      response: UtilRouter.defSchema(
+        t.Object({ name: SString, role: SUserRole }),
+      ),
     },
   );
