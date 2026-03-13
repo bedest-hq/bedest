@@ -26,6 +26,7 @@ describe("RouterAuth", () => {
     const refreshTokenHeader = cookies.find((c) =>
       c.startsWith("refreshToken="),
     );
+
     expect(refreshTokenHeader).toBeDefined();
   });
 
@@ -51,7 +52,9 @@ describe("RouterAuth", () => {
     });
 
     expect(res.status).toBe(200);
+
     expect(res.data).toHaveProperty("accessToken");
+
     expect(typeof res.data?.accessToken).toBe("string");
   });
 

@@ -5,6 +5,7 @@ import ServiceSession from "@/features/session/services/ServiceSession";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { Elysia, t } from "elysia";
 import { UtilAuth } from "../utils/UtilAuth";
+import { EUserRole } from "@f/user/enums/EUserRole";
 
 export const RouterRefresh = new Elysia({
   prefix: "/auth",
@@ -34,16 +35,54 @@ export const RouterRefresh = new Elysia({
         throw ErrorHandler.unauthorized("Session expired or invalid");
       }
 
+      const tokenValues = {
+        tenantId: payload.tenantId as string,
+        session: {
+          userId: payload.userId as string,
+          role: payload.role as EUserRole,
+          sessionId: payload.sessionId as string,
+        },
+      };
+
+      await ServiceSession.remove(
+        {
+          db,
+          nowDatetime,
+          ...tokenValues,
+        },
+        payload.sessionId as string,
+      );
+
+      const newSession = await ServiceSession.create(
+        { db, nowDatetime },
+        {
+          tenantId: tokenValues.tenantId,
+          userId: tokenValues.session.userId,
+        },
+      );
+
       const newAccessToken = await accessJwt.sign({
-        tenantId: payload.tenantId,
-        userId: payload.userId,
-        sessionId: payload.sessionId,
-        role: payload.role,
+        tenantId: tokenValues.tenantId,
+        userId: tokenValues.session.userId,
+        sessionId: newSession.id,
+        role: tokenValues.session.role,
+      });
+
+      const newRefreshToken = await refreshJwt.sign({
+        tenantId: tokenValues.tenantId,
+        userId: tokenValues.session.userId,
+        sessionId: newSession.id,
+        role: tokenValues.session.role,
       });
 
       cookie.accessToken.set({
         value: newAccessToken,
         ...UtilAuth.cookieConf("access"),
+      });
+
+      cookie.refreshToken.set({
+        value: newRefreshToken,
+        ...UtilAuth.cookieConf("refresh"),
       });
 
       return UtilRouter.defResponse({ accessToken: newAccessToken });

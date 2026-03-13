@@ -60,7 +60,7 @@ export const RouterUser = new Elysia({
         phone: SString,
         email: SString,
         role: t.Enum(EUserRole),
-        password: SString,
+        password: t.String({ minLength: 6 }),
         planStart: t.Date(),
         planEnd: t.Date(),
       }),
