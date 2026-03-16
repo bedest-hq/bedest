@@ -8,6 +8,7 @@ import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
 import { SEmail } from "@/common/schemas/SEmail";
 import { EUserRole } from "@f/user/enums/EUserRole";
+import { SQuery } from "@/common/schemas/SQuery";
 
 export const RouterTenant = new Elysia({
   prefix: "/tenant",
@@ -38,10 +39,37 @@ export const RouterTenant = new Elysia({
       ),
     },
   )
-
-  .guard(
+  .put(
+    "/:id",
+    async ({ body, params, userRuntime }) => {
+      const id = params.id;
+      return await ServiceTenant.update(userRuntime, id, body);
+    },
     {
       RoleGuard: [EUserRole.ADMIN, EUserRole.SYSTEM],
+      params: t.Object({
+        id: SId,
+      }),
+      body: t.Object({
+        name: t.Optional(SString),
+        country: t.Optional(SString),
+        phone: t.Optional(SString),
+        email: t.Optional(SString),
+        plan: t.Optional(
+          t.Union([
+            t.Literal(ETenantPlan.BASIC),
+            t.Literal(ETenantPlan.STANDART),
+            t.Literal(ETenantPlan.PROFESSIONAL),
+          ]),
+        ),
+        planStart: t.Optional(t.Date()),
+        planEnd: t.Optional(t.Date()),
+      }),
+    },
+  )
+  .guard(
+    {
+      RoleGuard: [EUserRole.SYSTEM],
     },
     (app) =>
       app
@@ -66,33 +94,6 @@ export const RouterTenant = new Elysia({
             }),
           },
         )
-        .put(
-          "/:id",
-          async ({ body, params, userRuntime }) => {
-            const id = params.id;
-            return await ServiceTenant.update(userRuntime, id, body);
-          },
-          {
-            params: t.Object({
-              id: SId,
-            }),
-            body: t.Object({
-              name: t.Optional(SString),
-              country: t.Optional(SString),
-              phone: t.Optional(SString),
-              email: t.Optional(SString),
-              plan: t.Optional(
-                t.Union([
-                  t.Literal(ETenantPlan.BASIC),
-                  t.Literal(ETenantPlan.STANDART),
-                  t.Literal(ETenantPlan.PROFESSIONAL),
-                ]),
-              ),
-              planStart: t.Optional(t.Date()),
-              planEnd: t.Optional(t.Date()),
-            }),
-          },
-        )
         .delete(
           "/:id",
           async ({ params, userRuntime }) => {
@@ -102,6 +103,30 @@ export const RouterTenant = new Elysia({
             params: t.Object({
               id: SId,
             }),
+          },
+        )
+        .get(
+          "/",
+          async ({ query, userRuntime }) => {
+            const res = await ServiceTenant.getAll(userRuntime, query, {
+              name: TbTenant.name,
+              country: TbTenant.country,
+              email: TbTenant.email,
+            });
+
+            return UtilRouter.defResponse(res);
+          },
+          {
+            query: SQuery,
+            response: UtilRouter.defSchema(
+              t.Array(
+                t.Object({
+                  name: SString,
+                  country: SString,
+                  email: SEmail,
+                }),
+              ),
+            ),
           },
         ),
   );

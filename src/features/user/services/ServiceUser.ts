@@ -25,8 +25,8 @@ class ServiceUser extends ServiceBase<typeof TbUser, string> {
     });
   }
 
-  async getAll(c: IUserApp) {
-    return super.getAll(c, {
+  async getAll(c: IUserApp, query: { limit: number; page: number }) {
+    return super.getAll(c, query, {
       name: TbUser.name,
       role: TbUser.role,
       createdAt: TbUser.createdAt,

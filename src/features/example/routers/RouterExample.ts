@@ -5,6 +5,7 @@ import { TbExample } from "../tables/TbExample";
 import ServiceExample from "../services/ServiceExample";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
+import { SQuery } from "@/common/schemas/SQuery";
 
 export const RouterExample = new Elysia({
   prefix: "/example",
@@ -34,8 +35,8 @@ export const RouterExample = new Elysia({
   )
   .get(
     "/",
-    async ({ userRuntime }) => {
-      const res = await ServiceExample.getAll(userRuntime, {
+    async ({ query, userRuntime }) => {
+      const res = await ServiceExample.getAll(userRuntime, query, {
         exampleColumn: TbExample.exampleColumn,
         otherExampleColumn: TbExample.otherExampleColumn,
       });
@@ -43,6 +44,7 @@ export const RouterExample = new Elysia({
       return UtilRouter.defResponse(res);
     },
     {
+      query: SQuery,
       response: UtilRouter.defSchema(
         t.Array(
           t.Object({

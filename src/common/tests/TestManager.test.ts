@@ -147,7 +147,7 @@ beforeEach(async () => {
       email: "text@example.com",
       tenantId: test_tenant.id,
       password: pass,
-      role: EUserRole.ADMIN,
+      role: EUserRole.SYSTEM,
       createdAt: new Date(),
     })
     .returning();

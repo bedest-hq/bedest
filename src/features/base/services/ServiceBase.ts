@@ -92,18 +92,22 @@ export abstract class ServiceBase<
 
   async getAll<TSelection extends SelectedFields>(
     c: IUserApp,
+    query: {
+      limit: number;
+      page: number;
+    },
     columns: TSelection,
-    limit: number = 100,
-    offset: number = 0,
   ): Promise<Prettify<InferSelectModel<TTable>>[]> {
+    const offset = (query.page - 1) * query.limit;
+
     const result = await UtilDb.tenantScope(c, async (tx) => {
-      const query = tx
+      const dbQuery = tx
         .select(columns)
         .from(this.table as PgTable)
         .where(and(...this.getFilters()))
         .$dynamic();
 
-      return query.limit(limit).offset(offset);
+      return dbQuery.limit(query.limit).offset(offset);
     });
 
     if (!result || result.length === 0) {

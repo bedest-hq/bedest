@@ -5,6 +5,7 @@ import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
+import { SQuery } from "@/common/schemas/SQuery";
 
 export const RouterUser = new Elysia({
   prefix: "/user",
@@ -52,11 +53,12 @@ export const RouterUser = new Elysia({
       app
         .get(
           "/",
-          async ({ userRuntime }) => {
-            const res = await ServiceUser.getAll(userRuntime);
+          async ({ query, userRuntime }) => {
+            const res = await ServiceUser.getAll(userRuntime, query);
             return UtilRouter.defResponse(res);
           },
           {
+            query: SQuery,
             response: UtilRouter.defSchema(
               t.Array(
                 t.Object({

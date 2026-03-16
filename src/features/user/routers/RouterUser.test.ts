@@ -45,6 +45,7 @@ describe("RouterUser", () => {
 
     const res = await api.user.get({
       headers,
+      query: { page: 1, limit: 100 },
     });
 
     expect(res.status).toBe(200);
@@ -52,7 +53,7 @@ describe("RouterUser", () => {
       {
         createdAt: expect.any(Date),
         name: "Test User",
-        role: EUserRole.ADMIN,
+        role: EUserRole.SYSTEM,
       },
       {
         createdAt: expect.any(Date),
@@ -110,7 +111,7 @@ describe("RouterUser", () => {
     expect(updatedRes.data).toStrictEqual({
       createdAt: expect.any(Date),
       name: "Updated User Name",
-      role: EUserRole.ADMIN,
+      role: EUserRole.SYSTEM,
     });
   });
 

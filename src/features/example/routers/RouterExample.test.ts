@@ -34,6 +34,7 @@ describe("RouterExample", () => {
 
     const res = await api.example.get({
       headers,
+      query: { page: 1, limit: 100 },
     });
 
     expect(res.status).toBe(200);
