@@ -1,8 +1,9 @@
-import { pgTable, varchar, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
 import { ETenantPlanPg } from "../enums/ETenantPlan";
-import { baseColumns } from "@f/base/tables/TbBase";
+import { baseColumns } from "@/common/schemas/SBase";
+import { UtilDb } from "@/common/utils/UtilDb";
 
-export const TbTenant = pgTable(
+export const STenant = pgTable(
   "tenants",
   {
     ...baseColumns,
@@ -15,5 +16,8 @@ export const TbTenant = pgTable(
     planStart: timestamp({ withTimezone: true }).notNull(),
     planEnd: timestamp({ withTimezone: true }).notNull(),
   },
-  (t) => [index().on(t.isDeleted)],
+  (t) => [
+    UtilDb.activeIndex("idx_tenants_active", t.id),
+    UtilDb.tenantIsolationPolicy(t.id),
+  ],
 );

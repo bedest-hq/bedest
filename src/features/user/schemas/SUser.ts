@@ -1,22 +1,15 @@
-import {
-  uuid,
-  pgTable,
-  varchar,
-  index,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
+import { uuid, pgTable, varchar } from "drizzle-orm/pg-core";
 import { EUserRolePg } from "../enums/EUserRole";
-import { sql } from "drizzle-orm";
-import { TbTenant } from "@f/tenant/tables/TbTenant";
+import { STenant } from "@f/tenant/schemas/STenant";
 import { UtilDb } from "@/common/utils/UtilDb";
-import { baseColumns } from "@f/base/tables/TbBase";
+import { baseColumns } from "@/common/schemas/SBase";
 
-export const TbUser = pgTable(
+export const SUser = pgTable(
   "users",
   {
     ...baseColumns,
     tenantId: uuid()
-      .references(() => TbTenant.id)
+      .references(() => STenant.id)
       .notNull(),
     name: varchar({ length: 255 }).notNull(),
     email: varchar({ length: 255 }).notNull(),
@@ -24,10 +17,8 @@ export const TbUser = pgTable(
     password: varchar({ length: 255 }).notNull(),
   },
   (t) => [
-    index().on(t.isDeleted),
-    uniqueIndex()
-      .on(t.email)
-      .where(sql`"isDeleted" = false`),
+    UtilDb.activeIndex("idx_users_active", t.id),
+    UtilDb.activeUniqueIndex("idx_users_tenant_email", t.tenantId, t.email),
     UtilDb.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();

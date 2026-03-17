@@ -8,7 +8,7 @@ import {
 import ServiceUser from "@/features/user/services/ServiceUser";
 import ServiceExample from "@/features/example/services/ServiceExample";
 import ContextBuilder from "../context/ContextBuilder";
-import DbManager from "@/infrastructure/db/DbManager";
+import DbManager from "@/infrastructure/database/DbManager";
 import ServiceTenant from "@f/tenant/services/ServiceTenant";
 import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 

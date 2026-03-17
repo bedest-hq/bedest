@@ -7,11 +7,11 @@ import {
   type InferSelectModel,
 } from "drizzle-orm";
 import { PgTable, type SelectedFields } from "drizzle-orm/pg-core";
-import { type IUserApp } from "../../../common/interfaces/IContextApp";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { type IBaseTable } from "../interfaces/IBaseTable";
 import { Prettify } from "elysia/types";
 import { UtilDb } from "@/common/utils/UtilDb";
+import { IUserApp } from "../interfaces/IContextApp";
 
 export abstract class ServiceBase<
   TTable extends IBaseTable,

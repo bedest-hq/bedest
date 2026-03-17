@@ -5,7 +5,7 @@ import { IUserApp } from "../common/interfaces/IContextApp";
 import { ISession } from "../features/session/interfaces/ISession";
 import { EUserRole } from "../features/user/enums/EUserRole";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
-import DbManager from "@/infrastructure/db/DbManager";
+import DbManager from "@/infrastructure/database/DbManager";
 import EnvManager from "@/infrastructure/env/EnvManager";
 
 class Context {

@@ -169,7 +169,7 @@ import { Elysia, t } from "elysia";
 import Context from "@/app/Context";
 import ServiceTask from "../services/ServiceTask";
 import { UtilRouter } from "@/common/utils/UtilRouter";
-import { SId, SString } from "@/common/schemas";
+import { SId, SString } from "@/common/validations";
 
 export const RouterTask = new Elysia({ prefix: "/tasks", tags: ["Tasks"] })
   .use(Context.User()) // Protect route & inject context

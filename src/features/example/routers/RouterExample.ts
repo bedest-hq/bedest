@@ -1,11 +1,11 @@
 import { Elysia, t } from "elysia";
-import { SId } from "../../../common/schemas/SId";
-import { SString } from "../../../common/schemas/SString";
-import { TbExample } from "../tables/TbExample";
+import { VId } from "../../../common/validations/VId";
+import { VString } from "../../../common/validations/VString";
+import { SExample } from "../schemas/SExample";
 import ServiceExample from "../services/ServiceExample";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
-import { SQuery } from "@/common/schemas/SQuery";
+import { VQuery } from "@/common/validations/VQuery";
 
 export const RouterExample = new Elysia({
   prefix: "/example",
@@ -16,19 +16,19 @@ export const RouterExample = new Elysia({
     "/:id",
     async ({ params, userRuntime }) => {
       const res = await ServiceExample.getById(userRuntime, params.id, {
-        exampleColumn: TbExample.exampleColumn,
-        otherExampleColumn: TbExample.otherExampleColumn,
+        exampleColumn: SExample.exampleColumn,
+        otherExampleColumn: SExample.otherExampleColumn,
       });
       return UtilRouter.defResponse(res);
     },
     {
       params: t.Object({
-        id: SId,
+        id: VId,
       }),
       response: UtilRouter.defSchema(
         t.Object({
-          exampleColumn: SString,
-          otherExampleColumn: SString,
+          exampleColumn: VString,
+          otherExampleColumn: VString,
         }),
       ),
     },
@@ -37,19 +37,19 @@ export const RouterExample = new Elysia({
     "/",
     async ({ query, userRuntime }) => {
       const res = await ServiceExample.getAll(userRuntime, query, {
-        exampleColumn: TbExample.exampleColumn,
-        otherExampleColumn: TbExample.otherExampleColumn,
+        exampleColumn: SExample.exampleColumn,
+        otherExampleColumn: SExample.otherExampleColumn,
       });
 
       return UtilRouter.defResponse(res);
     },
     {
-      query: SQuery,
+      query: VQuery,
       response: UtilRouter.defSchema(
         t.Array(
           t.Object({
-            exampleColumn: SString,
-            otherExampleColumn: SString,
+            exampleColumn: VString,
+            otherExampleColumn: VString,
           }),
         ),
       ),
@@ -64,8 +64,8 @@ export const RouterExample = new Elysia({
     },
     {
       body: t.Object({
-        exampleColumn: SString,
-        otherExampleColumn: SString,
+        exampleColumn: VString,
+        otherExampleColumn: VString,
       }),
     },
   )
@@ -76,11 +76,11 @@ export const RouterExample = new Elysia({
     },
     {
       params: t.Object({
-        id: SId,
+        id: VId,
       }),
       body: t.Object({
-        exampleColumn: t.Optional(SString),
-        otherExampleColumn: t.Optional(SString),
+        exampleColumn: t.Optional(VString),
+        otherExampleColumn: t.Optional(VString),
       }),
     },
   )
@@ -91,7 +91,7 @@ export const RouterExample = new Elysia({
     },
     {
       params: t.Object({
-        id: SId,
+        id: VId,
       }),
     },
   );

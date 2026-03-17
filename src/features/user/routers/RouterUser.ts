@@ -1,11 +1,11 @@
 import { Elysia, t } from "elysia";
-import { SId } from "../../../common/schemas/SId";
-import { SString } from "../../../common/schemas/SString";
+import { VId } from "../../../common/validations/VId";
+import { VString } from "../../../common/validations/VString";
 import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
-import { SQuery } from "@/common/schemas/SQuery";
+import { VQuery } from "@/common/validations/VQuery";
 
 export const RouterUser = new Elysia({
   prefix: "/user",
@@ -20,11 +20,11 @@ export const RouterUser = new Elysia({
     },
     {
       params: t.Object({
-        id: SId,
+        id: VId,
       }),
       response: UtilRouter.defSchema(
         t.Object({
-          name: SString,
+          name: VString,
           role: t.Enum(EUserRole),
           createdAt: t.Date(),
         }),
@@ -38,10 +38,10 @@ export const RouterUser = new Elysia({
       return UtilRouter.defResponse(res);
     },
     {
-      params: t.Object({ id: SId }),
+      params: t.Object({ id: VId }),
       body: t.Object({
-        name: t.Optional(SString),
-        password: t.Optional(SString),
+        name: t.Optional(VString),
+        password: t.Optional(VString),
       }),
     },
   )
@@ -58,11 +58,11 @@ export const RouterUser = new Elysia({
             return UtilRouter.defResponse(res);
           },
           {
-            query: SQuery,
+            query: VQuery,
             response: UtilRouter.defSchema(
               t.Array(
                 t.Object({
-                  name: SString,
+                  name: VString,
                   role: t.Enum(EUserRole),
                   createdAt: t.Date(),
                 }),
@@ -78,13 +78,13 @@ export const RouterUser = new Elysia({
           },
           {
             body: t.Object({
-              name: SString,
-              phone: SString,
-              email: SString,
+              name: VString,
+              phone: VString,
+              email: VString,
               role: t.Enum(EUserRole),
               password: t.String({ minLength: 6 }),
             }),
-            response: UtilRouter.defSchema(t.Object({ id: SId })),
+            response: UtilRouter.defSchema(t.Object({ id: VId })),
           },
         )
         .delete(
@@ -94,7 +94,7 @@ export const RouterUser = new Elysia({
           },
           {
             params: t.Object({
-              id: SId,
+              id: VId,
             }),
           },
         ),

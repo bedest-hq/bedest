@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 import EnvManager from "./infrastructure/env/EnvManager";
-import DbManager from "./infrastructure/db/DbManager";
+import DbManager from "./infrastructure/database/DbManager";
 import { GlobalErrorHandler } from "./infrastructure/error/GlobalErrorHandler";
 import cors from "@elysiajs/cors";
 

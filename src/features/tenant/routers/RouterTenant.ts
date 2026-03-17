@@ -1,14 +1,14 @@
 import { Elysia, t } from "elysia";
-import { SId } from "../../../common/schemas/SId";
-import { SString } from "../../../common/schemas/SString";
-import { TbTenant } from "../tables/TbTenant";
+import { VId } from "../../../common/validations/VId";
+import { VString } from "../../../common/validations/VString";
+import { STenant } from "../schemas/STenant";
 import { ETenantPlan } from "../enums/ETenantPlan";
 import ServiceTenant from "../services/ServiceTenant";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
-import { SEmail } from "@/common/schemas/SEmail";
+import { VEmail } from "@/common/validations/VEmail";
 import { EUserRole } from "@f/user/enums/EUserRole";
-import { SQuery } from "@/common/schemas/SQuery";
+import { VQuery } from "@/common/validations/VQuery";
 
 export const RouterTenant = new Elysia({
   prefix: "/tenant",
@@ -21,20 +21,20 @@ export const RouterTenant = new Elysia({
       const id = params.id;
 
       const res = await ServiceTenant.getById(userRuntime, id, {
-        name: TbTenant.name,
-        email: TbTenant.email,
+        name: STenant.name,
+        email: STenant.email,
       });
 
       return UtilRouter.defResponse(res);
     },
     {
       params: t.Object({
-        id: SId,
+        id: VId,
       }),
       response: UtilRouter.defSchema(
         t.Object({
-          name: SString,
-          email: SEmail,
+          name: VString,
+          email: VEmail,
         }),
       ),
     },
@@ -48,13 +48,13 @@ export const RouterTenant = new Elysia({
     {
       RoleGuard: [EUserRole.ADMIN, EUserRole.SYSTEM],
       params: t.Object({
-        id: SId,
+        id: VId,
       }),
       body: t.Object({
-        name: t.Optional(SString),
-        country: t.Optional(SString),
-        phone: t.Optional(SString),
-        email: t.Optional(SString),
+        name: t.Optional(VString),
+        country: t.Optional(VString),
+        phone: t.Optional(VString),
+        email: t.Optional(VString),
         plan: t.Optional(
           t.Union([
             t.Literal(ETenantPlan.BASIC),
@@ -80,10 +80,10 @@ export const RouterTenant = new Elysia({
           },
           {
             body: t.Object({
-              name: SString,
-              country: SString,
-              phone: SString,
-              email: SString,
+              name: VString,
+              country: VString,
+              phone: VString,
+              email: VString,
               plan: t.Union([
                 t.Literal(ETenantPlan.BASIC),
                 t.Literal(ETenantPlan.STANDART),
@@ -101,7 +101,7 @@ export const RouterTenant = new Elysia({
           },
           {
             params: t.Object({
-              id: SId,
+              id: VId,
             }),
           },
         )
@@ -109,21 +109,21 @@ export const RouterTenant = new Elysia({
           "/",
           async ({ query, userRuntime }) => {
             const res = await ServiceTenant.getAll(userRuntime, query, {
-              name: TbTenant.name,
-              country: TbTenant.country,
-              email: TbTenant.email,
+              name: STenant.name,
+              country: STenant.country,
+              email: STenant.email,
             });
 
             return UtilRouter.defResponse(res);
           },
           {
-            query: SQuery,
+            query: VQuery,
             response: UtilRouter.defSchema(
               t.Array(
                 t.Object({
-                  name: SString,
-                  country: SString,
-                  email: SEmail,
+                  name: VString,
+                  country: VString,
+                  email: VEmail,
                 }),
               ),
             ),
