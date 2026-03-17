@@ -1,5 +1,6 @@
 import { VEnv } from "@/common/validations/VEnv";
 import { TEnv } from "@/common/types/TEnv";
+import { Value } from "@sinclair/typebox/value";
 
 class EnvManager {
   private env: TEnv | undefined;
@@ -9,10 +10,23 @@ class EnvManager {
       return this.env;
     }
 
-    const raw = { ...Bun.env };
-    const parsed = VEnv.parse(raw);
+    const raw = {
+      ...Bun.env,
+      DATABASE_PORT: Number(Bun.env.DATABASE_PORT),
+      PORT: Number(Bun.env.PORT),
+    };
 
-    this.env = parsed;
+    const withDefaults = Value.Default(VEnv, raw);
+
+    if (!Value.Check(VEnv, withDefaults)) {
+      const firstError = [...Value.Errors(VEnv, withDefaults)][0];
+
+      throw new Error(
+        `🔥 Env Configuration Error [${firstError.path}]: ${firstError.message}`,
+      );
+    }
+
+    this.env = withDefaults as TEnv;
     return this.env;
   }
 

@@ -1,17 +1,21 @@
-import { z } from "zod";
+import { t } from "elysia";
 
-export const VEnv = z.object({
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
-  DATABASE_HOST: z.string(),
-  DATABASE_PORT: z.string().transform(Number),
-  DATABASE_NAME: z.string(),
-  DATABASE_USER: z.string(),
-  DATABASE_PASSWORD: z.string(),
+export const VEnv = t.Object({
+  NODE_ENV: t.Union(
+    [t.Literal("development"), t.Literal("production"), t.Literal("test")],
+    { default: "development" },
+  ),
+  CORS_ORIGIN: t.String({ default: "http://localhost:3000" }),
 
-  SECRET_KEY: z.string(),
-  REFRESH_KEY: z.string(),
+  DATABASE_HOST: t.String(),
+  DATABASE_PORT: t.Number(),
 
-  PORT: z.string().transform(Number),
+  DATABASE_NAME: t.String(),
+  DATABASE_USER: t.String(),
+  DATABASE_PASSWORD: t.String(),
+
+  SECRET_KEY: t.String(),
+  REFRESH_KEY: t.String(),
+
+  PORT: t.Number(),
 });

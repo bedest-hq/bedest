@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { Static } from "elysia";
 import { VEnv } from "../validations/VEnv";
 
-export type TEnv = z.infer<typeof VEnv>;
+export type TEnv = Static<typeof VEnv>;

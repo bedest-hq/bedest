@@ -5,6 +5,7 @@
     "@elysiajs/jwt": "^1.4.1",
     "drizzle-orm": "^0.44.7",
     "elysia": "^1.4.27",
+    "elysia-rate-limit": "^4.5.1",
     "pg": "^8.19.0"
   },
   "devDependencies": {

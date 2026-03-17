@@ -70,6 +70,7 @@ expect.extend({
 
 const test_env: TEnv = {
   NODE_ENV: "test",
+  CORS_ORIGIN: "http://localhost:3000",
   DATABASE_HOST: "test_host",
   DATABASE_NAME: "test_name",
   DATABASE_PASSWORD: "test_password",

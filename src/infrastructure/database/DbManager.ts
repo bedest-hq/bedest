@@ -1,5 +1,4 @@
 import { type NodePgDatabase, drizzle } from "drizzle-orm/node-postgres";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import { TEnv } from "@/common/types/TEnv";
 
@@ -27,7 +26,7 @@ class DbManager {
     await client.end();
   }
 
-  async init(env: TEnv) {
+  init(env: TEnv) {
     this.pool = new pg.Pool({
       host: env.DATABASE_HOST,
       port: env.DATABASE_PORT,
@@ -38,15 +37,6 @@ class DbManager {
     });
 
     this.db = drizzle(this.pool);
-
-    try {
-      await migrate(this.db, {
-        migrationsFolder: "drizzle",
-      });
-    } catch (e) {
-      void e;
-      process.exit(1);
-    }
   }
 
   get() {
