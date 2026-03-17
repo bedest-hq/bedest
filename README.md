@@ -5,7 +5,10 @@
 <h1 align="center">Bedest - B.E.D. Stack Boilerplate</h1>
 
 <p align="center">
-  <strong>A high-performance, strictly typed backend boilerplate built for scale.</strong><br>
+  <strong>
+    A production-ready, strictly typed backend boilerplate built for B2B SaaS and scalable microservices.
+  </strong>
+  <br/>
   Powered by <b>B</b>un, <b>E</b>lysiaJS, and <b>D</b>rizzle ORM.
 </p>
 
@@ -13,200 +16,182 @@
   <img src="https://img.shields.io/badge/Bun-%23000000.svg?style=for-the-badge&logo=bun&logoColor=white" alt="Bun">
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
 </p>
 
 ---
 
-**Bedest** is not just another starter template; it is a robust, production-ready foundation for SaaS applications and scalable microservices. By enforcing a **Feature-Based Architecture**, it eliminates spaghetti code and provides built-in solutions for authentication, multi-tenancy, standardized responses, and error handling. 
+Most boilerplates leave you to figure out multi-tenancy, role-based access control, and deployment on your own.  
+Bedest is designed to skip the setup phase.
 
-Stop wrestling with setup and focus on shipping your business logic.
+It enforces a strict Domain-Driven Design (DDD), provides built-in tenant isolation, and handles database indexing optimally.
 
-## ✨ Features
+Stop wrestling with configurations and focus on shipping your business logic.
 
-- ⚡️ **Blazing Fast**: Runs on the ultra-fast Bun runtime and ElysiaJS.
-- 🛡️ **End-to-End Type Safety**: From database schemas (Drizzle) to API routes (TypeBox) and Environment variables (Zod).
-- 🏗️ **Feature-Based Architecture**: Domains are isolated in `src/features`, making scaling and refactoring a breeze.
-- 🔐 **Production-Ready Auth**: Dual-Token architecture (JWT Access + Refresh Tokens) with DB-backed session management and role-based access control (RBAC).
-- 🏢 **Multi-Tenancy Auto-Filtering**: Built-in abstraction (`ServiceBase`) dynamically applies `tenantId` and `isDeleted` filters to queries.
-- 📚 **Auto-Generated Docs**: Swagger/OpenAPI documentation is instantly available.
+---
+
+## ✨ Core Features
+
+- **Blazing Fast**: Built on top of Bun and ElysiaJS  
+- **True Multi-Tenancy**: PostgreSQL Row-Level Security (RLS) with automated tenant filtering via `ServiceBase`  
+- **End-to-End Type Safety**: Drizzle (DB), TypeBox (routing), Zod (env)  
+- **Enterprise Auth & RBAC**: Dual-token JWT (Access + Refresh) stored in HTTP-only cookies with custom `RoleGuard`  
+- **Strict Nomenclature**:  
+  - `S` → Database Schemas  
+  - `V` → Validation Objects  
+- **CI/CD Ready**: Dockerized with GitHub Actions (lint, test via PGlite, deploy to GHCR)
+
+---
 
 ## 🚀 Quick Start
 
 ### 1. Prerequisites
-- [Bun](https://bun.sh/) (v1.0+)
-- PostgreSQL Database
+
+- Bun (v1.0+)
+- PostgreSQL (or Docker)
 
 ### 2. Installation
+
 ```bash
 git clone git@github.com:barisatay0/bedest.git my-app
 cd my-app
 bun install
-
-```
+````
 
 ### 3. Environment Setup
 
 ```bash
 cp .env.example .env
-
 ```
 
-*Configure your PostgreSQL credentials and JWT secrets in the `.env` file.*
+Fill in database credentials and JWT secrets.
 
-### 4. Database Initialization & Run
-
-Bedest includes custom scripts to handle migrations and seeding seamlessly:
+### 4. Initialize Database & Run
 
 ```bash
-# Drops DB, recreates, runs migrations, and seeds mock data
+# Recreates DB, runs migrations, and seeds mock data
 bun run app:dev
 
-# Start the development server
+# Start development server
 bun run dev
-
 ```
 
-🎉 Your API is now running at `http://localhost:3000`.
-Explore the Swagger UI at `http://localhost:3000/api/docs`.
+Swagger UI:
+[http://localhost:3000/api/docs](http://localhost:3000/api/docs)
 
 ---
 
-## 🏗️ Architecture & Core Concepts
+## 🏗️ Project Architecture & Nomenclature
 
-Bedest moves away from the traditional MVC layer structure. Everything related to a specific domain (e.g., Users) lives together.
+To prevent complexity as the project grows, Bedest enforces strict structure:
 
-```text
+* `S (Schema)` → Drizzle DB schemas (`SUser`, `STenant`)
+* `V (Validation)` → TypeBox validation schemas (`VId`, `VQuery`)
+
+```
 src/
-├── app/              # App initialization, Router, Context Injection
-├── common/           # Shared utilities (UtilRouter), validation schemas (SId, SEmail)
-├── features/         # 📦 The heart of your app (Domain Modules)
-│   ├── base/         # Abstract Generic CRUD Services (ServiceBase)
-│   ├── user/         # User domain (tables, services, routers)
-│   └── [feature]/    # Create your own domains here!
-└── infrastructure/   # Error handling, DB pools, Env validation
-
+├── app/              # Router initialization, Dependency Injection
+├── common/           # Shared utilities and base services
+├── features/         # Domain modules (User, Tenant, Auth)
+│   ├── user/
+│   │   ├── enums/
+│   │   ├── routers/
+│   │   ├── schemas/      # DB tables (SUser.ts)
+│   │   ├── services/     # Business logic
+│   │   └── validations/  # Route typings
+└── infrastructure/   # Error handling, DB, env validation
 ```
-
-### 🧠 The Context Pattern (Dependency Injection)
-
-Instead of importing DB instances everywhere, Bedest passes a strictly typed `Context` into every route using Elysia's `.derive()` pattern. `userRuntime` contains the active DB instance, request time, and the user's session (`userId`, `role`, `tenantId`).
 
 ---
 
-## 🛠️ Step-by-Step Examples
+## 🛠️ Concepts & Usage
 
-Bedest is packed with utilities like `ServiceBase`, `UtilRouter`, and `ErrorHandler` to keep your code DRY and type-safe.
+### 1. Multi-Tenancy & Smart Indexing (UtilDb)
 
-### 1. Multi-Tenancy & Global Filters (`ServiceBase`)
-
-`ServiceBase` automatically detects if your table has a `tenantId` column. If it does, it **forces** tenant isolation for every `create`, `get`, `update`, and `remove` operation using the active session's `tenantId`.
-
-**Table Definitions (`TbTask.ts`):**
-
-```typescript
-import { uuid, pgTable, varchar, timestamp, boolean } from "drizzle-orm/pg-core";
-
-// EXAMPLE A: Global Table (No Tenant ID)
-export const TbGlobalCategory = pgTable("global_categories", {
-  id: uuid().defaultRandom().primaryKey(),
-  isDeleted: boolean().default(false).notNull(), // Required by ServiceBase
-  createdAt: timestamp({ withTimezone: true }).notNull(), // Required by ServiceBase
-  name: varchar({ length: 255 }).notNull(),
-});
-
-// EXAMPLE B: Tenant-Isolated Table
-export const TbTask = pgTable("tasks", {
-  id: uuid().defaultRandom().primaryKey(),
-  tenantId: uuid(), // Automatically handled by ServiceBase!
-  isDeleted: boolean().default(false).notNull(), 
-  createdAt: timestamp({ withTimezone: true }).notNull(),
+```ts
+export const SExample = pgTable("examples", {
+  ...baseColumns,
+  tenantId: uuid().references(() => STenant.id).notNull(),
   title: varchar({ length: 255 }).notNull(),
-});
-
+}, (t) => [
+  UtilDb.activeIndex("idx_examples_active", t.id),
+  UtilDb.tenantIsolationPolicy(t.tenantId),
+]).enableRLS();
 ```
 
-**Service Layer (`ServiceTask.ts`):**
+---
 
-```typescript
-import { TbTask } from "../tables/TbTask";
-import { ServiceBase } from "../../base/services/ServiceBase";
-import ErrorHandler from "@/infrastructure/error/ErrorHandler";
+### 2. Generic CRUD (ServiceBase)
 
-class ServiceTask extends ServiceBase<typeof TbTask, string> {
+```ts
+class ServiceExample extends ServiceBase<typeof SExample, string> {
   constructor() {
-    super(TbTask);
+    super(SExample);
   }
-  
-  // Custom business logic utilizing ErrorHandler
-  async markAsUrgent(c: IUserApp, id: string) {
-    // getById automatically filters by tenantId and isDeleted = false!
-    const task = await this.getById(c, id, { id: TbTask.id });
-    
-    if (!task) {
-      throw ErrorHandler.notFound("Task not found or does not belong to your tenant.");
-    }
-    
-    if (c.session.role === "GUEST") {
-      throw ErrorHandler.forbidden("Guests cannot mark tasks as urgent.");
-    }
 
-    await this.update(c, id, { title: "URGENT Task" });
-  }
+  // Built-in:
+  // create, update, remove, getById, getAll
 }
-
-export default new ServiceTask();
-
 ```
 
-### 2. Standardizing API Responses (`UtilRouter`)
+All methods are:
 
-`UtilRouter` forces you to strictly type both your route definitions (for Swagger) and your actual returned data. This prevents leaking sensitive database columns to the client.
+* tenant-isolated
+* paginated
+* secure by default
 
-**Router Layer (`RouterTask.ts`):**
+---
 
-```typescript
-import { Elysia, t } from "elysia";
-import Context from "@/app/Context";
-import ServiceTask from "../services/ServiceTask";
-import { UtilRouter } from "@/common/utils/UtilRouter";
-import { SId, SString } from "@/common/validations";
+### 3. Role-Based Access Control (RBAC)
 
-export const RouterTask = new Elysia({ prefix: "/tasks", tags: ["Tasks"] })
-  .use(Context.User()) // Protect route & inject context
-  .get("/:id", async ({ params, userRuntime }) => {
-      // 1. Fetch data
-      const res = await ServiceTask.getById(userRuntime, params.id, { 
-        id: TbTask.id, 
-        title: TbTask.title 
-      });
-      
-      // 2. Return data wrapped in UtilRouter
-      return UtilRouter.defResponse(res);
-  }, {
-      // 3. Define params and strictly validate the response schema for Swagger
-      params: t.Object({ id: SId }),
-      response: UtilRouter.defSchema(
-        t.Object({
-          id: SId,
-          title: SString,
-        })
-      )
-  });
-
+```ts
+export const RouterUser = new Elysia({ prefix: "/user" })
+  .use(Context.User())
+  .guard(
+    {
+      RoleGuard: [EUserRole.ADMIN, EUserRole.SYSTEM],
+    },
+    (app) =>
+      app.get("/", async ({ query, userRuntime }) => {
+        const res = await ServiceUser.getAll(userRuntime, query);
+        return UtilRouter.defResponse(res);
+      }, {
+        query: VQuery,
+      })
+  );
 ```
 
-## 🚨 Error Handling Architecture
+---
 
-Never throw standard `Error()` objects. The centralized `ErrorHandler` automatically parses exceptions and formats consistent HTTP JSON responses.
+### 4. Global Error Handling
 
-Available methods include:
+```ts
+if (!user) throw ErrorHandler.notFound("User doesn't exist");
+if (pass !== user.password) throw ErrorHandler.validationError("Wrong password");
+```
 
-* `ErrorHandler.badRequest()` (400)
-* `ErrorHandler.unauthorized()` (401)
-* `ErrorHandler.forbidden()` (403)
-* `ErrorHandler.notFound()` (404)
-* `ErrorHandler.alreadyExists()` (409)
+---
 
-## 📝 License
+## 🐳 Docker & CI/CD
 
-Distributed under the MIT License. See `LICENSE` for more information.
+* Multi-stage Dockerfile (optimized image size)
+* `docker-compose.yml` (app + PostgreSQL)
+* GitHub Actions:
+
+  * Lint + test (PGlite)
+  * Build & push image to GHCR on merge
+
+---
+
+## 📜 Available Scripts
+
+| Command               | Description                             |
+| --------------------- | --------------------------------------- |
+| `bun run dev`         | Start dev server with hot reload        |
+| `bun run build`       | Build into single executable (`./dist`) |
+| `bun run test`        | Run tests                               |
+| `bun run check:files` | Type-check + ESLint                     |
+| `bun run db:sync`     | Generate & apply migrations             |
+| `bun run app:dev`     | Reset DB + migrate + seed               |
+
+---
