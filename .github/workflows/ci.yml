@@ -1,0 +1,43 @@
+name: Bedest CI Pipeline
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  lint-and-test:
+    name: Code Quality & Testing
+    runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🥟 Setup Bun & Cache
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: bun install
+
+      - name: 🧐 Type Check & Linting
+        run: bun run check:files
+
+      - name: 🏗️ Generate Migrations
+        run: bun run db:gen
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_NAME: dummy
+          DATABASE_USER: dummy
+          DATABASE_PASSWORD: dummy
+
+      - name: 🧪 Run Unit & Integration Tests
+        run: bun run test
