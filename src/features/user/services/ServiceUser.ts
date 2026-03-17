@@ -66,7 +66,11 @@ class ServiceUser extends ServiceBase<typeof SUser, string> {
     id: string,
     data: { name?: string; password?: string },
   ) {
-    const targetId = c.session.role !== EUserRole.ADMIN ? c.session.userId : id;
+    const targetId = [EUserRole.ADMIN, EUserRole.SYSTEM].includes(
+      c.session.role,
+    )
+      ? id
+      : c.session.userId;
 
     const payload: Partial<typeof SUser.$inferInsert> = {};
 

@@ -6,14 +6,14 @@ import cors from "@elysiajs/cors";
 
 const env = EnvManager.init();
 
-await DbManager.init(env);
+DbManager.init(env);
 
 const { Router } = await import("./app/Router");
 
 export const app = new Elysia()
   .use(
     cors({
-      origin: Bun.env.NODE_ENV === "production" ? Bun.env.CORS_ORIGIN : "*",
+      origin: env.NODE_ENV === "production" ? env.CORS_ORIGIN : true,
       credentials: true,
     }),
   )

@@ -58,7 +58,7 @@ export const RouterTenant = new Elysia({
         plan: t.Optional(
           t.Union([
             t.Literal(ETenantPlan.BASIC),
-            t.Literal(ETenantPlan.STANDART),
+            t.Literal(ETenantPlan.STANDARD),
             t.Literal(ETenantPlan.PROFESSIONAL),
           ]),
         ),
@@ -86,7 +86,7 @@ export const RouterTenant = new Elysia({
               email: VString,
               plan: t.Union([
                 t.Literal(ETenantPlan.BASIC),
-                t.Literal(ETenantPlan.STANDART),
+                t.Literal(ETenantPlan.STANDARD),
                 t.Literal(ETenantPlan.PROFESSIONAL),
               ]),
               planStart: t.Date(),

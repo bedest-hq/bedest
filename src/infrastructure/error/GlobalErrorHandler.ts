@@ -41,13 +41,12 @@ export const GlobalErrorHandler = new Elysia({
     const drizzleWrap = error as DrizzleError;
 
     const errorCode = dbError.code || drizzleWrap.cause?.code;
-    const errorDetail = dbError.detail || drizzleWrap.cause?.detail;
 
     if (errorCode === "23505") {
       set.status = 409;
       return {
         error: "Resource already exists",
-        detail: errorDetail || "Unique constraint violation",
+        detail: "Unique constraint violation",
       };
     }
 
@@ -55,7 +54,7 @@ export const GlobalErrorHandler = new Elysia({
       set.status = 400;
       return {
         error: "Foreign key constraint failed",
-        detail: errorDetail || "Related record does not exist",
+        detail: "Related record does not exist",
       };
     }
 
