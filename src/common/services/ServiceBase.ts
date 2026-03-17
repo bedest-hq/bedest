@@ -6,16 +6,26 @@ import {
   type InferInsertModel,
   type InferSelectModel,
 } from "drizzle-orm";
-import { PgTable, type SelectedFields } from "drizzle-orm/pg-core";
+import {
+  PgTable,
+  type SelectedFields,
+  type PgUpdateSetSource,
+} from "drizzle-orm/pg-core";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { type IBaseTable } from "../interfaces/IBaseTable";
 import { Prettify } from "elysia/types";
-import { UtilDb } from "@/common/utils/UtilDb";
-import { IUserApp } from "../interfaces/IContextApp";
+import { IApp } from "../interfaces/IContextApp";
 
 export abstract class ServiceBase<
   TTable extends IBaseTable,
   TId extends string | number = string,
+  TContext extends IApp = IApp,
+  TInsertData = Prettify<
+    Omit<
+      InferInsertModel<TTable>,
+      "id" | "createdAt" | "isDeleted" | "deletedAt"
+    >
+  >,
 > {
   constructor(protected table: TTable) {}
 
@@ -33,107 +43,89 @@ export abstract class ServiceBase<
     return filters;
   }
 
-  async create(
-    c: IUserApp,
-    data: Prettify<Omit<InferInsertModel<TTable>, "tenantId">>,
-  ): Promise<{ id: TId }> {
+  async create(c: TContext, data: TInsertData): Promise<{ id: TId }> {
     const payload = {
-      ...data,
-      tenantId: c.tenantId,
+      ...(data as object),
       createdAt: c.nowDatetime,
       isDeleted: false,
     } as InferInsertModel<TTable>;
 
-    const result = await UtilDb.tenantScope(c, async (tx) => {
-      const [res] = await tx
-        .insert(this.table)
-        .values(payload)
-        .returning({ id: this.table.id });
-      return res;
-    });
+    const [res] = await c.db
+      .insert(this.table)
+      .values(payload)
+      .returning({ id: this.table.id });
 
-    if (!result) {
+    if (!res) {
       throw ErrorHandler.internal("Creation failed");
     }
-
-    return result as { id: TId };
+    return res as { id: TId };
   }
 
   async update(
-    c: IUserApp,
+    c: TContext,
     id: TId,
-    data: Prettify<Partial<InferInsertModel<TTable>>>,
+    data: Prettify<
+      Partial<
+        Omit<
+          InferInsertModel<TTable>,
+          "id" | "tenantId" | "createdAt" | "isDeleted" | "deletedAt"
+        >
+      >
+    >,
   ): Promise<void> {
-    await UtilDb.tenantScope(c, async (tx) => {
-      const update = await tx
-        .update(this.table)
-        .set(data)
-        .where(and(...this.getFilters(id)));
+    const update = await c.db
+      .update(this.table)
+      .set(data as PgUpdateSetSource<TTable>)
+      .where(and(...this.getFilters(id)));
 
-      if (update.rowCount === 0) {
-        throw ErrorHandler.notFound("The record not found to update");
-      }
-    });
-  }
-
-  async remove(c: IUserApp, id: TId): Promise<void> {
-    const payload = {
-      isDeleted: true,
-      deletedAt: c.nowDatetime,
-    } as unknown as Partial<InferInsertModel<TTable>>;
-
-    await UtilDb.tenantScope(c, async (tx) => {
-      await tx
-        .update(this.table)
-        .set(payload)
-        .where(and(...this.getFilters(id)));
-    });
+    if (update.rowCount === 0) {
+      throw ErrorHandler.notFound("Record not found");
+    }
   }
 
   async getAll<TSelection extends SelectedFields>(
-    c: IUserApp,
-    query: {
-      limit: number;
-      page: number;
-    },
+    c: TContext,
+    query: { limit: number; page: number },
     columns: TSelection,
   ): Promise<Prettify<InferSelectModel<TTable>>[]> {
     const offset = (query.page - 1) * query.limit;
 
-    const result = await UtilDb.tenantScope(c, async (tx) => {
-      const dbQuery = tx
-        .select(columns)
-        .from(this.table as PgTable)
-        .where(and(...this.getFilters()))
-        .$dynamic();
+    const dbQuery = c.db
+      .select(columns)
+      .from(this.table as unknown as PgTable)
+      .where(and(...this.getFilters()))
+      .$dynamic();
 
-      return dbQuery.limit(query.limit).offset(offset);
-    });
-
-    if (!result || result.length === 0) {
-      throw ErrorHandler.notFound();
-    }
-
-    return result as unknown as Prettify<InferSelectModel<TTable>>[];
+    return (await dbQuery.limit(query.limit).offset(offset)) as Prettify<
+      InferSelectModel<TTable>
+    >[];
   }
 
   async getById<TSelection extends SelectedFields>(
-    c: IUserApp,
+    c: TContext,
     id: TId,
     columns: TSelection,
   ): Promise<Prettify<InferSelectModel<TTable>>> {
-    const result = await UtilDb.tenantScope(c, async (tx) => {
-      const [res] = await tx
-        .select(columns)
-        .from(this.table as PgTable)
-        .where(and(...this.getFilters(id)));
-      return res;
-    });
+    const [res] = await c.db
+      .select(columns)
+      .from(this.table as unknown as PgTable)
+      .where(and(...this.getFilters(id)));
 
-    if (!result) {
+    if (!res) {
       throw ErrorHandler.notFound();
     }
+    return res as Prettify<InferSelectModel<TTable>>;
+  }
 
-    return result as unknown as Prettify<InferSelectModel<TTable>>;
+  async remove(c: TContext, id: TId): Promise<void> {
+    const payload = {
+      isDeleted: true,
+      deletedAt: c.nowDatetime,
+    } as PgUpdateSetSource<TTable>;
+
+    await c.db
+      .update(this.table)
+      .set(payload)
+      .where(and(...this.getFilters(id)));
   }
 }

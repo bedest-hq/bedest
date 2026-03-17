@@ -1,7 +1,7 @@
 import { SExample } from "../schemas/SExample";
-import { ServiceBase } from "../../../common/services/ServiceBase";
+import { ServiceBaseTenant } from "@/common/services/ServiceBaseTenant";
 
-class ServiceExample extends ServiceBase<typeof SExample, string> {
+class ServiceExample extends ServiceBaseTenant<typeof SExample, string> {
   constructor() {
     super(SExample);
   }

@@ -16,7 +16,13 @@ import { rateLimit } from "elysia-rate-limit";
 const env = EnvManager.get();
 export const RouterLogin = new Elysia({ prefix: "/auth", tags: ["Auth"] })
   .use(Context.App())
-  .use(rateLimit({ max: 5, duration: 60 * 1000 }))
+  .use(
+    rateLimit({
+      max: 5,
+      duration: 60 * 1000,
+      skip: () => env.NODE_ENV === "test",
+    }),
+  )
   .post(
     "/login",
     async ({ body, nowDatetime, db, refreshJwt, accessJwt, cookie }) => {

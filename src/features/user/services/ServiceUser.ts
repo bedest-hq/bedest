@@ -1,10 +1,10 @@
 import { EUserRole } from "../enums/EUserRole";
 import { IUserApp } from "../../../common/interfaces/IContextApp";
 import { SUser } from "../schemas/SUser";
-import { ServiceBase } from "../../../common/services/ServiceBase";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
+import { ServiceBaseTenant } from "@/common/services/ServiceBaseTenant";
 
-class ServiceUser extends ServiceBase<typeof SUser, string> {
+class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   constructor() {
     super(SUser);
   }
