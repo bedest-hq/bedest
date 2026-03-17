@@ -1,4 +1,4 @@
 import { z } from "zod";
-import { SEnv } from "../schemas/SEnv";
+import { VEnv } from "../validations/VEnv";
 
-export type TEnv = z.infer<typeof SEnv>;
+export type TEnv = z.infer<typeof VEnv>;

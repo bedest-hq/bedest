@@ -4,7 +4,13 @@ import {
   NodePgDatabase,
   NodePgQueryResultHKT,
 } from "drizzle-orm/node-postgres";
-import { PgColumn, pgPolicy, PgTransaction } from "drizzle-orm/pg-core";
+import {
+  index,
+  PgColumn,
+  pgPolicy,
+  PgTransaction,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { TDb } from "../types/TDb";
 
 type TTransaction =
@@ -44,10 +50,30 @@ export class UtilDb {
       as: "permissive",
       for: "all",
       using: sql`
-      current_setting('app.bypass_rls', true) = 'on' 
-      OR 
+      current_setting('app.bypass_rls', true) = 'on'
+      OR
       ${tenantColumn} = nullif(current_setting('app.current_tenant', true), '')::uuid
     `,
     });
+  }
+
+  static activeIndex(
+    indexName: string,
+    column: PgColumn,
+    ...extraColumns: PgColumn[]
+  ) {
+    return index(indexName)
+      .on(column, ...extraColumns)
+      .where(sql`"isDeleted" = false`);
+  }
+
+  static activeUniqueIndex(
+    indexName: string,
+    column: PgColumn,
+    ...extraColumns: PgColumn[]
+  ) {
+    return uniqueIndex(indexName)
+      .on(column, ...extraColumns)
+      .where(sql`"isDeleted" = false`);
   }
 }

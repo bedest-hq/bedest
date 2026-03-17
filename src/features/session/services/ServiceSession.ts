@@ -1,6 +1,6 @@
 import { IApp, IUserApp } from "../../../common/interfaces/IContextApp";
 import { and, eq } from "drizzle-orm";
-import { TbSession } from "../tables/TbSession";
+import { SSession } from "../schemas/SSession";
 import { UtilDb } from "@/common/utils/UtilDb";
 
 class ServiceSession {
@@ -13,13 +13,13 @@ class ServiceSession {
   ) {
     return await UtilDb.systemScope(c.db, async (tx) => {
       const [session] = await tx
-        .insert(TbSession)
+        .insert(SSession)
         .values({
           tenantId: data.tenantId,
           userId: data.userId,
           createdAt: c.nowDatetime,
         })
-        .returning({ id: TbSession.id });
+        .returning({ id: SSession.id });
       return session;
     });
   }
@@ -27,9 +27,9 @@ class ServiceSession {
   async isValid(c: IApp, id: string) {
     const session = await UtilDb.systemScope(c.db, async (tx) => {
       const [res] = await tx
-        .select({ userId: TbSession.userId })
-        .from(TbSession)
-        .where(eq(TbSession.id, id))
+        .select({ userId: SSession.userId })
+        .from(SSession)
+        .where(eq(SSession.id, id))
         .limit(1);
       return res;
     });
@@ -39,12 +39,12 @@ class ServiceSession {
   async remove(c: IUserApp, id: string) {
     await UtilDb.tenantScope(c, async (tx) => {
       await tx
-        .delete(TbSession)
+        .delete(SSession)
         .where(
           and(
-            eq(TbSession.id, id),
-            eq(TbSession.tenantId, c.tenantId),
-            eq(TbSession.userId, c.session.userId),
+            eq(SSession.id, id),
+            eq(SSession.tenantId, c.tenantId),
+            eq(SSession.userId, c.session.userId),
           ),
         );
     });

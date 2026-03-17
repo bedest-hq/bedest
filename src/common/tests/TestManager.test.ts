@@ -13,9 +13,9 @@ import {
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { TEnv } from "../types/TEnv";
-import { TbTenant } from "@/features/tenant/tables/TbTenant";
+import { STenant } from "@f/tenant/schemas/STenant";
 import { ETenantPlan } from "@/features/tenant/enums/ETenantPlan";
-import { TbUser } from "@/features/user/tables/TbUser";
+import { SUser } from "@f/user/schemas/SUser";
 import { EUserRole } from "@/features/user/enums/EUserRole";
 import Elysia from "elysia";
 import jwt from "@elysiajs/jwt";
@@ -23,7 +23,7 @@ import { password } from "bun";
 import { EXAMPLE_UUID } from "../constants";
 
 const EnvManager = await import("@/infrastructure/env/EnvManager");
-const DbManager = await import("@/infrastructure/db/DbManager");
+const DbManager = await import("@/infrastructure/database/DbManager");
 
 interface CustomMatchers<R = unknown> {
   toBeApiError(expected: string): R;
@@ -69,6 +69,7 @@ expect.extend({
 });
 
 const test_env: TEnv = {
+  NODE_ENV: "test",
   DATABASE_HOST: "test_host",
   DATABASE_NAME: "test_name",
   DATABASE_PASSWORD: "test_password",
@@ -95,8 +96,8 @@ const test_signer = new Elysia().use(
   }),
 );
 
-export let test_tenant: typeof TbTenant.$inferSelect;
-export let test_user: typeof TbUser.$inferSelect;
+export let test_tenant: typeof STenant.$inferSelect;
+export let test_user: typeof SUser.$inferSelect;
 export { test_db, test_env };
 
 export const testHeaders = async (user = test_user) => {
@@ -126,7 +127,7 @@ beforeEach(async () => {
   const datetimeNow = new Date();
 
   const [insertedTenant] = await test_db
-    .insert(TbTenant)
+    .insert(STenant)
     .values({
       name: "Test Tenant",
       country: "Test Country",
@@ -141,7 +142,7 @@ beforeEach(async () => {
   test_tenant = insertedTenant;
 
   const [insertedUser] = await test_db
-    .insert(TbUser)
+    .insert(SUser)
     .values({
       name: "Test User",
       email: "text@example.com",

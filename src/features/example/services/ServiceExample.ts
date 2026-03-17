@@ -1,9 +1,9 @@
-import { TbExample } from "../tables/TbExample";
-import { ServiceBase } from "../../base/services/ServiceBase";
+import { SExample } from "../schemas/SExample";
+import { ServiceBase } from "../../../common/services/ServiceBase";
 
-class ServiceExample extends ServiceBase<typeof TbExample, string> {
+class ServiceExample extends ServiceBase<typeof SExample, string> {
   constructor() {
-    super(TbExample);
+    super(SExample);
   }
 }
 

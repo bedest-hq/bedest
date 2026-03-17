@@ -1,4 +1,4 @@
-import { SEnv } from "@/common/schemas/SEnv";
+import { VEnv } from "@/common/validations/VEnv";
 import { TEnv } from "@/common/types/TEnv";
 
 class EnvManager {
@@ -10,7 +10,7 @@ class EnvManager {
     }
 
     const raw = { ...Bun.env };
-    const parsed = SEnv.parse(raw);
+    const parsed = VEnv.parse(raw);
 
     this.env = parsed;
     return this.env;

@@ -1,12 +1,12 @@
 import { EUserRole } from "../enums/EUserRole";
 import { IUserApp } from "../../../common/interfaces/IContextApp";
-import { TbUser } from "../tables/TbUser";
-import { ServiceBase } from "../../base/services/ServiceBase";
+import { SUser } from "../schemas/SUser";
+import { ServiceBase } from "../../../common/services/ServiceBase";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 
-class ServiceUser extends ServiceBase<typeof TbUser, string> {
+class ServiceUser extends ServiceBase<typeof SUser, string> {
   constructor() {
-    super(TbUser);
+    super(SUser);
   }
 
   async create(
@@ -47,17 +47,17 @@ class ServiceUser extends ServiceBase<typeof TbUser, string> {
 
   async getAll(c: IUserApp, query: { limit: number; page: number }) {
     return super.getAll(c, query, {
-      name: TbUser.name,
-      role: TbUser.role,
-      createdAt: TbUser.createdAt,
+      name: SUser.name,
+      role: SUser.role,
+      createdAt: SUser.createdAt,
     });
   }
 
   async getById(c: IUserApp, id: string) {
     return super.getById(c, id, {
-      name: TbUser.name,
-      role: TbUser.role,
-      createdAt: TbUser.createdAt,
+      name: SUser.name,
+      role: SUser.role,
+      createdAt: SUser.createdAt,
     });
   }
 
@@ -68,7 +68,7 @@ class ServiceUser extends ServiceBase<typeof TbUser, string> {
   ) {
     const targetId = c.session.role !== EUserRole.ADMIN ? c.session.userId : id;
 
-    const payload: Partial<typeof TbUser.$inferInsert> = {};
+    const payload: Partial<typeof SUser.$inferInsert> = {};
 
     if (data.name) {
       payload.name = data.name;

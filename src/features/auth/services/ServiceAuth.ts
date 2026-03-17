@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { IApp, IUserApp } from "../../../common/interfaces/IContextApp";
-import { TbUser } from "../../user/tables/TbUser";
+import { SUser } from "../../user/schemas/SUser";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { UtilDb } from "@/common/utils/UtilDb";
@@ -10,14 +10,14 @@ class ServiceAuth {
     const user = await UtilDb.systemScope(c.db, async (tx) => {
       const [res] = await tx
         .select({
-          userId: TbUser.id,
-          tenantId: TbUser.tenantId,
-          role: TbUser.role,
-          name: TbUser.name,
-          password: TbUser.password,
+          userId: SUser.id,
+          tenantId: SUser.tenantId,
+          role: SUser.role,
+          name: SUser.name,
+          password: SUser.password,
         })
-        .from(TbUser)
-        .where(and(eq(TbUser.email, data.email), eq(TbUser.isDeleted, false)))
+        .from(SUser)
+        .where(and(eq(SUser.email, data.email), eq(SUser.isDeleted, false)))
         .limit(1);
       return res;
     });

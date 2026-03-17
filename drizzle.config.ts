@@ -2,7 +2,7 @@ import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   out: process.env.DATABASE_MIGRATION_DIR || "./drizzle",
-  schema: ["./src/features/*/tables/*", "./src/features/*/enums/*"],
+  schema: ["./src/features/*/schemas/*", "./src/features/*/enums/*"],
   dialect: "postgresql",
   dbCredentials: {
     host: process.env.DATABASE_HOST!,

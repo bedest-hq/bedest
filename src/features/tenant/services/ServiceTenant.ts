@@ -1,9 +1,9 @@
-import { ServiceBase } from "../../base/services/ServiceBase";
-import { TbTenant } from "../tables/TbTenant";
+import { ServiceBase } from "../../../common/services/ServiceBase";
+import { STenant } from "../schemas/STenant";
 
-class ServiceTenant extends ServiceBase<typeof TbTenant, string> {
+class ServiceTenant extends ServiceBase<typeof STenant, string> {
   constructor() {
-    super(TbTenant);
+    super(STenant);
   }
 }
 

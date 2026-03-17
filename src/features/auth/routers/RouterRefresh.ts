@@ -1,5 +1,5 @@
 import Context from "@/app/Context";
-import { SString } from "@/common/schemas/SString";
+import { VString } from "@/common/validations/VString";
 import { UtilRouter } from "@/common/utils/UtilRouter";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
@@ -88,6 +88,6 @@ export const RouterRefresh = new Elysia({
       return UtilRouter.defResponse({ accessToken: newAccessToken });
     },
     {
-      response: UtilRouter.defSchema(t.Object({ accessToken: SString })),
+      response: UtilRouter.defSchema(t.Object({ accessToken: VString })),
     },
   );

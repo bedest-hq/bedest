@@ -1,4 +1,4 @@
-import DbManager from "@/infrastructure/db/DbManager";
+import DbManager from "@/infrastructure/database/DbManager";
 import EnvManager from "@/infrastructure/env/EnvManager";
 
 class DatabaseReset {
