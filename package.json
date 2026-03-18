@@ -3,7 +3,7 @@
     "@elysiajs/cors": "^1.4.1",
     "@elysiajs/eden": "^1.4.8",
     "@elysiajs/jwt": "^1.4.1",
-    "drizzle-orm": "^0.44.7",
+    "drizzle-orm": "^0.45.1",
     "elysia": "^1.4.27",
     "elysia-rate-limit": "^4.5.1",
     "pg": "^8.19.0"
