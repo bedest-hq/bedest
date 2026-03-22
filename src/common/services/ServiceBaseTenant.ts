@@ -1,7 +1,7 @@
 import { ServiceBase } from "./ServiceBase";
 import { IBaseTable } from "../interfaces/IBaseTable";
 import { IUserApp } from "../interfaces/IContextApp";
-import { UtilDb } from "../utils/UtilDb";
+import { UtilTenantScope } from "../utils/UtilTenantScope";
 import { type InferInsertModel } from "drizzle-orm";
 import { type SelectedFields, type PgColumn } from "drizzle-orm/pg-core";
 import { Prettify } from "elysia/types";
@@ -17,7 +17,7 @@ export abstract class ServiceBaseTenant<
   >,
 > extends ServiceBase<TTable, TId, IUserApp, TInsertData> {
   async create(c: IUserApp, data: TInsertData) {
-    return await UtilDb.tenantScope(c, async (tx) => {
+    return await UtilTenantScope.tenantScope(c, async (tx) => {
       const payload = {
         ...(data as object),
         tenantId: c.tenantId,
@@ -36,13 +36,13 @@ export abstract class ServiceBaseTenant<
       ServiceBase<TTable, TId, IUserApp, TInsertData>["update"]
     >[2],
   ) {
-    return await UtilDb.tenantScope(c, async (tx) =>
+    return await UtilTenantScope.tenantScope(c, async (tx) =>
       super.update({ ...c, db: tx }, id, data),
     );
   }
 
   async remove(c: IUserApp, id: TId) {
-    return await UtilDb.tenantScope(c, async (tx) =>
+    return await UtilTenantScope.tenantScope(c, async (tx) =>
       super.remove({ ...c, db: tx }, id),
     );
   }
@@ -52,7 +52,7 @@ export abstract class ServiceBaseTenant<
     id: TId,
     columns: TSelection,
   ) {
-    return await UtilDb.tenantScope(c, async (tx) =>
+    return await UtilTenantScope.tenantScope(c, async (tx) =>
       super.getById({ ...c, db: tx }, id, columns),
     );
   }
@@ -62,7 +62,7 @@ export abstract class ServiceBaseTenant<
     query: { limit: number; page: number },
     columns: TSelection,
   ) {
-    return await UtilDb.tenantScope(c, async (tx) =>
+    return await UtilTenantScope.tenantScope(c, async (tx) =>
       super.getAll({ ...c, db: tx }, query, columns),
     );
   }

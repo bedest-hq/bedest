@@ -82,6 +82,8 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     }
 
     await super.update(c, targetId, payload);
+
+    return { success: true };
   }
 }
 

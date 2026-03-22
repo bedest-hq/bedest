@@ -1,4 +1,4 @@
-import { UtilDb } from "@/common/utils/UtilDb";
+import { UtilDbSchema } from "@/common/utils/UtilDbSchema";
 import { STenant } from "@f/tenant/schemas/STenant";
 import { uuid, pgTable, timestamp, index } from "drizzle-orm/pg-core";
 
@@ -13,5 +13,5 @@ export const SSession = pgTable(
     createdAt: timestamp({ withTimezone: true }).notNull(),
   },
 
-  (t) => [index().on(t.userId), UtilDb.tenantIsolationPolicy(t.tenantId)],
+  (t) => [index().on(t.userId), UtilDbSchema.tenantIsolationPolicy(t.tenantId)],
 ).enableRLS();

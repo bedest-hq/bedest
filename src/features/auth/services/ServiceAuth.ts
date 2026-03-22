@@ -3,11 +3,11 @@ import { IApp, IUserApp } from "../../../common/interfaces/IContextApp";
 import { SUser } from "../../user/schemas/SUser";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
-import { UtilDb } from "@/common/utils/UtilDb";
+import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
 
 class ServiceAuth {
   async login(c: IApp, data: { email: string; password: string }) {
-    const user = await UtilDb.systemScope(c.db, async (tx) => {
+    const user = await UtilTenantScope.systemScope(c.db, async (tx) => {
       const [res] = await tx
         .select({
           userId: SUser.id,

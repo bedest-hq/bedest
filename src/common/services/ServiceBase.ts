@@ -61,28 +61,6 @@ export abstract class ServiceBase<
     return res as { id: TId };
   }
 
-  async update(
-    c: TContext,
-    id: TId,
-    data: Prettify<
-      Partial<
-        Omit<
-          InferInsertModel<TTable>,
-          "id" | "tenantId" | "createdAt" | "isDeleted" | "deletedAt"
-        >
-      >
-    >,
-  ): Promise<void> {
-    const update = await c.db
-      .update(this.table)
-      .set(data as PgUpdateSetSource<TTable>)
-      .where(and(...this.getFilters(id)));
-
-    if (update.rowCount === 0) {
-      throw ErrorHandler.notFound("Record not found");
-    }
-  }
-
   async getAll<TSelection extends SelectedFields>(
     c: TContext,
     query: { limit: number; page: number },
@@ -117,7 +95,31 @@ export abstract class ServiceBase<
     return res as Prettify<InferSelectModel<TTable>>;
   }
 
-  async remove(c: TContext, id: TId): Promise<void> {
+  async update(
+    c: TContext,
+    id: TId,
+    data: Prettify<
+      Partial<
+        Omit<
+          InferInsertModel<TTable>,
+          "id" | "tenantId" | "createdAt" | "isDeleted" | "deletedAt"
+        >
+      >
+    >,
+  ): Promise<{ success: boolean }> {
+    const update = await c.db
+      .update(this.table)
+      .set(data as PgUpdateSetSource<TTable>)
+      .where(and(...this.getFilters(id)));
+
+    if (update.rowCount === 0) {
+      throw ErrorHandler.notFound("Record not found");
+    }
+
+    return { success: true };
+  }
+
+  async remove(c: TContext, id: TId): Promise<{ success: boolean }> {
     const payload = {
       isDeleted: true,
       deletedAt: c.nowDatetime,
@@ -127,5 +129,7 @@ export abstract class ServiceBase<
       .update(this.table)
       .set(payload)
       .where(and(...this.getFilters(id)));
+
+    return { success: true };
   }
 }

@@ -1,8 +1,8 @@
 import { uuid, pgTable, varchar } from "drizzle-orm/pg-core";
 import { EUserRolePg } from "../enums/EUserRole";
 import { STenant } from "@f/tenant/schemas/STenant";
-import { UtilDb } from "@/common/utils/UtilDb";
 import { baseColumns } from "@/common/schemas/SBase";
+import { UtilDbSchema } from "@/common/utils/UtilDbSchema";
 
 export const SUser = pgTable(
   "users",
@@ -17,8 +17,12 @@ export const SUser = pgTable(
     password: varchar({ length: 255 }).notNull(),
   },
   (t) => [
-    UtilDb.activeIndex("idx_users_active", t.id),
-    UtilDb.activeUniqueIndex("idx_users_tenant_email", t.tenantId, t.email),
-    UtilDb.tenantIsolationPolicy(t.tenantId),
+    UtilDbSchema.activeIndex("idx_users_active", t.id),
+    UtilDbSchema.activeUniqueIndex(
+      "idx_users_tenant_email",
+      t.tenantId,
+      t.email,
+    ),
+    UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();
