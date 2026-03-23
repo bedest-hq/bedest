@@ -1,6 +1,6 @@
 {
   "name": "bedest",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "B.E.D. Stack Boilerplate App",
   "dependencies": {
     "@elysiajs/cors": "^1.4.1",
