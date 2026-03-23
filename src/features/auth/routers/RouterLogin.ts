@@ -6,7 +6,6 @@ import {
 import ServiceAuth from "../services/ServiceAuth";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import Context from "@/app/Context";
-import { UtilRouter } from "@/common/utils/UtilRouter";
 import { VString } from "@/common/validations/VString";
 import { SUserRole } from "@f/user/validations/SUserRole";
 import { UtilAuth } from "../utils/UtilAuth";
@@ -56,7 +55,7 @@ export const RouterLogin = new Elysia({ prefix: "/auth", tags: ["Auth"] })
         ...UtilAuth.cookieConf("access"),
       });
 
-      return UtilRouter.defResponse({ name: result.name, role: result.role });
+      return { name: result.name, role: result.role };
     },
     {
       body: t.Object({
@@ -73,8 +72,6 @@ export const RouterLogin = new Elysia({ prefix: "/auth", tags: ["Auth"] })
           }),
         }),
       }),
-      response: UtilRouter.defSchema(
-        t.Object({ name: VString, role: SUserRole }),
-      ),
+      response: t.Object({ name: VString, role: SUserRole }),
     },
   );

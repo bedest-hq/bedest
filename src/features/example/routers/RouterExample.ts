@@ -19,18 +19,16 @@ export const RouterExample = new Elysia({
         exampleColumn: SExample.exampleColumn,
         otherExampleColumn: SExample.otherExampleColumn,
       });
-      return UtilRouter.defResponse(res);
+      return res;
     },
     {
       params: t.Object({
         id: VId,
       }),
-      response: UtilRouter.defSchema(
-        t.Object({
-          exampleColumn: VString,
-          otherExampleColumn: VString,
-        }),
-      ),
+      response: t.Object({
+        exampleColumn: VString,
+        otherExampleColumn: VString,
+      }),
     },
   )
   .get(
@@ -41,7 +39,7 @@ export const RouterExample = new Elysia({
         otherExampleColumn: SExample.otherExampleColumn,
       });
 
-      return UtilRouter.defResponse(res);
+      return res;
     },
     {
       query: VQuery,

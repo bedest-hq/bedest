@@ -25,18 +25,16 @@ export const RouterTenant = new Elysia({
         email: STenant.email,
       });
 
-      return UtilRouter.defResponse(res);
+      return res;
     },
     {
       params: t.Object({
         id: VId,
       }),
-      response: UtilRouter.defSchema(
-        t.Object({
-          name: VString,
-          email: VEmail,
-        }),
-      ),
+      response: t.Object({
+        name: VString,
+        email: VEmail,
+      }),
     },
   )
   .put(
@@ -114,7 +112,7 @@ export const RouterTenant = new Elysia({
               email: STenant.email,
             });
 
-            return UtilRouter.defResponse(res);
+            return res;
           },
           {
             query: VQuery,

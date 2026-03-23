@@ -16,26 +16,24 @@ export const RouterUser = new Elysia({
     "/:id",
     async ({ params, userRuntime }) => {
       const res = await ServiceUser.getById(userRuntime, params.id);
-      return UtilRouter.defResponse(res);
+      return res;
     },
     {
       params: t.Object({
         id: VId,
       }),
-      response: UtilRouter.defSchema(
-        t.Object({
-          name: VString,
-          role: t.Enum(EUserRole),
-          createdAt: t.Date(),
-        }),
-      ),
+      response: t.Object({
+        name: VString,
+        role: t.Enum(EUserRole),
+        createdAt: t.Date(),
+      }),
     },
   )
   .put(
     "/:id",
     async ({ params, body, userRuntime }) => {
       const res = await ServiceUser.update(userRuntime, params.id, body);
-      return UtilRouter.defResponse(res);
+      return res;
     },
     {
       params: t.Object({ id: VId }),
@@ -55,7 +53,7 @@ export const RouterUser = new Elysia({
           "/",
           async ({ query, userRuntime }) => {
             const res = await ServiceUser.getAll(userRuntime, query);
-            return UtilRouter.defResponse(res);
+            return res;
           },
           {
             query: VQuery,
@@ -72,7 +70,7 @@ export const RouterUser = new Elysia({
           "/",
           async ({ body, userRuntime }) => {
             const res = await ServiceUser.create(userRuntime, body);
-            return UtilRouter.defResponse(res);
+            return res;
           },
           {
             body: t.Object({
@@ -82,7 +80,7 @@ export const RouterUser = new Elysia({
               role: t.Enum(EUserRole),
               password: t.String({ minLength: 6 }),
             }),
-            response: UtilRouter.defSchema(t.Object({ id: VId })),
+            response: t.Object({ id: VId }),
           },
         )
         .delete(
