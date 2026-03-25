@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/bedest-hq/bedest/compare/v1.0.2...v1.0.3) (2026-03-25)
+
+
+### Bug Fixes
+
+* missing maintenance mode is implemented. ([#29](https://github.com/bedest-hq/bedest/issues/29)) ([9236436](https://github.com/bedest-hq/bedest/commit/9236436801533252c59be0a0a3825df8877816be))
+
 ## [1.0.2](https://github.com/bedest-hq/bedest/compare/v1.0.1...v1.0.2) (2026-03-25)
 
 
