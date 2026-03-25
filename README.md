@@ -30,19 +30,19 @@ Stop wrestling with configurations and focus on shipping your business logic.
 
 ---
 
-## ✨ Core Features
+## Core Features
 
-- **⚡ Blazing Fast**: Built on top of the Bun runtime and ElysiaJS, delivering microsecond response times.
-- **🛡️ True Multi-Tenancy**: PostgreSQL Row-Level Security (RLS) guarantees data isolation. Tenant filtering is automated via `UtilTenantScope`.
-- **🏗️ Generic Service Pattern**: `ServiceBaseTenant` handles CRUD operations and automatic metadata pagination out of the box.
-- **🔒 End-to-End Type Safety**: Drizzle for DB, TypeBox for routing, and generic strict types. **Zero `any` allowed.**
-- **🔑 Enterprise Auth & RBAC**: Dual-token JWT (Access + Refresh) stored in HTTP-only cookies, protected by a custom Elysia `RoleGuard` macro.
-- **🧪 Lightning Fast Tests**: Instant, isolated database tests running in-memory with **PGlite**. No more mock data headaches.
-- **🐳 CI/CD Ready**: Multi-stage Docker builds, GitHub Actions for automated testing/linting, and automatic image pushes to GHCR.
+- ** Blazing Fast**: Built on top of the Bun runtime and ElysiaJS, delivering microsecond response times.
+- ** True Multi-Tenancy**: PostgreSQL Row-Level Security (RLS) guarantees data isolation. Tenant filtering is automated via `UtilTenantScope`.
+- ** Generic Service Pattern**: `ServiceBaseTenant` handles CRUD operations and automatic metadata pagination out of the box.
+- ** End-to-End Type Safety**: Drizzle for DB, TypeBox for routing, and generic strict types. **Zero `any` allowed.**
+- ** Enterprise Auth & RBAC**: Dual-token JWT (Access + Refresh) stored in HTTP-only cookies, protected by a custom Elysia `RoleGuard` macro.
+- ** Lightning Fast Tests**: Instant, isolated database tests running in-memory with **PGlite**. No more mock data headaches.
+- ** CI/CD Ready**: Multi-stage Docker builds, GitHub Actions for automated testing/linting, and automatic image pushes to GHCR.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - [Bun](https://bun.sh/) (v1.0+)
@@ -86,11 +86,11 @@ bun run app:dev
 bun run dev
 ```
 
-📖 Swagger UI: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
+Swagger UI: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
 
 ---
 
-## 🐳 Docker Deployment Setup
+## Docker Deployment Setup
 
 Bedest comes with a production-ready docker-compose.yml and a highly optimized multi-stage Dockerfile.
 
@@ -101,7 +101,7 @@ docker-compose up -d
 
 ---
 
-## 🏛️ Architecture & Nomenclature
+## Architecture & Nomenclature
 
 To prevent spaghetti code as your project grows, Bedest enforces a strict modular structure.
 
@@ -130,7 +130,7 @@ src/
 
 ---
 
-## 🧠 Core Concepts (The Secret Sauce)
+## Core Concepts (The Secret Sauce)
 
 ### 1. Multi-Tenancy & Smart Indexing
 
@@ -143,7 +143,7 @@ export const SExample = pgTable("examples", {
   title: varchar({ length: 255 }).notNull(),
 }, (t) => [
   UtilDbSchema.activeIndex("idx_examples_active", t.id),
-  UtilDbSchema.tenantIsolationPolicy(t.tenantId), // 🛡️ RLS Magic
+  UtilDbSchema.tenantIsolationPolicy(t.tenantId),
 ]).enableRLS();
 ```
 
@@ -218,7 +218,7 @@ export interface IUserApp {
 
 ---
 
-## 🧪 Testing with PGlite
+## Testing with PGlite
 
 Testing database logic is usually slow and painful. Bedest utilizes PGlite to spin up an ephemeral, in-memory PostgreSQL instance for your tests.
 
@@ -230,7 +230,7 @@ bun test
 
 ---
 
-## ⚙️ CI/CD & Dependabot
+## CI/CD & Dependabot
 
 Your infrastructure is automated:
 
@@ -240,7 +240,7 @@ Your infrastructure is automated:
 
 ---
 
-## 📜 Available Scripts
+## Available Scripts
 
 | Command             | Description                              |
 | ------------------- | ---------------------------------------- |
@@ -254,7 +254,7 @@ Your infrastructure is automated:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please refer to the `.github/pull_request_template.md` and `.github/ISSUE_TEMPLATE` guidelines.
 
@@ -262,6 +262,6 @@ Ensure all tests pass (`bun test`) and no TypeScript errors exist (`bun run chec
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
