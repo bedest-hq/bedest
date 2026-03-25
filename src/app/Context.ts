@@ -10,6 +10,7 @@ import EnvManager from "@/infrastructure/env/EnvManager";
 import { STenant } from "@f/tenant/schemas/STenant";
 import { eq } from "drizzle-orm";
 import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
+import ServiceSystem from "@f/system/services/ServiceSystem";
 
 class Context {
   private env = EnvManager.get();
@@ -103,6 +104,10 @@ class Context {
           const token = cookie.accessToken.value;
           const payload = await this.validateAccessToken(accessJwt, token);
           const role = this.parseRole(payload.role);
+
+          if (ServiceSystem.getMaintenance() && role !== EUserRole.SYSTEM) {
+            throw ErrorHandler.maintenance();
+          }
 
           const session: ISession = {
             userId: payload.userId,

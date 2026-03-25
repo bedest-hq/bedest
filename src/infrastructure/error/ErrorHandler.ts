@@ -37,7 +37,7 @@ class ErrorHandler {
     throw status(409, { error: message });
   }
 
-  maintenance(message: string = "Service under maintenance") {
+  maintenance(message: string = "System is currenly under maintenance.") {
     throw status(503, { error: message });
   }
 

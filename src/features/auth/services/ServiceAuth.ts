@@ -4,6 +4,7 @@ import { SUser } from "../../user/schemas/SUser";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
+import ServiceSystem from "@f/system/services/ServiceSystem";
 
 class ServiceAuth {
   async login(c: IApp, data: { email: string; password: string }) {
@@ -31,6 +32,11 @@ class ServiceAuth {
     if (!verifyPass) {
       throw ErrorHandler.validationError("Wrong password");
     }
+
+    if (ServiceSystem.getMaintenance() && user.role !== "SYSTEM") {
+      throw ErrorHandler.maintenance();
+    }
+
     return {
       userId: user.userId,
       tenantId: user.tenantId,
