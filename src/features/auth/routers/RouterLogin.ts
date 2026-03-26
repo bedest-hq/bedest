@@ -4,13 +4,11 @@ import {
   EXAMPLE_USER_PASSWORD,
 } from "../../../common/constants";
 import ServiceAuth from "../services/ServiceAuth";
-import ServiceSession from "@/features/session/services/ServiceSession";
 import Context from "@/app/Context";
-import { VString } from "@/common/validations/VString";
-import { SUserRole } from "@f/user/validations/SUserRole";
 import { UtilAuth } from "../utils/UtilAuth";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import { rateLimit } from "elysia-rate-limit";
+import { VId } from "@/common/validations/VId";
 
 const env = EnvManager.get();
 export const RouterLogin = new Elysia({ prefix: "/auth", tags: ["Auth"] })
@@ -26,21 +24,10 @@ export const RouterLogin = new Elysia({ prefix: "/auth", tags: ["Auth"] })
     "/login",
     async ({ body, nowDatetime, db, refreshJwt, accessJwt, cookie }) => {
       const c = { nowDatetime, db };
-      const result = await ServiceAuth.login(c, {
+      const payload = await ServiceAuth.login(c, {
         email: body.email ?? EXAMPLE_EMAIL,
         password: body.password ?? EXAMPLE_USER_PASSWORD,
       });
-      const session = await ServiceSession.create(c, {
-        tenantId: result.tenantId,
-        userId: result.userId,
-      });
-
-      const payload = {
-        tenantId: result.tenantId,
-        userId: result.userId,
-        sessionId: session.id,
-        role: result.role,
-      };
 
       const refreshToken = await refreshJwt.sign(payload);
       const accessToken = await accessJwt.sign(payload);
@@ -55,7 +42,7 @@ export const RouterLogin = new Elysia({ prefix: "/auth", tags: ["Auth"] })
         ...UtilAuth.cookieConf("access"),
       });
 
-      return { name: result.name, role: result.role };
+      return { success: true, id: payload.userId };
     },
     {
       body: t.Object({
@@ -72,6 +59,6 @@ export const RouterLogin = new Elysia({ prefix: "/auth", tags: ["Auth"] })
           }),
         }),
       }),
-      response: t.Object({ name: VString, role: SUserRole }),
+      response: t.Object({ success: t.Boolean(), id: VId }),
     },
   );
