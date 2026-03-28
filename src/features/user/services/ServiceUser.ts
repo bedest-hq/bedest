@@ -66,11 +66,14 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     id: string,
     data: { name?: string; password?: string },
   ) {
-    const targetId = [EUserRole.ADMIN, EUserRole.SYSTEM].includes(
-      c.session.role,
-    )
-      ? id
-      : c.session.userId;
+    if (
+      c.session.userId !== id &&
+      ![EUserRole.ADMIN, EUserRole.SYSTEM].includes(c.session.role)
+    ) {
+      throw ErrorHandler.forbidden(
+        "You do not have permission to update other users.",
+      );
+    }
 
     const payload: Partial<typeof SUser.$inferInsert> = {};
 
@@ -81,7 +84,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       payload.password = await Bun.password.hash(data.password);
     }
 
-    await super.update(c, targetId, payload);
+    await super.update(c, id, payload);
 
     return { success: true };
   }

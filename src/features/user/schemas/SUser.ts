@@ -18,11 +18,7 @@ export const SUser = pgTable(
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_users_active", t.id),
-    UtilDbSchema.activeUniqueIndex(
-      "idx_users_tenant_email",
-      t.tenantId,
-      t.email,
-    ),
+    UtilDbSchema.activeUniqueIndex("idx_users_email", t.email),
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();

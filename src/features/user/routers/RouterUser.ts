@@ -1,11 +1,9 @@
 import { Elysia, t } from "elysia";
-import { VId } from "../../../common/validations/VId";
-import { VString } from "../../../common/validations/VString";
 import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
-import { VQuery } from "@/common/validations/VQuery";
+import { VId, VQuery, VString } from "@/common/validations/VCommon";
 
 export const RouterUser = new Elysia({
   prefix: "/user",

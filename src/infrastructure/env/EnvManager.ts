@@ -1,5 +1,5 @@
-import { VEnv } from "@/common/validations/VEnv";
 import { TEnv } from "@/common/types/TEnv";
+import { VEnv } from "@/common/validations/VCommon";
 import { Value } from "@sinclair/typebox/value";
 
 class EnvManager {
