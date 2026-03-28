@@ -51,6 +51,13 @@ class ServiceSession {
 
     return { success: true };
   }
+
+  async removeBySystem(c: IApp, sessionId: string) {
+    await UtilTenantScope.systemScope(c.db, async (tx) => {
+      await tx.delete(SSession).where(eq(SSession.id, sessionId));
+    });
+    return { success: true };
+  }
 }
 
 export default new ServiceSession();

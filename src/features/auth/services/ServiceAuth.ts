@@ -5,6 +5,7 @@ import ServiceSession from "@/features/session/services/ServiceSession";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
 import ServiceSystem from "@f/system/services/ServiceSystem";
+import { EUserRole } from "@f/user/enums/EUserRole";
 
 class ServiceAuth {
   async login(c: IApp, data: { email: string; password: string }) {
@@ -14,7 +15,6 @@ class ServiceAuth {
           userId: SUser.id,
           tenantId: SUser.tenantId,
           role: SUser.role,
-          name: SUser.name,
           password: SUser.password,
         })
         .from(SUser)
@@ -37,16 +37,51 @@ class ServiceAuth {
       throw ErrorHandler.maintenance();
     }
 
-    return {
-      userId: user.userId,
+    const session = await ServiceSession.create(c, {
       tenantId: user.tenantId,
-      name: user.name,
+      userId: user.userId,
+    });
+
+    return {
+      tenantId: user.tenantId,
+      userId: user.userId,
+      sessionId: session.id,
       role: user.role,
     };
   }
 
   async logout(c: IUserApp) {
     await ServiceSession.remove(c, c.session.sessionId);
+  }
+
+  async refresh(
+    c: IApp,
+    payload: {
+      sessionId: string;
+      tenantId: string;
+      userId: string;
+      role: EUserRole;
+    },
+  ) {
+    const isValid = await ServiceSession.isValid(c, payload.sessionId);
+
+    if (!isValid) {
+      throw ErrorHandler.unauthorized("Session expired or invalid");
+    }
+
+    await ServiceSession.removeBySystem(c, payload.sessionId);
+
+    const newSession = await ServiceSession.create(c, {
+      tenantId: payload.tenantId,
+      userId: payload.userId,
+    });
+
+    return {
+      tenantId: payload.tenantId,
+      userId: payload.userId,
+      sessionId: newSession.id,
+      role: payload.role,
+    };
   }
 }
 

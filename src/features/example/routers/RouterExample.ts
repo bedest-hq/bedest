@@ -1,12 +1,10 @@
 import { Elysia, t } from "elysia";
-import { VId } from "../../../common/validations/VId";
-import { VString } from "../../../common/validations/VString";
 import { SExample } from "../schemas/SExample";
 import ServiceExample from "../services/ServiceExample";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
-import { VQuery } from "@/common/validations/VQuery";
 import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
+import { VId, VQuery, VString } from "@/common/validations/VCommon";
 
 export const RouterExample = new Elysia({
   prefix: "/example",

@@ -1,14 +1,11 @@
 import { Elysia, t } from "elysia";
-import { VId } from "../../../common/validations/VId";
-import { VString } from "../../../common/validations/VString";
 import { STenant } from "../schemas/STenant";
 import { ETenantPlan } from "../enums/ETenantPlan";
 import ServiceTenant from "../services/ServiceTenant";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
-import { VEmail } from "@/common/validations/VEmail";
 import { EUserRole } from "@f/user/enums/EUserRole";
-import { VQuery } from "@/common/validations/VQuery";
+import { VEmail, VId, VQuery, VString } from "@/common/validations/VCommon";
 
 export const RouterTenant = new Elysia({
   prefix: "/tenant",

@@ -7,10 +7,10 @@ import { EUserRole } from "../features/user/enums/EUserRole";
 import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import DbManager from "@/infrastructure/database/DbManager";
 import EnvManager from "@/infrastructure/env/EnvManager";
-import { STenant } from "@f/tenant/schemas/STenant";
-import { eq } from "drizzle-orm";
 import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 import ServiceSystem from "@f/system/services/ServiceSystem";
+import ServiceTenant from "@f/tenant/services/ServiceTenant";
+import { UtilAuth } from "@f/auth/utils/UtilAuth";
 
 class Context {
   private env = EnvManager.get();
@@ -28,41 +28,6 @@ class Context {
     exp: "15m",
     iat: true,
   });
-
-  private async validateAccessToken(
-    accessJwt: {
-      verify: (token: string) => Promise<Record<string, unknown> | false>;
-    },
-    token: string | undefined,
-  ): Promise<{
-    tenantId: string;
-    userId: string;
-    sessionId: string;
-    role: string;
-  }> {
-    if (!token) {
-      throw ErrorHandler.unauthorized("Access token missing");
-    }
-
-    const payload = await accessJwt.verify(token);
-
-    if (!payload) {
-      throw ErrorHandler.unauthorized("Unauthorized");
-    }
-
-    const { tenantId, userId, sessionId, role } = payload;
-
-    if (!tenantId || !userId || !sessionId || !role) {
-      throw ErrorHandler.unauthorized("Invalid token payload");
-    }
-
-    return {
-      tenantId: String(tenantId),
-      userId: String(userId),
-      sessionId: String(sessionId),
-      role: String(role),
-    };
-  }
 
   private parseRole(role: string): EUserRole {
     switch (role) {
@@ -102,7 +67,7 @@ class Context {
           const db = DbManager.get();
 
           const token = cookie.accessToken.value;
-          const payload = await this.validateAccessToken(accessJwt, token);
+          const payload = await UtilAuth.validateAccessToken(accessJwt, token);
           const role = this.parseRole(payload.role);
 
           if (ServiceSystem.getMaintenance() && role !== EUserRole.SYSTEM) {
@@ -142,14 +107,10 @@ class Context {
               throw ErrorHandler.unauthorized("Authentication required.");
             }
 
-            const [tenant] = await userRuntime.db
-              .select({
-                plan: STenant.plan,
-                planEnd: STenant.planEnd,
-              })
-              .from(STenant)
-              .where(eq(STenant.id, userRuntime.tenantId))
-              .limit(1);
+            const tenant = await ServiceTenant.checkPlan(
+              { db: userRuntime.db, nowDatetime: userRuntime.nowDatetime },
+              userRuntime.tenantId,
+            );
 
             if (!tenant) {
               throw ErrorHandler.notFound("Tenant not found.");
