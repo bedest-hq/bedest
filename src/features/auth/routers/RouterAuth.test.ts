@@ -17,8 +17,7 @@ describe("RouterAuth", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.data).toHaveProperty("name", test_user.name);
-    expect(res.data).toHaveProperty("role", test_user.role);
+    expect(res.data).toStrictEqual({ id: test_user.id, success: true });
 
     const cookies = res.response.headers.getSetCookie();
     expect(cookies.length).toBeGreaterThan(0);
