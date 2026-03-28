@@ -1,17 +1,13 @@
 import { describe, it, expect } from "bun:test";
 import { treaty } from "@elysiajs/eden";
-import { RouterLogin } from "./RouterLogin";
-import { RouterLogout } from "./RouterLogout";
-import { RouterRefresh } from "./RouterRefresh";
 import { testHeaders, test_user } from "@/common/tests/TestManager.test";
+import { RouterAuth } from "./RouterAuth";
 
-const loginApi = treaty(RouterLogin);
-const logoutApi = treaty(RouterLogout);
-const refreshApi = treaty(RouterRefresh);
+const authApi = treaty(RouterAuth);
 
 describe("RouterAuth", () => {
   it("Login", async () => {
-    const res = await loginApi.auth.login.post({
+    const res = await authApi.auth.login.post({
       email: test_user.email,
       password: "test_password",
     });
@@ -30,7 +26,7 @@ describe("RouterAuth", () => {
   });
 
   it("Fail to login with wrong credentials", async () => {
-    const res = await loginApi.auth.login.post({
+    const res = await authApi.auth.login.post({
       email: test_user.email,
       password: "wrong_password_123",
     });
@@ -39,12 +35,12 @@ describe("RouterAuth", () => {
   });
 
   it("Refresh token", async () => {
-    const loginRes = await loginApi.auth.login.post({
+    const loginRes = await authApi.auth.login.post({
       email: test_user.email,
       password: "test_password",
     });
     const cookies = loginRes.response.headers.getSetCookie();
-    const res = await refreshApi.auth.refresh.post(null, {
+    const res = await authApi.auth.refresh.post(null, {
       headers: {
         Cookie: cookies,
       },
@@ -58,7 +54,7 @@ describe("RouterAuth", () => {
   });
 
   it("Fail to refresh without token", async () => {
-    const res = await refreshApi.auth.refresh.post(null, {
+    const res = await authApi.auth.refresh.post(null, {
       headers: {
         Cookie: "",
       },
@@ -70,7 +66,7 @@ describe("RouterAuth", () => {
   it("Logout successfully", async () => {
     const headers = await testHeaders();
 
-    const res = await logoutApi.auth.logout.post(
+    const res = await authApi.auth.logout.post(
       {},
       {
         headers,

@@ -64,21 +64,12 @@ class ServiceAuth {
     },
   ) {
     const isValid = await ServiceSession.isValid(c, payload.sessionId);
+
     if (!isValid) {
       throw ErrorHandler.unauthorized("Session expired or invalid");
     }
 
-    const mockUser = {
-      ...c,
-      tenantId: payload.tenantId,
-      session: {
-        userId: payload.userId,
-        sessionId: payload.sessionId,
-        role: payload.role,
-      },
-    };
-
-    await ServiceSession.remove(mockUser, payload.sessionId);
+    await ServiceSession.removeBySystem(c, payload.sessionId);
 
     const newSession = await ServiceSession.create(c, {
       tenantId: payload.tenantId,
