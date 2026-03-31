@@ -1,57 +1,70 @@
-import { status } from "elysia";
+import { Elysia } from "elysia";
 
-class ErrorHandler {
-  badRequest(message: string = "Bad request") {
-    throw status(400, { error: message });
+const PostgresErrorMap: Record<
+  string,
+  { status: number; error: string; detail: string }
+> = {
+  "23505": {
+    status: 409,
+    error: "Resource already exists",
+    detail: "Unique constraint violation",
+  },
+  "23503": {
+    status: 400,
+    error: "Foreign key constraint failed",
+    detail: "Related record does not exist",
+  },
+};
+
+const getErrorCode = (e: unknown): string | undefined => {
+  if (typeof e !== "object" || e === null) {
+    return undefined;
+  }
+  if ("code" in e && typeof e.code === "string") {
+    return e.code;
+  }
+  if ("cause" in e) {
+    return getErrorCode(e.cause);
+  }
+  if ("error" in e) {
+    return getErrorCode(e.error);
+  }
+  return undefined;
+};
+
+export const ErrorHandler = new Elysia({
+  name: "ErrorHandler",
+}).onError(({ code, error, set }) => {
+  if (code === "VALIDATION") {
+    set.status = 400;
+    return {
+      error: "Validation failed",
+      details: error.all.map((err) => ({
+        field: err.path.replace(/^\//, ""),
+        message: err.summary || err.message,
+      })),
+    };
   }
 
-  unauthorized(message: string = "Unauthorized") {
-    throw status(401, { error: message });
+  if (code !== "UNKNOWN" || !(error instanceof Error)) {
+    return;
   }
 
-  forbidden(message: string = "Forbidden") {
-    throw status(403, { error: message });
+  const mapped = PostgresErrorMap[getErrorCode(error) ?? ""];
+
+  if (mapped) {
+    set.status = mapped.status;
+    return {
+      error: mapped.error,
+      detail: mapped.detail,
+    };
   }
 
-  notFound(message: string = "Resource not found") {
-    throw status(404, { error: message });
-  }
+  // eslint-disable-next-line no-console
+  console.error("Internal server error:", error);
 
-  alreadyExists(message: string = "Resource already exists") {
-    throw status(409, { error: message });
-  }
-
-  validationError(message: string = "Validation error") {
-    throw status(400, { error: message });
-  }
-
-  internal(message: string = "Internal server error") {
-    throw status(500, { error: message });
-  }
-
-  databaseError(message: string = "Database error") {
-    throw status(500, { error: message });
-  }
-
-  recordInUse(message: string = "Record is in use") {
-    throw status(409, { error: message });
-  }
-
-  maintenance(message: string = "System is currenly under maintenance.") {
-    throw status(503, { error: message });
-  }
-
-  planNotExists(message: string = "Plan does not exist") {
-    throw status(400, { error: message });
-  }
-
-  planNotEnabled(message: string = "Plan is not enabled") {
-    throw status(403, { error: message });
-  }
-
-  planNotActive(message: string = "Plan is not active") {
-    throw status(403, { error: message });
-  }
-}
-
-export default new ErrorHandler();
+  set.status = 500;
+  return {
+    error: "Internal server error",
+  };
+});

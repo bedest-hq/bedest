@@ -1,16 +1,16 @@
 import { jwt } from "@elysiajs/jwt";
-import Elysia from "elysia";
+import Elysia, { status } from "elysia";
 import { t } from "elysia";
 import { IUserApp } from "../common/interfaces/IContextApp";
 import { ISession } from "../features/session/interfaces/ISession";
 import { EUserRole } from "../features/user/enums/EUserRole";
-import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import DbManager from "@/infrastructure/database/DbManager";
 import EnvManager from "@/infrastructure/env/EnvManager";
-import { STenant } from "@f/tenant/schemas/STenant";
-import { eq } from "drizzle-orm";
-import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 import ServiceSystem from "@f/system/services/ServiceSystem";
+import { UtilAuth } from "@f/auth/utils/UtilAuth";
+import { VJwtPayload } from "@f/auth/validations/VJwtPayload";
+import { MacroRoleGuard } from "@/common/guards/GuardRole";
+import { MacroPlanGuard } from "@/common/guards/GuardPlan";
 
 class Context {
   private env = EnvManager.get();
@@ -20,6 +20,7 @@ class Context {
     secret: this.env.REFRESH_KEY!,
     exp: "7d",
     iat: true,
+    schema: VJwtPayload,
   });
 
   private accessPlugin = jwt({
@@ -27,55 +28,8 @@ class Context {
     secret: this.env.SECRET_KEY!,
     exp: "15m",
     iat: true,
+    schema: VJwtPayload,
   });
-
-  private async validateAccessToken(
-    accessJwt: {
-      verify: (token: string) => Promise<Record<string, unknown> | false>;
-    },
-    token: string | undefined,
-  ): Promise<{
-    tenantId: string;
-    userId: string;
-    sessionId: string;
-    role: string;
-  }> {
-    if (!token) {
-      throw ErrorHandler.unauthorized("Access token missing");
-    }
-
-    const payload = await accessJwt.verify(token);
-
-    if (!payload) {
-      throw ErrorHandler.unauthorized("Unauthorized");
-    }
-
-    const { tenantId, userId, sessionId, role } = payload;
-
-    if (!tenantId || !userId || !sessionId || !role) {
-      throw ErrorHandler.unauthorized("Invalid token payload");
-    }
-
-    return {
-      tenantId: String(tenantId),
-      userId: String(userId),
-      sessionId: String(sessionId),
-      role: String(role),
-    };
-  }
-
-  private parseRole(role: string): EUserRole {
-    switch (role) {
-      case EUserRole.SYSTEM:
-        return EUserRole.SYSTEM;
-      case EUserRole.ADMIN:
-        return EUserRole.ADMIN;
-      case EUserRole.USER:
-        return EUserRole.USER;
-      default:
-        throw ErrorHandler.forbidden("Invalid or unrecognized user role.");
-    }
-  }
 
   App() {
     const db = DbManager.get();
@@ -102,17 +56,20 @@ class Context {
           const db = DbManager.get();
 
           const token = cookie.accessToken.value;
-          const payload = await this.validateAccessToken(accessJwt, token);
-          const role = this.parseRole(payload.role);
 
-          if (ServiceSystem.getMaintenance() && role !== EUserRole.SYSTEM) {
-            throw ErrorHandler.maintenance();
+          const payload = await UtilAuth.validateAccessToken(accessJwt, token);
+
+          if (
+            ServiceSystem.getMaintenance() &&
+            payload.role !== EUserRole.SYSTEM
+          ) {
+            throw status(503, "System is currently under maintenance.");
           }
 
           const session: ISession = {
             userId: payload.userId,
             sessionId: payload.sessionId,
-            role,
+            role: payload.role,
           };
 
           const userRuntime: IUserApp = {
@@ -124,50 +81,8 @@ class Context {
 
           return { userRuntime };
         })
-        .macro("RoleGuard", (roles: EUserRole[]) => ({
-          beforeHandle({ userRuntime }) {
-            if (!userRuntime) {
-              throw ErrorHandler.unauthorized("Authentication required.");
-            }
-            if (!roles.includes(userRuntime.session.role)) {
-              throw ErrorHandler.forbidden(
-                "You do not have permission to access this resource.",
-              );
-            }
-          },
-        }))
-        .macro("PlanGuard", (plans: ETenantPlan[]) => ({
-          async beforeHandle({ userRuntime }) {
-            if (!userRuntime) {
-              throw ErrorHandler.unauthorized("Authentication required.");
-            }
-
-            const [tenant] = await userRuntime.db
-              .select({
-                plan: STenant.plan,
-                planEnd: STenant.planEnd,
-              })
-              .from(STenant)
-              .where(eq(STenant.id, userRuntime.tenantId))
-              .limit(1);
-
-            if (!tenant) {
-              throw ErrorHandler.notFound("Tenant not found.");
-            }
-
-            if (tenant.planEnd < userRuntime.nowDatetime) {
-              throw ErrorHandler.planNotActive(
-                "Your plan has expired. Please renew to continue.",
-              );
-            }
-
-            if (!plans.includes(tenant.plan)) {
-              throw ErrorHandler.planNotEnabled(
-                "Your current plan does not support this feature. Please upgrade.",
-              );
-            }
-          },
-        }));
+        .macro("RoleGuard", MacroRoleGuard)
+        .macro("PlanGuard", MacroPlanGuard);
   }
 }
 

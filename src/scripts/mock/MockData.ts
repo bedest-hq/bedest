@@ -14,6 +14,9 @@ import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 
 export async function MockData() {
   const { MockUserContext } = ContextBuilder.build();
+  const datetimeNow = new Date();
+  const datetimeNextYear = new Date();
+  datetimeNextYear.setFullYear(datetimeNow.getFullYear() + 1);
 
   const tenant = await ServiceTenant.create(MockUserContext, {
     name: EXAMPLE_TENANT_NAME,
@@ -21,8 +24,8 @@ export async function MockData() {
     phone: "555-555-5555",
     email: EXAMPLE_EMAIL,
     plan: ETenantPlan.PROFESSIONAL,
-    planStart: new Date(),
-    planEnd: new Date(),
+    planStart: datetimeNow,
+    planEnd: datetimeNextYear,
   });
 
   MockUserContext.tenantId = tenant.id;
@@ -31,7 +34,7 @@ export async function MockData() {
     name: EXAMPLE_USER_NAME,
     email: EXAMPLE_EMAIL,
     password: EXAMPLE_USER_PASSWORD,
-    role: EUserRole.ADMIN,
+    role: EUserRole.SYSTEM,
   });
 
   await ServiceExample.create(MockUserContext, {

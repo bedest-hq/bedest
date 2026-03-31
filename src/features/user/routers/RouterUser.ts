@@ -1,17 +1,33 @@
 import { Elysia, t } from "elysia";
-import { VId } from "../../../common/validations/VId";
-import { VString } from "../../../common/validations/VString";
 import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
-import { VQuery } from "@/common/validations/VQuery";
+import { VEmail, VId, VQuery, VString } from "@/common/validations/VCommon";
 
 export const RouterUser = new Elysia({
   prefix: "/user",
   tags: ["User"],
 })
   .use(Context.User())
+  .get(
+    "/self",
+    async ({ userRuntime }) => {
+      const res = await ServiceUser.getById(
+        userRuntime,
+        userRuntime.session.userId,
+      );
+      return res;
+    },
+    {
+      response: t.Object({
+        name: VString,
+        role: t.Enum(EUserRole),
+        email: VEmail,
+        createdAt: t.Date(),
+      }),
+    },
+  )
   .get(
     "/:id",
     async ({ params, userRuntime }) => {
@@ -39,7 +55,7 @@ export const RouterUser = new Elysia({
       params: t.Object({ id: VId }),
       body: t.Object({
         name: t.Optional(VString),
-        password: t.Optional(VString),
+        password: t.Optional(t.String({ minLength: 6, maxLength: 100 })),
       }),
     },
   )
@@ -78,7 +94,7 @@ export const RouterUser = new Elysia({
               phone: VString,
               email: VString,
               role: t.Enum(EUserRole),
-              password: t.String({ minLength: 6 }),
+              password: t.String({ minLength: 6, maxLength: 100 }),
             }),
             response: t.Object({ id: VId }),
           },

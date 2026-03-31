@@ -12,7 +12,8 @@ class DbManager {
       port: env.DATABASE_PORT,
       user: env.DATABASE_USER,
       password: env.DATABASE_PASSWORD,
-      ssl: false,
+      ssl:
+        env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
     });
     await client.connect();
     await client.query(`
@@ -37,7 +38,6 @@ class DbManager {
     });
 
     this.db = drizzle(this.pool);
-
   }
 
   get() {

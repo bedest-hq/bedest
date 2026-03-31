@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
 import EnvManager from "./infrastructure/env/EnvManager";
 import DbManager from "./infrastructure/database/DbManager";
-import { GlobalErrorHandler } from "./infrastructure/error/GlobalErrorHandler";
+import { ErrorHandler } from "./infrastructure/error/ErrorHandler";
 import cors from "@elysiajs/cors";
 
 const env = EnvManager.init();
@@ -17,7 +17,7 @@ export const app = new Elysia()
       credentials: true,
     }),
   )
-  .use(GlobalErrorHandler)
+  .use(ErrorHandler)
   .get("/favicon.ico", () => Bun.file("public/favicon.ico"))
   .use(Router)
   .listen(env.PORT);

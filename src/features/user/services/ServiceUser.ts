@@ -1,8 +1,8 @@
 import { EUserRole } from "../enums/EUserRole";
 import { IUserApp } from "../../../common/interfaces/IContextApp";
 import { SUser } from "../schemas/SUser";
-import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { ServiceBaseTenant } from "@/common/services/ServiceBaseTenant";
+import { status } from "elysia";
 
 class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   constructor() {
@@ -24,9 +24,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     const targetR = data.role;
 
     if (targetR === EUserRole.SYSTEM && userR !== EUserRole.SYSTEM) {
-      throw ErrorHandler.forbidden(
-        "You are not authorized to create a system user",
-      );
+      throw status(403, "You are not authorized to create a system user");
     }
 
     if (
@@ -34,9 +32,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       userR !== EUserRole.ADMIN &&
       userR !== EUserRole.SYSTEM
     ) {
-      throw ErrorHandler.forbidden(
-        "You are not authorized to create an admin user",
-      );
+      throw status(403, "You are not authorized to create an admin user");
     }
 
     return super.create(c, {
@@ -57,6 +53,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     return super.getById(c, id, {
       name: SUser.name,
       role: SUser.role,
+      email: SUser.email,
       createdAt: SUser.createdAt,
     });
   }
@@ -66,11 +63,12 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     id: string,
     data: { name?: string; password?: string },
   ) {
-    const targetId = [EUserRole.ADMIN, EUserRole.SYSTEM].includes(
-      c.session.role,
-    )
-      ? id
-      : c.session.userId;
+    if (
+      c.session.userId !== id &&
+      ![EUserRole.ADMIN, EUserRole.SYSTEM].includes(c.session.role)
+    ) {
+      throw status(403, "You do not have permission to update other users.");
+    }
 
     const payload: Partial<typeof SUser.$inferInsert> = {};
 
@@ -81,7 +79,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       payload.password = await Bun.password.hash(data.password);
     }
 
-    await super.update(c, targetId, payload);
+    await super.update(c, id, payload);
 
     return { success: true };
   }
