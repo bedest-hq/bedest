@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/bedest-hq/bedest/compare/v1.0.3...v1.0.4) (2026-03-31)
+
+
+### Bug Fixes
+
+* some routers was became lean. ([#31](https://github.com/bedest-hq/bedest/issues/31)) ([5e00152](https://github.com/bedest-hq/bedest/commit/5e0015295aafea4106bbfdbd660e13013dd60e47))
+
 ## [1.0.3](https://github.com/bedest-hq/bedest/compare/v1.0.2...v1.0.3) (2026-03-25)
 
 
