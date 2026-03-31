@@ -2,10 +2,10 @@ import { and, eq } from "drizzle-orm";
 import { IApp, IUserApp } from "../../../common/interfaces/IContextApp";
 import { SUser } from "../../user/schemas/SUser";
 import ServiceSession from "@/features/session/services/ServiceSession";
-import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import { EUserRole } from "@f/user/enums/EUserRole";
+import { NotFoundError, status } from "elysia";
 
 class ServiceAuth {
   async login(c: IApp, data: { email: string; password: string }) {
@@ -24,17 +24,17 @@ class ServiceAuth {
     });
 
     if (!user) {
-      throw ErrorHandler.notFound("User doesn't exist");
+      throw new NotFoundError("User doesn't exist");
     }
 
     const verifyPass = await Bun.password.verify(data.password, user.password);
 
     if (!verifyPass) {
-      throw ErrorHandler.validationError("Wrong password");
+      throw status(401, { message: "Wrong password" });
     }
 
     if (ServiceSystem.getMaintenance() && user.role !== "SYSTEM") {
-      throw ErrorHandler.maintenance();
+      throw status(503, { message: "System is currently under maintenance." });
     }
 
     const session = await ServiceSession.create(c, {
@@ -66,7 +66,7 @@ class ServiceAuth {
     const isValid = await ServiceSession.isValid(c, payload.sessionId);
 
     if (!isValid) {
-      throw ErrorHandler.unauthorized("Session expired or invalid");
+      throw status(401, { message: "Session expired or invalid" });
     }
 
     await ServiceSession.removeBySystem(c, payload.sessionId);

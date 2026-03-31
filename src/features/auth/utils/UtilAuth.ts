@@ -1,5 +1,6 @@
 import EnvManager from "@/infrastructure/env/EnvManager";
-import ErrorHandler from "@/infrastructure/error/ErrorHandler";
+import { TJwtPayload } from "../validations/VJwtPayload";
+import { status } from "elysia";
 
 export class UtilAuth {
   static cookieConf(type: "access" | "refresh") {
@@ -16,36 +17,20 @@ export class UtilAuth {
 
   static async validateAccessToken(
     accessJwt: {
-      verify: (token: string) => Promise<Record<string, unknown> | false>;
+      verify: (token: string) => Promise<TJwtPayload | false>;
     },
     token: string | undefined,
-  ): Promise<{
-    tenantId: string;
-    userId: string;
-    sessionId: string;
-    role: string;
-  }> {
+  ): Promise<TJwtPayload> {
     if (!token) {
-      throw ErrorHandler.unauthorized("Access token missing");
+      throw status(401, { message: "Access token missing" });
     }
 
     const payload = await accessJwt.verify(token);
 
     if (!payload) {
-      throw ErrorHandler.unauthorized("Unauthorized");
+      throw status(401, { message: "Invalid, expired or corrupted token" });
     }
 
-    const { tenantId, userId, sessionId, role } = payload;
-
-    if (!tenantId || !userId || !sessionId || !role) {
-      throw ErrorHandler.unauthorized("Invalid token payload");
-    }
-
-    return {
-      tenantId: String(tenantId),
-      userId: String(userId),
-      sessionId: String(sessionId),
-      role: String(role),
-    };
+    return payload;
   }
 }

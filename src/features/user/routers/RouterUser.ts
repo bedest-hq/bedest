@@ -3,13 +3,31 @@ import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
 import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
-import { VId, VQuery, VString } from "@/common/validations/VCommon";
+import { VEmail, VId, VQuery, VString } from "@/common/validations/VCommon";
 
 export const RouterUser = new Elysia({
   prefix: "/user",
   tags: ["User"],
 })
   .use(Context.User())
+  .get(
+    "/self",
+    async ({ userRuntime }) => {
+      const res = await ServiceUser.getById(
+        userRuntime,
+        userRuntime.session.userId,
+      );
+      return res;
+    },
+    {
+      response: t.Object({
+        name: VString,
+        role: t.Enum(EUserRole),
+        email: VEmail,
+        createdAt: t.Date(),
+      }),
+    },
+  )
   .get(
     "/:id",
     async ({ params, userRuntime }) => {

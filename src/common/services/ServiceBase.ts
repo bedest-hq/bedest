@@ -12,10 +12,10 @@ import {
   type SelectedFields,
   type PgUpdateSetSource,
 } from "drizzle-orm/pg-core";
-import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { type IBaseTable } from "../interfaces/IBaseTable";
 import { Prettify } from "elysia/types";
 import { IApp } from "../interfaces/IContextApp";
+import { status } from "elysia";
 
 export abstract class ServiceBase<
   TTable extends IBaseTable,
@@ -57,7 +57,7 @@ export abstract class ServiceBase<
       .returning({ id: this.table.id });
 
     if (!res) {
-      throw ErrorHandler.internal("Creation failed");
+      throw status(500, { message: "Internal server error during creation" });
     }
     return res as { id: TId };
   }
@@ -112,7 +112,7 @@ export abstract class ServiceBase<
       .where(and(...this.getFilters(id)));
 
     if (!res) {
-      throw ErrorHandler.notFound();
+      throw status(404, "Record not found");
     }
     return res as Prettify<InferSelectModel<TTable>>;
   }
@@ -135,7 +135,7 @@ export abstract class ServiceBase<
       .where(and(...this.getFilters(id)));
 
     if (update.rowCount === 0) {
-      throw ErrorHandler.notFound("Record not found");
+      throw status(404, "Record not found");
     }
 
     return { success: true };

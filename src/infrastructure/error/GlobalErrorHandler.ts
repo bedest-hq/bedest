@@ -1,69 +1,70 @@
 import { Elysia } from "elysia";
 
-interface PostgresError extends Error {
-  code?: string;
-  detail?: string;
-}
+const PostgresErrorMap: Record<
+  string,
+  { status: number; error: string; detail: string }
+> = {
+  "23505": {
+    status: 409,
+    error: "Resource already exists",
+    detail: "Unique constraint violation",
+  },
+  "23503": {
+    status: 400,
+    error: "Foreign key constraint failed",
+    detail: "Related record does not exist",
+  },
+};
 
-interface DrizzleError extends Error {
-  cause?: PostgresError;
-}
+const getErrorCode = (e: unknown): string | undefined => {
+  if (typeof e !== "object" || e === null) {
+    return undefined;
+  }
+  if ("code" in e && typeof e.code === "string") {
+    return e.code;
+  }
+  if ("cause" in e) {
+    return getErrorCode(e.cause);
+  }
+  if ("error" in e) {
+    return getErrorCode(e.error);
+  }
+  return undefined;
+};
 
 export const GlobalErrorHandler = new Elysia({
   name: "GlobalErrorHandler",
 }).onError({ as: "global" }, ({ code, error, set }) => {
   if (code === "VALIDATION") {
     set.status = 400;
-
-    const formattedErrors = error.all.map((err) => ({
-      field: err.path.replace("/", ""),
-      message: err.summary || "Invalid value",
-    }));
-
     return {
       error: "Validation failed",
-      details: formattedErrors,
+      details: error.all.map((err) => ({
+        field: err.path.replace(/^\//, ""),
+        message: err.summary || err.message,
+      })),
     };
   }
 
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "status" in error &&
-    "response" in error
-  ) {
-    set.status = error.status as number;
-    return error.response;
+  if (code !== "UNKNOWN" || !(error instanceof Error)) {
+    return;
   }
 
-  if (error instanceof Error) {
-    const dbError = error as PostgresError;
-    const drizzleWrap = error as DrizzleError;
+  const mapped = PostgresErrorMap[getErrorCode(error) ?? ""];
 
-    const errorCode = dbError.code || drizzleWrap.cause?.code;
-
-    if (errorCode === "23505") {
-      set.status = 409;
-      return {
-        error: "Resource already exists",
-        detail: "Unique constraint violation",
-      };
-    }
-
-    if (errorCode === "23503") {
-      set.status = 400;
-      return {
-        error: "Foreign key constraint failed",
-        detail: "Related record does not exist",
-      };
-    }
-
-    // eslint-disable-next-line no-console
-    console.error("🔥 Unexpected Error:", error);
-
-    set.status = 500;
+  if (mapped) {
+    set.status = mapped.status;
     return {
-      error: "Internal server error",
+      error: mapped.error,
+      detail: mapped.detail,
     };
   }
+
+  // eslint-disable-next-line no-console
+  console.error("Internal server error:", error);
+
+  set.status = 500;
+  return {
+    error: "Internal server error",
+  };
 });

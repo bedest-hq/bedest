@@ -2,14 +2,12 @@ import { t } from "elysia";
 
 export const VId = t.String({ format: "uuid" });
 
-export const VDatetime = t.String({ format: "date-time" });
-
 export const VDefault = {
   id: VId,
   createdBy: VId,
   isDeleted: t.Boolean(),
-  createdAt: VDatetime,
-  deletedAt: VDatetime,
+  createdAt: t.Date(),
+  deletedAt: t.Date(),
 };
 
 export const VEmail = t.String({ format: "email" });

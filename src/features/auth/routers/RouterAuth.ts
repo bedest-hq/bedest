@@ -1,8 +1,7 @@
-import { Elysia, t } from "elysia";
+import { Elysia, status, t } from "elysia";
 import { rateLimit } from "elysia-rate-limit";
 import Context from "@/app/Context";
 import EnvManager from "@/infrastructure/env/EnvManager";
-import ErrorHandler from "@/infrastructure/error/ErrorHandler";
 import { EXAMPLE_EMAIL, EXAMPLE_USER_PASSWORD } from "@/common/constants";
 import { EUserRole } from "@/features/user/enums/EUserRole";
 import ServiceAuth from "../services/ServiceAuth";
@@ -73,12 +72,12 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
           const refreshToken = cookie.refreshToken.value;
 
           if (!refreshToken) {
-            throw ErrorHandler.unauthorized("Refresh token missing");
+            throw status(401, "Refresh token missing");
           }
 
           const payload = await refreshJwt.verify(refreshToken as string);
           if (!payload) {
-            throw ErrorHandler.unauthorized("Invalid refresh token");
+            throw status(401, "Invalid refresh token");
           }
 
           const newPayload = await ServiceAuth.refresh(

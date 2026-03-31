@@ -6,12 +6,42 @@ import Context from "@/app/Context";
 import { UtilRouter } from "@/common/utils/UtilRouter";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { VEmail, VId, VQuery, VString } from "@/common/validations/VCommon";
+import { VTenantPlan } from "../validations/VTenantPlan";
 
 export const RouterTenant = new Elysia({
   prefix: "/tenant",
   tags: ["Tenant"],
 })
   .use(Context.User())
+  .get(
+    "/self",
+    async ({ userRuntime }) => {
+      const res = await ServiceTenant.getById(
+        userRuntime,
+        userRuntime.tenantId,
+        {
+          name: STenant.name,
+          email: STenant.email,
+          country: STenant.country,
+          plan: STenant.plan,
+          planEnd: STenant.planEnd,
+          phone: STenant.phone,
+        },
+      );
+
+      return res;
+    },
+    {
+      response: t.Object({
+        name: VString,
+        email: VEmail,
+        country: VString,
+        plan: VTenantPlan,
+        planEnd: t.Date(),
+        phone: VString,
+      }),
+    },
+  )
   .get(
     "/:id",
     async ({ params, userRuntime }) => {
@@ -20,6 +50,9 @@ export const RouterTenant = new Elysia({
       const res = await ServiceTenant.getById(userRuntime, id, {
         name: STenant.name,
         email: STenant.email,
+        country: STenant.country,
+        plan: STenant.plan,
+        phone: STenant.phone,
       });
 
       return res;
@@ -31,6 +64,9 @@ export const RouterTenant = new Elysia({
       response: t.Object({
         name: VString,
         email: VEmail,
+        country: VString,
+        plan: VTenantPlan,
+        phone: VString,
       }),
     },
   )

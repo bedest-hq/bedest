@@ -17,6 +17,9 @@ describe("RouterTenant", () => {
     expect(res.data).toStrictEqual({
       email: "test@example.com",
       name: "Test Tenant",
+      country: "Test Country",
+      phone: "05555555555",
+      plan: ETenantPlan.PROFESSIONAL,
     });
   });
 
@@ -61,6 +64,9 @@ describe("RouterTenant", () => {
     expect(updatedRes.data).toStrictEqual({
       email: "updated@tenant.com",
       name: "Test Tenant",
+      country: "Test Country",
+      phone: "05555555555",
+      plan: ETenantPlan.PROFESSIONAL,
     });
   });
 
