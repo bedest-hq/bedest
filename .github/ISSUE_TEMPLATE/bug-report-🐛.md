@@ -8,25 +8,25 @@ assignees: ''
 ---
 
 **Describe the bug**
-A clear and concise description of what the bug is. (e.g., "Tenant isolation is failing on ServiceExample update method.")
+A clear and concise description of the issue. (e.g., "Recursive error extractor failing to identify unique constraint violation on PostgreSQL.")
 
 **To Reproduce**
-Steps to reproduce the behavior (Please provide API requests if possible):
-1. Send a `POST` request to `/api/v1/auth/login` to get the tokens.
-2. Send a `GET` request to `/api/v1/example` with the following payload:
+Steps to reproduce the behavior:
+1. Authenticate to obtain the `accessToken` cookie.
+2. Call the targeted endpoint (e.g., `POST /api/v1/example`).
+3. Provide the specific payload that triggers the issue:
 ```json
 {
-  "exampleColumn": "test"
+  "exampleColumn": "value"
 }
 ```
-3. Look at the terminal logs or the API response.
-4. See error.
+4. Observe the response status and the terminal output.
 
 **Expected behavior**
-A clear and concise description of what you expected to happen. (e.g., "The API should return a 200 OK with the inserted record ID, but it returns 500 Internal Server Error.")
+A clear description of the expected outcome. (e.g., "The API should return a 409 Conflict via ErrorHandler, but it returns 500 Internal Server Error instead.")
 
 **Actual behavior / Error Logs**
-Paste the error stack trace from your terminal or the exact JSON error response from Elysia.
+Please paste the full terminal log (especially the 🔥 System Crash or Failed query logs) or the exact JSON response.
 
 ```text
 (Paste your logs here)
@@ -39,5 +39,4 @@ Paste the error stack trace from your terminal or the exact JSON error response 
  - **Elysia Version:** [e.g. 1.0.x]
 
 **Additional context**
-Add any other context about the problem here. (Did you modify the `ServiceBaseTenant`? Are you bypassing RLS manually?)
-```
+Add any other details here. (e.g., "I've customized the UtilTenantScope," or "This only happens when using ServiceBaseTenant inside a transaction.")
