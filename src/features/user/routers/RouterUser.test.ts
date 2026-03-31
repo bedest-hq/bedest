@@ -85,6 +85,20 @@ describe("RouterUser", () => {
     });
   });
 
+  it("Get Self", async () => {
+    const headers = await testHeaders();
+
+    const res = await api.user.self.get({ headers });
+
+    expect(res.status).toBe(200);
+    expect(res.data).toStrictEqual({
+      name: "Test User",
+      email: "text@example.com",
+      role: EUserRole.SYSTEM,
+      createdAt: expect.any(Date),
+    });
+  });
+
   it("Update user", async () => {
     const headers = await testHeaders();
 

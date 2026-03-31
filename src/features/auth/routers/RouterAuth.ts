@@ -19,6 +19,12 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
         rateLimit({
           max: 5,
           duration: 60 * 1000,
+          generator: (req, server) => {
+            if (env.NODE_ENV === "test") {
+              return "test-environment";
+            }
+            return server?.requestIP(req)?.address ?? "unknown";
+          },
           skip: () => env.NODE_ENV === "test",
         }),
       )
@@ -58,6 +64,7 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
             }),
             password: t.String({
               minLength: 6,
+              maxLength: 100,
               ...(env.NODE_ENV === "development" && {
                 default: EXAMPLE_USER_PASSWORD,
               }),

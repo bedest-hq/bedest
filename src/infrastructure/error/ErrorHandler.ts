@@ -32,9 +32,9 @@ const getErrorCode = (e: unknown): string | undefined => {
   return undefined;
 };
 
-export const GlobalErrorHandler = new Elysia({
-  name: "GlobalErrorHandler",
-}).onError({ as: "global" }, ({ code, error, set }) => {
+export const ErrorHandler = new Elysia({
+  name: "ErrorHandler",
+}).onError(({ code, error, set }) => {
   if (code === "VALIDATION") {
     set.status = 400;
     return {
