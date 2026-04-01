@@ -22,17 +22,17 @@ class EnvManager {
       const firstError = [...Value.Errors(VEnv, withDefaults)][0];
 
       throw new Error(
-        `🔥 Env Configuration Error [${firstError.path}]: ${firstError.message}`,
+        `Env Configuration Error [${firstError.path}]: ${firstError.message}`,
       );
     }
 
-    this.env = withDefaults as TEnv;
+    this.env = withDefaults;
     return this.env;
   }
 
   get(): TEnv {
     if (!this.env) {
-      throw new Error("Env is not initialized. Call EnvManager.init() first.");
+      return this.init();
     }
     return this.env;
   }

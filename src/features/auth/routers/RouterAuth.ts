@@ -79,12 +79,12 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
           const refreshToken = cookie.refreshToken.value;
 
           if (!refreshToken) {
-            throw status(401, "Refresh token missing");
+            throw status("Unauthorized");
           }
 
           const payload = await refreshJwt.verify(refreshToken as string);
           if (!payload) {
-            throw status(401, "Invalid refresh token");
+            throw status("Unauthorized");
           }
 
           const newPayload = await ServiceAuth.refresh(

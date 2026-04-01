@@ -57,7 +57,7 @@ export abstract class ServiceBase<
       .returning({ id: this.table.id });
 
     if (!res) {
-      throw status(500, { message: "Internal server error during creation" });
+      throw status("Internal Server Error");
     }
     return res as { id: TId };
   }
@@ -112,7 +112,7 @@ export abstract class ServiceBase<
       .where(and(...this.getFilters(id)));
 
     if (!res) {
-      throw status(404, "Record not found");
+      throw status("Not Found");
     }
     return res as Prettify<InferSelectModel<TTable>>;
   }
@@ -135,7 +135,7 @@ export abstract class ServiceBase<
       .where(and(...this.getFilters(id)));
 
     if (update.rowCount === 0) {
-      throw status(404, "Record not found");
+      throw status("Not Found");
     }
 
     return { success: true };

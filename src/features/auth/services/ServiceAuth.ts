@@ -5,7 +5,7 @@ import ServiceSession from "@/features/session/services/ServiceSession";
 import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import { EUserRole } from "@f/user/enums/EUserRole";
-import { NotFoundError, status } from "elysia";
+import { status } from "elysia";
 
 class ServiceAuth {
   async login(c: IApp, data: { email: string; password: string }) {
@@ -24,17 +24,17 @@ class ServiceAuth {
     });
 
     if (!user) {
-      throw new NotFoundError("User doesn't exist");
+      throw status("Not Found");
     }
 
     const verifyPass = await Bun.password.verify(data.password, user.password);
 
     if (!verifyPass) {
-      throw status(401, { message: "Wrong password" });
+      throw status("Unauthorized", { message: "Wrong password" });
     }
 
     if (ServiceSystem.getMaintenance() && user.role !== "SYSTEM") {
-      throw status(503, { message: "System is currently under maintenance." });
+      throw status("Service Unavailable");
     }
 
     const session = await ServiceSession.create(c, {
@@ -66,7 +66,7 @@ class ServiceAuth {
     const isValid = await ServiceSession.isValid(c, payload.sessionId);
 
     if (!isValid) {
-      throw status(401, { message: "Session expired or invalid" });
+      throw status("Unauthorized");
     }
 
     await ServiceSession.removeBySystem(c, payload.sessionId);

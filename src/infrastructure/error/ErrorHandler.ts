@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+import { logger } from "../logger/logger";
 
 const PostgresErrorMap: Record<
   string,
@@ -34,7 +35,7 @@ const getErrorCode = (e: unknown): string | undefined => {
 
 export const ErrorHandler = new Elysia({
   name: "ErrorHandler",
-}).onError(({ code, error, set }) => {
+}).onError({ as: "global" }, ({ code, error, set }) => {
   if (code === "VALIDATION") {
     set.status = 400;
     return {
@@ -60,8 +61,7 @@ export const ErrorHandler = new Elysia({
     };
   }
 
-  // eslint-disable-next-line no-console
-  console.error("Internal server error:", error);
+  logger.error({ error }, "Internal Server Error.");
 
   set.status = 500;
   return {

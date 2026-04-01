@@ -6,7 +6,7 @@ import { status } from "elysia";
 export const MacroPlanGuard = (plans: ETenantPlan[]) => ({
   async beforeHandle({ userRuntime }: { userRuntime?: IUserApp }) {
     if (!userRuntime) {
-      throw status(401, "Authentication required.");
+      throw status("Unauthorized");
     }
 
     const tenant = await ServiceTenant.checkPlan(
@@ -15,18 +15,15 @@ export const MacroPlanGuard = (plans: ETenantPlan[]) => ({
     );
 
     if (!tenant) {
-      throw status(404, "Tenant not found.");
+      throw status("Not Found");
     }
 
     if (tenant.planEnd < userRuntime.nowDatetime) {
-      throw status(402, "Your plan has expired. Please renew to continue.");
+      throw status("Payment Required");
     }
 
     if (!plans.includes(tenant.plan)) {
-      throw status(
-        403,
-        "Your current plan does not support this feature. Please upgrade.",
-      );
+      throw status("Upgrade Required");
     }
   },
 });

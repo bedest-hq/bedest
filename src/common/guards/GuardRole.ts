@@ -5,11 +5,11 @@ import { status } from "elysia";
 export const MacroRoleGuard = (roles: EUserRole[]) => ({
   beforeHandle({ userRuntime }: { userRuntime?: IUserApp }) {
     if (!userRuntime) {
-      throw status(401, "Authentication required.");
+      throw status("Unauthorized");
     }
 
     if (!roles.includes(userRuntime.session.role)) {
-      throw status(403, "You do not have permission to access this resource.");
+      throw status("Forbidden");
     }
   },
 });
