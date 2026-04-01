@@ -63,7 +63,7 @@ class Context {
             ServiceSystem.getMaintenance() &&
             payload.role !== EUserRole.SYSTEM
           ) {
-            throw status(503, "System is currently under maintenance.");
+            throw status("Service Unavailable");
           }
 
           const session: ISession = {

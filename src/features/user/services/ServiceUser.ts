@@ -24,7 +24,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     const targetR = data.role;
 
     if (targetR === EUserRole.SYSTEM && userR !== EUserRole.SYSTEM) {
-      throw status(403, "You are not authorized to create a system user");
+      throw status("Forbidden");
     }
 
     if (
@@ -32,7 +32,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       userR !== EUserRole.ADMIN &&
       userR !== EUserRole.SYSTEM
     ) {
-      throw status(403, "You are not authorized to create an admin user");
+      throw status("Forbidden");
     }
 
     return super.create(c, {
@@ -67,7 +67,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       c.session.userId !== id &&
       ![EUserRole.ADMIN, EUserRole.SYSTEM].includes(c.session.role)
     ) {
-      throw status(403, "You do not have permission to update other users.");
+      throw status("Forbidden");
     }
 
     const payload: Partial<typeof SUser.$inferInsert> = {};

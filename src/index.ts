@@ -3,6 +3,7 @@ import EnvManager from "./infrastructure/env/EnvManager";
 import DbManager from "./infrastructure/database/DbManager";
 import { ErrorHandler } from "./infrastructure/error/ErrorHandler";
 import cors from "@elysiajs/cors";
+import { logger } from "./infrastructure/logger/logger";
 
 const env = EnvManager.init();
 
@@ -22,15 +23,10 @@ export const app = new Elysia()
   .use(Router)
   .listen(env.PORT);
 
-// eslint-disable-next-line no-console
-console.log("✨ Hello Bedest ✨");
-
-// eslint-disable-next-line no-console
-console.log(
+logger.info("✨ Hello Bedest ✨");
+logger.info(
   `⚡ Elysia is running at http://${app.server?.hostname}:${app.server?.port}`,
 );
-
-// eslint-disable-next-line no-console
-console.log(
+logger.info(
   `📖 For API Documentation http://${app.server?.hostname}:${app.server?.port}/api/docs`,
 );

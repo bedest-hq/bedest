@@ -22,13 +22,13 @@ export class UtilAuth {
     token: string | undefined,
   ): Promise<TJwtPayload> {
     if (!token) {
-      throw status(401, { message: "Access token missing" });
+      throw status("Unauthorized");
     }
 
     const payload = await accessJwt.verify(token);
 
     if (!payload) {
-      throw status(401, { message: "Invalid, expired or corrupted token" });
+      throw status("Unauthorized");
     }
 
     return payload;
