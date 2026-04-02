@@ -27,11 +27,11 @@ jobs:
       - name: 📦 Install Dependencies
         run: bun install
 
-      - name: 🧐 Type Check & Linting
-        run: bun run check:files
+      - name: 🧐 Quality Check
+        run: bun run check
 
-      - name: 🏗️ Generate Migrations
-        run: bun run db:gen
+      - name: 🏗️ Generate Migrations Check
+        run: bun run db:generate
         env:
           DATABASE_HOST: localhost
           DATABASE_PORT: 5432

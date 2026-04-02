@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_HOST=db 
+      - DATABASE_HOST=db
       - DATABASE_PORT=5432
       - NODE_ENV=production
     depends_on:
@@ -30,7 +30,7 @@ services:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     ports:
-      - "${DATABASE_PORT}:${DATABASE_PORT}"
+      - "${DATABASE_PORT:-5432}:5432"
     volumes:
       - bedest_pg_data:/var/lib/postgresql/data
     healthcheck:

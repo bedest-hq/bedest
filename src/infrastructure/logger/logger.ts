@@ -4,7 +4,7 @@ import EnvManager from "../env/EnvManager";
 const env = EnvManager.get();
 
 export const logger = pino({
-  level: env.NODE_ENV === "production" ? "info" : "info",
+  level: env.NODE_ENV === "test" ? "silent" : "info",
   transport:
     env.NODE_ENV === "development"
       ? {

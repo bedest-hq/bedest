@@ -1,45 +1,45 @@
 {
   "name": "bedest",
   "version": "1.0.4",
-  "description": "B.E.D. Stack Boilerplate App",
+  "description": "B.E.D. Stack Boilerplate",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1022.0",
     "@elysiajs/cors": "^1.4.1",
-    "@elysiajs/eden": "^1.4.8",
     "@elysiajs/jwt": "^1.4.1",
+    "@elysiajs/swagger": "^1.3.1",
     "drizzle-orm": "^0.45.1",
     "elysia": "^1.4.28",
     "elysia-rate-limit": "^4.5.1",
     "pg": "^8.20.0",
-    "pino": "^10.3.1",
-    "pino-pretty": "^13.1.3"
+    "pino": "^10.3.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.4.1",
-    "@elysiajs/swagger": "^1.3.1",
+    "@elysiajs/eden": "^1.4.9",
     "@eslint/js": "^10.0.1",
     "@types/bun": "^1.3.11",
     "@types/pg": "^8.20.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^10.1.0",
+    "pino-pretty": "^13.1.3",
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.57.1"
   },
-  "scripts": {
+"scripts": {
     "dev": "NODE_ENV=development bun --watch src/index.ts",
     "build": "bun build src/index.ts --target bun --outdir ./dist",
     "start": "NODE_ENV=production bun dist/index.js",
     "test": "bun test",
-    "mock": "bun run src/scripts/mock/MockData.ts",
-    "check:ts": "tsc --noEmit",
-    "check:lint": "eslint 'src/**/*.{ts,js}' --max-warnings=0",
-    "check:files": "bun run check:ts && bun run check:lint",
-    "db:re": "bun run src/scripts/database/DatabaseReset.ts",
-    "db:gen": "bun run drizzle-kit generate",
-    "db:mig": "bun run drizzle-kit migrate",
-    "db:sync": "bun run db:gen && bun run db:mig",
-    "db:up": "rm -rf drizzle && bun run db:re && bun run db:sync",
-    "app:dev": "bun run db:up && bun run mock"
+    "lint": "eslint 'src/**/*.{ts,js}' --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "check": "bun run typecheck && bun run lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:reset": "bun run src/scripts/database/DatabaseReset.ts",
+    "db:seed": "bun run src/scripts/seed/seed.ts",
+    "db:setup": "rm -rf drizzle && bun run db:reset && bun run db:generate && bun run db:migrate",
+    "dev:setup": "bun run db:setup && bun run db:seed"
   }
 }

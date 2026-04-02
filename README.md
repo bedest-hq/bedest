@@ -41,6 +41,7 @@ Bedest is engineered to solve the most grueling challenges of B2B SaaS developme
 -   **Generic Service Pattern**: `ServiceBase` and `ServiceBaseTenant` to eliminate repetitive CRUD logic.
 -   **Standardized API Contract**: All validation and system errors follow the `{ error, details: [] }` schema.
 -   **Lightning Fast Tests**: Isolated database testing using **PGlite** (in-memory Postgres). No external DB required for CI/CD.
+-   **Hybrid Storage Engine**: Zero-copy file uploads with AWS S3 / Minio support and a seamless Local Storage fallback.
 
 ---
 
@@ -64,7 +65,7 @@ src/
 │       ├── schemas/   # Drizzle table definitions & RLS policies
 │       └── services/  # Core business logic
 ├── infrastructure/    # Database Manager, Env Validation, Error Handling
-└── scripts/           # DB Reset, Mock Data, Context Builders
+└── scripts/           # DB Reset, seed , Context Builders
 ```
 ---
 
@@ -82,6 +83,9 @@ The API follows strict REST standards to provide meaningful feedback:
 
 ### Automated Tenant Scoping
 Security is enforced at the transaction level. By using UtilTenantScope, every database query is wrapped in a session-local configuration that triggers PostgreSQL RLS policies, ensuring absolute data isolation between tenants.
+
+### Hybrid Storage Strategy
+A unified `StorageManager` dynamically routes file uploads to AWS S3 (or any S3-compatible service like Minio) if credentials are provided, gracefully falling back to Node.js Local Storage. It handles files using a zero-copy approach (`Buffer.from` over `ArrayBuffer`), ensuring high-performance I/O without unnecessary memory allocations.
 
 ---
 
@@ -124,11 +128,11 @@ docker-compose up -d
 | Command | Description |
 | ------- | ----------- |
 | bun run dev | Start development server with hot reload |
-| bun run check:files | Run TypeScript type-check and ESLint |
+| bun run check | Run TypeScript type-check and ESLint |
 | bun run test | Run isolated unit and integration tests |
-| bun run db:gen | Generate Drizzle migrations |
-| bun run db:push | Push schema changes directly to DB |
-| bun run app:dev | Full rebuild: Reset, Migrate, and Seed |
+| bun run db:generate | Generate Drizzle migrations |
+| bun run db:migrate | Apply migrations to database |
+| bun run dev:setup | Full rebuild: Reset, Migrate, and Seed |
 
 ---
 

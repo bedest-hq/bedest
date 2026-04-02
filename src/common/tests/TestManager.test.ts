@@ -79,6 +79,13 @@ const test_env: TEnv = {
   REFRESH_KEY: "refresh-key",
   SECRET_KEY: "secret-key",
   PORT: 3000,
+
+  LOCAL_STORAGE_PATH: "./test_uploads",
+  S3_ENDPOINT: "http://localhost:9000",
+  S3_REGION: "us-east-1",
+  S3_ACCESS_KEY: "testkey",
+  S3_SECRET_KEY: "testsecret",
+  S3_BUCKET: "test-bucket",
 };
 
 const test_client = new PGlite();

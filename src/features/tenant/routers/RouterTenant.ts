@@ -23,6 +23,7 @@ export const RouterTenant = new Elysia({
           name: STenant.name,
           email: STenant.email,
           country: STenant.country,
+          logoId: STenant.logoId,
           plan: STenant.plan,
           planEnd: STenant.planEnd,
           phone: STenant.phone,
@@ -36,6 +37,7 @@ export const RouterTenant = new Elysia({
         name: VString,
         email: VEmail,
         country: VString,
+        logoId: t.Nullable(VId),
         plan: VTenantPlan,
         planEnd: t.Date(),
         phone: VString,
@@ -51,6 +53,7 @@ export const RouterTenant = new Elysia({
         name: STenant.name,
         email: STenant.email,
         country: STenant.country,
+        logoId: STenant.logoId,
         plan: STenant.plan,
         phone: STenant.phone,
       });
@@ -65,6 +68,7 @@ export const RouterTenant = new Elysia({
         name: VString,
         email: VEmail,
         country: VString,
+        logoId: t.Nullable(VId),
         plan: VTenantPlan,
         phone: VString,
       }),
@@ -86,6 +90,7 @@ export const RouterTenant = new Elysia({
         country: t.Optional(VString),
         phone: t.Optional(VString),
         email: t.Optional(VString),
+        logoId: t.Optional(VId),
         plan: t.Optional(
           t.Union([
             t.Literal(ETenantPlan.BASIC),
@@ -115,6 +120,7 @@ export const RouterTenant = new Elysia({
               country: VString,
               phone: VString,
               email: VString,
+              logoId: t.Optional(VId),
               plan: t.Union([
                 t.Literal(ETenantPlan.BASIC),
                 t.Literal(ETenantPlan.STANDARD),
@@ -142,6 +148,7 @@ export const RouterTenant = new Elysia({
             const res = await ServiceTenant.getAll(userRuntime, query, {
               name: STenant.name,
               country: STenant.country,
+              logoId: STenant.logoId,
               email: STenant.email,
             });
 
@@ -153,6 +160,7 @@ export const RouterTenant = new Elysia({
               t.Object({
                 name: VString,
                 country: VString,
+                logoId: t.Nullable(VId),
                 email: VEmail,
               }),
             ),

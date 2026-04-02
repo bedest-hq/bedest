@@ -50,11 +50,13 @@ describe("RouterUser", () => {
         createdAt: expect.any(Date),
         name: "Test User",
         role: EUserRole.SYSTEM,
+        avatarId: null,
       },
       {
         createdAt: expect.any(Date),
         name: "List User",
         role: EUserRole.USER,
+        avatarId: null,
       },
     ]);
   });
@@ -82,6 +84,7 @@ describe("RouterUser", () => {
       createdAt: expect.any(Date),
       name: "Get User Test",
       role: EUserRole.ADMIN,
+      avatarId: null,
     });
   });
 
@@ -95,6 +98,7 @@ describe("RouterUser", () => {
       name: "Test User",
       email: "text@example.com",
       role: EUserRole.SYSTEM,
+      avatarId: null,
       createdAt: expect.any(Date),
     });
   });
@@ -120,6 +124,7 @@ describe("RouterUser", () => {
       createdAt: expect.any(Date),
       name: "Updated User Name",
       role: EUserRole.SYSTEM,
+      avatarId: null,
     });
   });
 
