@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/bedest-hq/bedest/compare/v1.0.4...v1.1.0) (2026-04-02)
+
+
+### Features
+
+* add storage feature with local and S3 providers ([#43](https://github.com/bedest-hq/bedest/issues/43)) ([ba8da67](https://github.com/bedest-hq/bedest/commit/ba8da6754bdca3d5c812fe4fc910b849c41fba78))
+
 ## [1.0.4](https://github.com/bedest-hq/bedest/compare/v1.0.3...v1.0.4) (2026-03-31)
 
 
