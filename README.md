@@ -65,7 +65,7 @@ src/
 │       ├── schemas/   # Drizzle table definitions & RLS policies
 │       └── services/  # Core business logic
 ├── infrastructure/    # Database Manager, Env Validation, Error Handling
-└── scripts/           # DB Reset, Mock Data, Context Builders
+└── scripts/           # DB Reset, seed , Context Builders
 ```
 ---
 
@@ -128,11 +128,11 @@ docker-compose up -d
 | Command | Description |
 | ------- | ----------- |
 | bun run dev | Start development server with hot reload |
-| bun run check:files | Run TypeScript type-check and ESLint |
+| bun run check | Run TypeScript type-check and ESLint |
 | bun run test | Run isolated unit and integration tests |
-| bun run db:gen | Generate Drizzle migrations |
-| bun run db:push | Push schema changes directly to DB |
-| bun run app:dev | Full rebuild: Reset, Migrate, and Seed |
+| bun run db:generate | Generate Drizzle migrations |
+| bun run db:migrate | Apply migrations to database |
+| bun run dev:setup | Full rebuild: Reset, Migrate, and Seed |
 
 ---
 

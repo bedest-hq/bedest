@@ -11,13 +11,13 @@ class ContextBuilder {
     void DbManager.init(env);
     const db = DbManager.get();
 
-    const MockContext: IApp = {
+    const context: IApp = {
       db,
       nowDatetime: new Date(),
     };
 
-    const MockUserContext: IUserApp = {
-      ...MockContext,
+    const userContext: IUserApp = {
+      ...context,
       tenantId: EXAMPLE_UUID,
       session: {
         userId: EXAMPLE_UUID,
@@ -26,7 +26,7 @@ class ContextBuilder {
       },
     };
 
-    return { MockContext, MockUserContext };
+    return { context, userContext };
   }
 }
 

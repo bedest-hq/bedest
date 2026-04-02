@@ -81,6 +81,9 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     if (data.password) {
       payload.password = await Bun.password.hash(data.password);
     }
+    if (data.avatarId) {
+      payload.avatarId = data.avatarId;
+    }
 
     await super.update(c, id, payload);
 

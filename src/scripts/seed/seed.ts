@@ -12,13 +12,13 @@ import DbManager from "@/infrastructure/database/DbManager";
 import ServiceTenant from "@f/tenant/services/ServiceTenant";
 import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 
-export async function MockData() {
-  const { MockUserContext } = ContextBuilder.build();
+export async function seed() {
+  const { userContext } = ContextBuilder.build();
   const datetimeNow = new Date();
   const datetimeNextYear = new Date();
   datetimeNextYear.setFullYear(datetimeNow.getFullYear() + 1);
 
-  const tenant = await ServiceTenant.create(MockUserContext, {
+  const tenant = await ServiceTenant.create(userContext, {
     name: EXAMPLE_TENANT_NAME,
     country: "Example Country",
     phone: "555-555-5555",
@@ -28,16 +28,16 @@ export async function MockData() {
     planEnd: datetimeNextYear,
   });
 
-  MockUserContext.tenantId = tenant.id;
+  userContext.tenantId = tenant.id;
 
-  await ServiceUser.create(MockUserContext, {
+  await ServiceUser.create(userContext, {
     name: EXAMPLE_USER_NAME,
     email: EXAMPLE_EMAIL,
     password: EXAMPLE_USER_PASSWORD,
     role: EUserRole.SYSTEM,
   });
 
-  await ServiceExample.create(MockUserContext, {
+  await ServiceExample.create(userContext, {
     exampleColumn: "Example",
     otherExampleColumn: "Example Other Column",
   });
@@ -45,4 +45,4 @@ export async function MockData() {
   await DbManager.shutdown();
 }
 
-await MockData();
+await seed();
