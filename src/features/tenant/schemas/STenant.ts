@@ -1,4 +1,4 @@
-import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, varchar, timestamp, uuid } from "drizzle-orm/pg-core";
 import { ETenantPlanPg } from "../enums/ETenantPlan";
 import { baseColumns } from "@/common/schemas/SBase";
 import { UtilDbSchema } from "@/common/utils/UtilDbSchema";
@@ -11,7 +11,7 @@ export const STenant = pgTable(
     country: varchar({ length: 255 }).notNull(),
     phone: varchar({ length: 255 }).notNull(),
     email: varchar({ length: 255 }).notNull().unique(),
-
+    logoId: uuid(),
     plan: ETenantPlanPg().notNull(),
     planStart: timestamp({ withTimezone: true }).notNull(),
     planEnd: timestamp({ withTimezone: true }).notNull(),

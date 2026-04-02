@@ -34,6 +34,7 @@ describe("RouterTenant", () => {
       name: "Test Tenant",
       email: "test@example.com",
       country: "Test Country",
+      logoId: null,
     });
   });
 
@@ -50,6 +51,7 @@ describe("RouterTenant", () => {
       country: "Test Country",
       phone: "05555555555",
       plan: ETenantPlan.PROFESSIONAL,
+      logoId: null,
     });
   });
 
@@ -68,6 +70,7 @@ describe("RouterTenant", () => {
       phone: "05555555555",
       plan: ETenantPlan.PROFESSIONAL,
       planEnd: expect.any(Date),
+      logoId: null,
     });
   });
 
@@ -115,6 +118,7 @@ describe("RouterTenant", () => {
       country: "Test Country",
       phone: "05555555555",
       plan: ETenantPlan.PROFESSIONAL,
+      logoId: null,
     });
   });
 

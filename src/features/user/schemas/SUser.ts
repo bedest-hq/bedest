@@ -3,6 +3,7 @@ import { EUserRolePg } from "../enums/EUserRole";
 import { STenant } from "@f/tenant/schemas/STenant";
 import { baseColumns } from "@/common/schemas/SBase";
 import { UtilDbSchema } from "@/common/utils/UtilDbSchema";
+import { SStorage } from "@f/storage/schemas/SStorage";
 
 export const SUser = pgTable(
   "users",
@@ -14,6 +15,7 @@ export const SUser = pgTable(
     name: varchar({ length: 255 }).notNull(),
     email: varchar({ length: 255 }).notNull(),
     role: EUserRolePg().notNull(),
+    avatarId: uuid().references(() => SStorage.id),
     password: varchar({ length: 255 }).notNull(),
   },
   (t) => [

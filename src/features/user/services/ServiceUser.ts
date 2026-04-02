@@ -16,6 +16,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       email: string;
       password: string;
       role: EUserRole;
+      avatarId?: string;
     },
   ) {
     const hash = await Bun.password.hash(data.password);
@@ -45,6 +46,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     return super.getAll(c, query, {
       name: SUser.name,
       role: SUser.role,
+      avatarId: SUser.avatarId,
       createdAt: SUser.createdAt,
     });
   }
@@ -54,6 +56,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       name: SUser.name,
       role: SUser.role,
       email: SUser.email,
+      avatarId: SUser.avatarId,
       createdAt: SUser.createdAt,
     });
   }
@@ -61,7 +64,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   async update(
     c: IUserApp,
     id: string,
-    data: { name?: string; password?: string },
+    data: { name?: string; password?: string; avatarId?: string },
   ) {
     if (
       c.session.userId !== id &&

@@ -23,6 +23,7 @@ export const RouterUser = new Elysia({
       response: t.Object({
         name: VString,
         role: t.Enum(EUserRole),
+        avatarId: t.Nullable(VId),
         email: VEmail,
         createdAt: t.Date(),
       }),
@@ -41,6 +42,7 @@ export const RouterUser = new Elysia({
       response: t.Object({
         name: VString,
         role: t.Enum(EUserRole),
+        avatarId: t.Nullable(VId),
         createdAt: t.Date(),
       }),
     },
@@ -77,6 +79,7 @@ export const RouterUser = new Elysia({
               t.Object({
                 name: VString,
                 role: t.Enum(EUserRole),
+                avatarId: t.Nullable(VId),
                 createdAt: t.Date(),
               }),
             ),
