@@ -6,28 +6,23 @@ import { ProviderLocal } from "./providers/ProviderLocal";
 import { ProviderS3 } from "./providers/ProviderS3";
 
 class StorageManager {
-  private providers: IProvider[] = [];
+  private activeProvider: IProvider | null = null;
 
   constructor() {
     const env = EnvManager.get();
-
-    if (env.LOCAL_STORAGE_PATH) {
-      this.providers.push(new ProviderLocal(env.LOCAL_STORAGE_PATH));
-      logger.info("Local Storage Provider enabled.");
-    }
 
     if (
       env.S3_BUCKET &&
       env.S3_REGION &&
       env.S3_ACCESS_KEY &&
-      env.S3_SECRET_KEY &&
-      env.S3_ENDPOINT
+      env.S3_SECRET_KEY
     ) {
-      this.providers.push(new ProviderS3());
+      this.activeProvider = new ProviderS3();
       logger.info("S3 Storage Provider enabled.");
-    }
-
-    if (this.providers.length === 0) {
+    } else if (env.LOCAL_STORAGE_PATH) {
+      this.activeProvider = new ProviderLocal(env.LOCAL_STORAGE_PATH);
+      logger.info("Local Storage Provider enabled.");
+    } else {
       logger.warn("No storage providers configured! File uploads will fail.");
     }
   }
@@ -37,31 +32,24 @@ class StorageManager {
     body: Buffer | ArrayBuffer,
     contentType: string,
   ): Promise<void> {
-    if (this.providers.length === 0) {
-      logger.error("Storage upload attempted but storage service is disabled.");
-
+    if (!this.activeProvider) {
       throw status("Service Unavailable");
     }
-
-    await Promise.all(
-      this.providers.map((provider) => provider.upload(key, body, contentType)),
-    );
+    await this.activeProvider.upload(key, body, contentType);
   }
 
   async delete(key: string): Promise<void> {
-    if (this.providers.length === 0) {
+    if (!this.activeProvider) {
       return;
     }
-
-    await Promise.all(this.providers.map((provider) => provider.delete(key)));
+    await this.activeProvider.delete(key);
   }
 
   async download(key: string): Promise<Blob | null> {
-    if (this.providers.length === 0) {
+    if (!this.activeProvider) {
       throw status("Service Unavailable");
     }
-
-    return await this.providers[0].download(key);
+    return await this.activeProvider.download(key);
   }
 }
 

@@ -73,7 +73,7 @@ export const RouterStorage = new Elysia({
 
       set.headers["Content-Type"] = metadata.mimeType;
       set.headers["Content-Disposition"] =
-        `inline; filename="${metadata.name}"`;
+        `attachment; filename="${metadata.name}"`;
 
       return fileBlob;
     },

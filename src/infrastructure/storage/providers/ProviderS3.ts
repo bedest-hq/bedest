@@ -41,65 +41,65 @@ export class ProviderS3 implements IProvider {
     body: Buffer | ArrayBuffer,
     contentType: string,
   ): Promise<void> {
-    const error = await this.client
-      .send(
+    try {
+      let Body: Buffer;
+
+      if (body instanceof ArrayBuffer) {
+        Body = Buffer.from(body);
+      } else {
+        Body = body;
+      }
+
+      await this.client.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: key,
-          Body: body as Buffer,
+          Body,
           ContentType: contentType,
         }),
-      )
-      .then(() => null)
-      .catch((e) => e as Error);
+      );
 
-    if (error) {
+      logger.info(`File uploaded to S3 successfully: ${key}`);
+    } catch (error) {
       logger.error({ err: error, key }, "Failed to upload file to S3");
       throw new Error("S3 storage upload failed", { cause: error });
     }
-
-    logger.info(`File uploaded to S3 successfully: ${key}`);
   }
 
   async delete(key: string): Promise<void> {
-    const error = await this.client
-      .send(
+    try {
+      await this.client.send(
         new DeleteObjectCommand({
           Bucket: this.bucket,
           Key: key,
         }),
-      )
-      .then(() => null)
-      .catch((e) => e as Error);
+      );
 
-    if (error) {
+      logger.info(`File deleted from S3 successfully: ${key}`);
+    } catch (error) {
       logger.error({ err: error, key }, "Failed to delete file from S3");
-      return;
     }
-
-    logger.info(`File deleted from S3 successfully: ${key}`);
   }
 
   async download(key: string): Promise<Blob | null> {
-    const res = await this.client
-      .send(
+    try {
+      const res = await this.client.send(
         new GetObjectCommand({
           Bucket: this.bucket,
           Key: key,
         }),
-      )
-      .catch(() => null);
+      );
 
-    if (!res || !res.Body) {
+      if (!res.Body) {
+        return null;
+      }
+
+      const bytes = await res.Body.transformToByteArray();
+
+      return new Blob([Buffer.from(bytes)]);
+    } catch (error) {
+      logger.error({ err: error }, "Failed to download file.");
       return null;
     }
-
-    const bytes = await res.Body.transformToByteArray().catch(() => null);
-
-    if (!bytes) {
-      return null;
-    }
-
-    return new Blob([Buffer.from(bytes)]);
   }
 }

@@ -41,6 +41,7 @@ Bedest is engineered to solve the most grueling challenges of B2B SaaS developme
 -   **Generic Service Pattern**: `ServiceBase` and `ServiceBaseTenant` to eliminate repetitive CRUD logic.
 -   **Standardized API Contract**: All validation and system errors follow the `{ error, details: [] }` schema.
 -   **Lightning Fast Tests**: Isolated database testing using **PGlite** (in-memory Postgres). No external DB required for CI/CD.
+-   **Hybrid Storage Engine**: Zero-copy file uploads with AWS S3 / Minio support and a seamless Local Storage fallback.
 
 ---
 
@@ -82,6 +83,9 @@ The API follows strict REST standards to provide meaningful feedback:
 
 ### Automated Tenant Scoping
 Security is enforced at the transaction level. By using UtilTenantScope, every database query is wrapped in a session-local configuration that triggers PostgreSQL RLS policies, ensuring absolute data isolation between tenants.
+
+### Hybrid Storage Strategy
+A unified `StorageManager` dynamically routes file uploads to AWS S3 (or any S3-compatible service like Minio) if credentials are provided, gracefully falling back to Node.js Local Storage. It handles files using a zero-copy approach (`Buffer.from` over `ArrayBuffer`), ensuring high-performance I/O without unnecessary memory allocations.
 
 ---
 

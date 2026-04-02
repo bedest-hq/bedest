@@ -16,9 +16,8 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     const key = `${c.tenantId}/${uniqueFileName}`;
 
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
-    await StorageManager.upload(key, buffer, file.type);
+    await StorageManager.upload(key, arrayBuffer, file.type);
 
     const res = await super.create(c, {
       name: file.name,
