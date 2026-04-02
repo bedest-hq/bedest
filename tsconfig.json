@@ -8,10 +8,11 @@
     "types": ["bun-types"],
     "paths": {
       "@f/*": ["./src/features/*"],
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
     },
     "outDir": "dist",
-    "forceConsistentCasingInFileNames": true
+    "rootDir": "./src",
+    "forceConsistentCasingInFileNames": true,
   },
-  "include": ["src"]
+  "include": ["src"],
 }
