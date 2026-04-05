@@ -11,6 +11,7 @@ import { UtilAuth } from "@f/auth/utils/UtilAuth";
 import { VJwtPayload } from "@f/auth/validations/VJwtPayload";
 import { MacroRoleGuard } from "@/common/guards/GuardRole";
 import { MacroPlanGuard } from "@/common/guards/GuardPlan";
+import { PluginAudit } from "@f/system/plugins/PluginAudit";
 
 class Context {
   private env = EnvManager.get();
@@ -82,7 +83,8 @@ class Context {
           return { userRuntime };
         })
         .macro("RoleGuard", MacroRoleGuard)
-        .macro("PlanGuard", MacroPlanGuard);
+        .macro("PlanGuard", MacroPlanGuard)
+        .use(PluginAudit);
   }
 }
 

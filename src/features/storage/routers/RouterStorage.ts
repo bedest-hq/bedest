@@ -27,6 +27,7 @@ export const RouterStorage = new Elysia({
         id: VId,
         key: VString,
       }),
+      audit: true,
     },
   )
   .get(
@@ -61,6 +62,7 @@ export const RouterStorage = new Elysia({
     },
     {
       params: t.Object({ id: VId }),
+      audit: true,
     },
   )
   .get(

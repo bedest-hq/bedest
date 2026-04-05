@@ -6,6 +6,7 @@ import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { status } from "elysia";
+import ServiceSystemLog from "@f/system/services/ServiceSystemLog";
 
 class ServiceAuth {
   async login(c: IApp, data: { email: string; password: string }) {
@@ -42,6 +43,25 @@ class ServiceAuth {
       userId: user.userId,
     });
 
+    void ServiceSystemLog.log(
+      {
+        db: c.db,
+        nowDatetime: c.nowDatetime,
+        tenantId: user.tenantId,
+        session: {
+          userId: user.userId,
+          role: user.role,
+          sessionId: session.id,
+        },
+      },
+      {
+        action: "LOGIN",
+        entity: "auth",
+        entityId: user.userId,
+        payload: { email: data.email },
+      },
+    );
+
     return {
       tenantId: user.tenantId,
       userId: user.userId,
@@ -76,6 +96,28 @@ class ServiceAuth {
       userId: payload.userId,
     });
 
+    void ServiceSystemLog.log(
+      {
+        db: c.db,
+        nowDatetime: c.nowDatetime,
+        tenantId: payload.tenantId,
+        session: {
+          userId: payload.userId,
+          role: payload.role,
+          sessionId: newSession.id,
+        },
+      },
+      {
+        action: "REFRESH_TOKEN",
+        entity: "auth",
+        entityId: payload.userId,
+        payload: {
+          oldSessionId: payload.sessionId,
+          newSessionId: newSession.id,
+        },
+      },
+    );
+
     return {
       tenantId: payload.tenantId,
       userId: payload.userId,
@@ -84,5 +126,4 @@ class ServiceAuth {
     };
   }
 }
-
 export default new ServiceAuth();
