@@ -30,6 +30,7 @@ Bedest is engineered to solve the most grueling challenges of B2B SaaS developme
 * **Bulletproof Error Handling**: A centralized `ErrorHandler` with a recursive extraction logic that unmasks deep-nested Drizzle/Postgres errors into standard, frontend-friendly JSON.
 * **Native Multi-Tenancy**: Data isolation is not just a `where` clause; it is enforced at the database level using **PostgreSQL Row-Level Security (RLS)**.
 * **SaaS Ready**: Built-in `PlanGuard` for subscription-based feature gating and a system-wide `MaintenanceMode` for graceful downtime.
+* **Immutable Audit Trail**: An Aspect-Oriented, zero-configuration system logging mechanism that automatically tracks "who did what" with 100% type safety and circular-dependency protection.
 
 ---
 
@@ -41,7 +42,7 @@ Bedest is engineered to solve the most grueling challenges of B2B SaaS developme
 -   **Generic Service Pattern**: `ServiceBase` and `ServiceBaseTenant` to eliminate repetitive CRUD logic.
 -   **Standardized API Contract**: All validation and system errors follow the `{ error, details: [] }` schema.
 -   **Lightning Fast Tests**: Isolated database testing using **PGlite** (in-memory Postgres). No external DB required for CI/CD.
--   **Hybrid Storage Engine**: Zero-copy file uploads with AWS S3 / Minio support and a seamless Local Storage fallback.
+--   **Smart Audit Logging**: A plug-and-play macro (`audit: true`) that intercepts mutations to record semantic events natively without bloating your route logic.   **Hybrid Storage Engine**: Zero-copy file uploads with AWS S3 / Minio support and a seamless Local Storage fallback.
 
 ---
 
@@ -86,6 +87,9 @@ Security is enforced at the transaction level. By using UtilTenantScope, every d
 
 ### Hybrid Storage Strategy
 A unified `StorageManager` dynamically routes file uploads to AWS S3 (or any S3-compatible service like Minio) if credentials are provided, gracefully falling back to Node.js Local Storage. It handles files using a zero-copy approach (`Buffer.from` over `ArrayBuffer`), ensuring high-performance I/O without unnecessary memory allocations.
+
+### Aspect-Oriented Audit Trail
+Bedest introduces a highly sophisticated, macro-driven audit logging system. Instead of littering business logic with log statements, developers simply flag a route with `audit: true` or provide a custom configuration (`audit: { action: 'USER_BANNED' }`). 
 
 ---
 
