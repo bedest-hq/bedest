@@ -66,6 +66,7 @@ export const RouterExample = new Elysia({
               exampleColumn: VString,
               otherExampleColumn: VString,
             }),
+            audit: true,
           },
         )
         .put(
@@ -81,6 +82,7 @@ export const RouterExample = new Elysia({
               exampleColumn: t.Optional(VString),
               otherExampleColumn: t.Optional(VString),
             }),
+            audit: true,
           },
         )
         .delete(
@@ -92,6 +94,7 @@ export const RouterExample = new Elysia({
             params: t.Object({
               id: VId,
             }),
+            audit: true,
           },
         ),
   );

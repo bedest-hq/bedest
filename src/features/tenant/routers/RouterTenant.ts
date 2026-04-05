@@ -101,6 +101,7 @@ export const RouterTenant = new Elysia({
         planStart: t.Optional(t.Date()),
         planEnd: t.Optional(t.Date()),
       }),
+      audit: true,
     },
   )
   .guard(
@@ -129,6 +130,8 @@ export const RouterTenant = new Elysia({
               planStart: t.Date(),
               planEnd: t.Date(),
             }),
+
+            audit: true,
           },
         )
         .delete(
@@ -140,6 +143,7 @@ export const RouterTenant = new Elysia({
             params: t.Object({
               id: VId,
             }),
+            audit: true,
           },
         )
         .get(

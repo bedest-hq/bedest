@@ -59,6 +59,7 @@ export const RouterUser = new Elysia({
         name: t.Optional(VString),
         password: t.Optional(t.String({ minLength: 6, maxLength: 100 })),
       }),
+      audit: true,
     },
   )
   .guard(
@@ -99,6 +100,7 @@ export const RouterUser = new Elysia({
               role: t.Enum(EUserRole),
               password: t.String({ minLength: 6, maxLength: 100 }),
             }),
+            audit: true,
             response: t.Object({ id: VId }),
           },
         )
@@ -111,6 +113,7 @@ export const RouterUser = new Elysia({
             params: t.Object({
               id: VId,
             }),
+            audit: true,
           },
         ),
   );
