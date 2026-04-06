@@ -2,7 +2,8 @@ import { IApp } from "@/common/interfaces/IContextApp";
 import { ServiceBase } from "../../../common/services/ServiceBase";
 import { STenant } from "../schemas/STenant";
 import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { status } from "elysia";
 
 class ServiceTenant extends ServiceBase<typeof STenant, string> {
   constructor() {
@@ -18,6 +19,26 @@ class ServiceTenant extends ServiceBase<typeof STenant, string> {
         .limit(1);
     });
     return tenant;
+  }
+
+  async checkDomain(c: IApp, domain: string) {
+    return await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const [tenant] = await tx
+        .select({
+          id: STenant.id,
+          name: STenant.name,
+          logoId: STenant.logoId,
+        })
+        .from(STenant)
+        .where(and(eq(STenant.domain, domain), eq(STenant.isDeleted, false)))
+        .limit(1);
+
+      if (!tenant) {
+        throw status("Not Found", "No publication found for this domain.");
+      }
+
+      return tenant;
+    });
   }
 }
 

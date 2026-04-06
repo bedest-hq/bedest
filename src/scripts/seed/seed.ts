@@ -21,6 +21,7 @@ export async function seed() {
   const tenant = await ServiceTenant.create(userContext, {
     name: EXAMPLE_TENANT_NAME,
     country: "Example Country",
+    domain: "example.com",
     phone: "555-555-5555",
     email: EXAMPLE_EMAIL,
     plan: ETenantPlan.PROFESSIONAL,

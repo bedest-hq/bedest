@@ -1,7 +1,7 @@
 import { jwt } from "@elysiajs/jwt";
 import Elysia, { status } from "elysia";
 import { t } from "elysia";
-import { IUserApp } from "../common/interfaces/IContextApp";
+import { IUserApp, ITenantApp } from "../common/interfaces/IContextApp";
 import { ISession } from "../features/session/interfaces/ISession";
 import { EUserRole } from "../features/user/enums/EUserRole";
 import DbManager from "@/infrastructure/database/DbManager";
@@ -42,6 +42,25 @@ class Context {
         }))
         .use(this.refreshPlugin)
         .use(this.accessPlugin);
+  }
+
+  Tenant() {
+    return (app: Elysia) =>
+      app.use(this.App()).derive(({ request, db, nowDatetime }) => {
+        const tenantId = request.headers.get("x-tenant-id");
+
+        if (!tenantId) {
+          throw status("Bad Request", "Missing x-tenant-id header");
+        }
+
+        const tenantRuntime: ITenantApp = {
+          db,
+          nowDatetime,
+          tenantId,
+        };
+
+        return { tenantRuntime };
+      });
   }
 
   User() {
