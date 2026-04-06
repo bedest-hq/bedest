@@ -1,5 +1,5 @@
 import { ExtractTablesWithRelations, sql } from "drizzle-orm";
-import { IUserApp } from "../interfaces/IContextApp";
+import { ITenantApp } from "../interfaces/IContextApp";
 import {
   NodePgDatabase,
   NodePgQueryResultHKT,
@@ -17,7 +17,7 @@ type TTransaction =
 
 export class UtilTenantScope {
   static async tenantScope<T>(
-    c: IUserApp,
+    c: ITenantApp,
     callback: (tx: TTransaction) => Promise<T>,
   ): Promise<T> {
     return await c.db.transaction(async (tx) => {
