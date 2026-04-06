@@ -27,7 +27,7 @@ export const RouterStorage = new Elysia({
         id: VId,
         key: VString,
       }),
-      // audit: true,
+      audit: true,
     },
   )
   .get(
@@ -62,7 +62,7 @@ export const RouterStorage = new Elysia({
     },
     {
       params: t.Object({ id: VId }),
-      // audit: true,
+      audit: true,
     },
   )
   .get(
@@ -74,8 +74,10 @@ export const RouterStorage = new Elysia({
       );
 
       set.headers["Content-Type"] = metadata.mimeType;
+
+      const encodedName = encodeURIComponent(metadata.name);
       set.headers["Content-Disposition"] =
-        `attachment; filename="${metadata.name}"`;
+        `attachment; filename*=UTF-8''${encodedName}`;
 
       return fileBlob;
     },
@@ -91,8 +93,10 @@ export const RouterStorage = new Elysia({
 
       set.headers["Content-Type"] = metadata.mimeType;
 
+      const encodedName = encodeURIComponent(metadata.name);
+
       set.headers["Content-Disposition"] =
-        `inline; filename="${metadata.name}"`;
+        `inline; filename*=UTF-8''${encodedName}`;
 
       return fileBlob;
     },

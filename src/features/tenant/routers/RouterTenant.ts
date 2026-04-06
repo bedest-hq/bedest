@@ -7,11 +7,13 @@ import { UtilRouter } from "@/common/utils/UtilRouter";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { VEmail, VId, VQuery, VString } from "@/common/validations/VCommon";
 import { VTenantPlan } from "../validations/VTenantPlan";
+import { RouterTenantPublic } from "./RouterTenantPublic";
 
 export const RouterTenant = new Elysia({
   prefix: "/tenant",
   tags: ["Tenant"],
 })
+  .use(RouterTenantPublic)
   .use(Context.User())
   .get(
     "/self",
@@ -21,6 +23,7 @@ export const RouterTenant = new Elysia({
         userRuntime.tenantId,
         {
           name: STenant.name,
+          domain: STenant.domain,
           email: STenant.email,
           country: STenant.country,
           logoId: STenant.logoId,
@@ -35,6 +38,7 @@ export const RouterTenant = new Elysia({
     {
       response: t.Object({
         name: VString,
+        domain: VString,
         email: VEmail,
         country: VString,
         logoId: t.Nullable(VId),
@@ -51,6 +55,7 @@ export const RouterTenant = new Elysia({
 
       const res = await ServiceTenant.getById(userRuntime, id, {
         name: STenant.name,
+        domain: STenant.domain,
         email: STenant.email,
         country: STenant.country,
         logoId: STenant.logoId,
@@ -66,6 +71,7 @@ export const RouterTenant = new Elysia({
       }),
       response: t.Object({
         name: VString,
+        domain: VString,
         email: VEmail,
         country: VString,
         logoId: t.Nullable(VId),
@@ -87,6 +93,7 @@ export const RouterTenant = new Elysia({
       }),
       body: t.Object({
         name: t.Optional(VString),
+        domain: t.Optional(VString),
         country: t.Optional(VString),
         phone: t.Optional(VString),
         email: t.Optional(VString),
@@ -118,6 +125,7 @@ export const RouterTenant = new Elysia({
           {
             body: t.Object({
               name: VString,
+              domain: VString,
               country: VString,
               phone: VString,
               email: VString,
@@ -151,6 +159,7 @@ export const RouterTenant = new Elysia({
           async ({ query, userRuntime }) => {
             const res = await ServiceTenant.getAll(userRuntime, query, {
               name: STenant.name,
+              domain: STenant.domain,
               country: STenant.country,
               logoId: STenant.logoId,
               email: STenant.email,
@@ -163,6 +172,7 @@ export const RouterTenant = new Elysia({
             response: UtilRouter.defPaginatedSchema(
               t.Object({
                 name: VString,
+                domain: VString,
                 country: VString,
                 logoId: t.Nullable(VId),
                 email: VEmail,

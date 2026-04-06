@@ -6,7 +6,7 @@ import { VId, VString } from "@/common/validations/VCommon";
 import { EUserRole } from "@/features/user/enums/EUserRole";
 
 export const RouterSystemLog = new Elysia({
-  prefix: "/system/log",
+  prefix: "/log",
   tags: ["System"],
 })
   .use(Context.User())

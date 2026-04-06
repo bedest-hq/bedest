@@ -13,6 +13,7 @@ describe("RouterTenant", () => {
     await api.tenant.post(
       {
         name: "List Tenant",
+        domain: "list.tenant.com",
         country: "France",
         phone: "+49123456789",
         email: "list@tenant.com",
@@ -30,12 +31,22 @@ describe("RouterTenant", () => {
 
     expect(res.status).toBe(200);
     expect(res.data!.data.length).toBeGreaterThanOrEqual(2);
-    expect(res.data!.data).toContainEqual({
-      name: "Test Tenant",
-      email: "test@example.com",
-      country: "Test Country",
-      logoId: null,
-    });
+    expect(res.data!.data).toStrictEqual([
+      {
+        name: "Test Tenant",
+        domain: "test.com",
+        email: "test@example.com",
+        country: "Test Country",
+        logoId: null,
+      },
+      {
+        country: "France",
+        domain: "list.tenant.com",
+        email: "list@tenant.com",
+        logoId: null,
+        name: "List Tenant",
+      },
+    ]);
   });
 
   it("Get tenant by id", async () => {
@@ -47,6 +58,7 @@ describe("RouterTenant", () => {
 
     expect(res.data).toStrictEqual({
       email: "test@example.com",
+      domain: "test.com",
       name: "Test Tenant",
       country: "Test Country",
       phone: "05555555555",
@@ -65,6 +77,7 @@ describe("RouterTenant", () => {
     expect(res.status).toBe(200);
     expect(res.data).toStrictEqual({
       name: "Test Tenant",
+      domain: "test.com",
       email: "test@example.com",
       country: "Test Country",
       phone: "05555555555",
@@ -80,6 +93,7 @@ describe("RouterTenant", () => {
     const res = await api.tenant.post(
       {
         name: "New Created Tenant",
+        domain: "new.com",
         country: "Germany",
         phone: "+49123456789",
         email: "new@tenant.com",
@@ -114,6 +128,7 @@ describe("RouterTenant", () => {
 
     expect(updatedRes.data).toStrictEqual({
       email: "updated@tenant.com",
+      domain: "test.com",
       name: "Test Tenant",
       country: "Test Country",
       phone: "05555555555",

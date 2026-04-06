@@ -140,6 +140,7 @@ beforeEach(async () => {
     .insert(STenant)
     .values({
       name: "Test Tenant",
+      domain: "test.com",
       country: "Test Country",
       email: "test@example.com",
       phone: "05555555555",

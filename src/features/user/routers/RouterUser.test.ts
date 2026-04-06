@@ -163,4 +163,10 @@ describe("RouterUser", () => {
 
     expect(res.status).toBe(404);
   });
+
+  it("Guest access should be denied", async () => {
+    const res = await api.user.self.get();
+
+    expect(res.status).toBe(401);
+  });
 });

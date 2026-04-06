@@ -8,6 +8,7 @@ export const STenant = pgTable(
   {
     ...baseColumns,
     name: varchar({ length: 255 }).notNull().unique(),
+    domain: varchar({ length: 255 }).notNull().unique(),
     country: varchar({ length: 255 }).notNull(),
     phone: varchar({ length: 255 }).notNull(),
     email: varchar({ length: 255 }).notNull().unique(),

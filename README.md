@@ -31,6 +31,7 @@ Bedest is engineered to solve the most grueling challenges of B2B SaaS developme
 * **Native Multi-Tenancy**: Data isolation is not just a `where` clause; it is enforced at the database level using **PostgreSQL Row-Level Security (RLS)**.
 * **SaaS Ready**: Built-in `PlanGuard` for subscription-based feature gating and a system-wide `MaintenanceMode` for graceful downtime.
 * **Immutable Audit Trail**: An Aspect-Oriented, zero-configuration system logging mechanism that automatically tracks "who did what" with 100% type safety and circular-dependency protection.
+* **Headless Architecture Support**: Built-in 2-step domain resolution logic allowing modern frontends to dynamically map custom URLs to tenant IDs securely.
 
 ---
 
@@ -90,6 +91,9 @@ A unified `StorageManager` dynamically routes file uploads to AWS S3 (or any S3-
 
 ### Aspect-Oriented Audit Trail
 Bedest introduces a highly sophisticated, macro-driven audit logging system. Instead of littering business logic with log statements, developers simply flag a route with `audit: true` or provide a custom configuration (`audit: { action: 'USER_BANNED' }`). 
+
+### Headless Domain Resolution & Guest Access
+Designed for decoupled frontend architectures (Next.js, Nuxt), Bedest implements a secure, 2-tier public access system. Frontends can resolve their runtime URL (`x-tenant-domain`) into a specific Tenant ID via a public endpoint. Subsequent requests to public resources use this ID, where PostgreSQL RLS automatically enforces tenant isolation for unauthenticated guest users—without ever exposing unauthorized cross-tenant data.
 
 ---
 
