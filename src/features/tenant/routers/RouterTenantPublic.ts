@@ -4,8 +4,8 @@ import { VId, VString } from "@/common/validations/VCommon";
 import ServiceTenant from "../services/ServiceTenant";
 
 export const RouterTenantPublic = new Elysia({
-  prefix: "/public/tenant",
-  tags: ["Public Tenant"],
+  prefix: "/public",
+  tags: ["Tenant"],
 })
   .use(Context.App())
   .get(

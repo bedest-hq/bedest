@@ -7,11 +7,13 @@ import { UtilRouter } from "@/common/utils/UtilRouter";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { VEmail, VId, VQuery, VString } from "@/common/validations/VCommon";
 import { VTenantPlan } from "../validations/VTenantPlan";
+import { RouterTenantPublic } from "./RouterTenantPublic";
 
 export const RouterTenant = new Elysia({
   prefix: "/tenant",
   tags: ["Tenant"],
 })
+  .use(RouterTenantPublic)
   .use(Context.User())
   .get(
     "/self",
