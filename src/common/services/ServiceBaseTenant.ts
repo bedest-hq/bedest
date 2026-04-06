@@ -1,6 +1,6 @@
 import { ServiceBase } from "./ServiceBase";
 import { IBaseTable } from "../interfaces/IBaseTable";
-import { IUserApp } from "../interfaces/IContextApp";
+import { ITenantApp } from "../interfaces/IContextApp";
 import { UtilTenantScope } from "../utils/UtilTenantScope";
 import { type InferInsertModel } from "drizzle-orm";
 import { type SelectedFields, type PgColumn } from "drizzle-orm/pg-core";
@@ -15,14 +15,14 @@ export abstract class ServiceBaseTenant<
       "id" | "tenantId" | "createdAt" | "isDeleted" | "deletedAt"
     >
   >,
-> extends ServiceBase<TTable, TId, IUserApp, TInsertData> {
-  async create(c: IUserApp, data: TInsertData) {
+> extends ServiceBase<TTable, TId, ITenantApp, TInsertData> {
+  async create(c: ITenantApp, data: TInsertData) {
     return await UtilTenantScope.tenantScope(c, async (tx) => {
       const payload = {
         ...(data as object),
         tenantId: c.tenantId,
       } as unknown as Parameters<
-        ServiceBase<TTable, TId, IUserApp, TInsertData>["create"]
+        ServiceBase<TTable, TId, ITenantApp, TInsertData>["create"]
       >[1];
 
       return await super.create({ ...c, db: tx }, payload);
@@ -30,10 +30,10 @@ export abstract class ServiceBaseTenant<
   }
 
   async update(
-    c: IUserApp,
+    c: ITenantApp,
     id: TId,
     data: Parameters<
-      ServiceBase<TTable, TId, IUserApp, TInsertData>["update"]
+      ServiceBase<TTable, TId, ITenantApp, TInsertData>["update"]
     >[2],
   ) {
     return await UtilTenantScope.tenantScope(c, async (tx) =>
@@ -41,14 +41,14 @@ export abstract class ServiceBaseTenant<
     );
   }
 
-  async remove(c: IUserApp, id: TId) {
+  async remove(c: ITenantApp, id: TId) {
     return await UtilTenantScope.tenantScope(c, async (tx) =>
       super.remove({ ...c, db: tx }, id),
     );
   }
 
   async getById<TSelection extends SelectedFields>(
-    c: IUserApp,
+    c: ITenantApp,
     id: TId,
     columns: TSelection,
   ) {
@@ -58,7 +58,7 @@ export abstract class ServiceBaseTenant<
   }
 
   async getAll<TSelection extends SelectedFields>(
-    c: IUserApp,
+    c: ITenantApp,
     query: { limit: number; page: number },
     columns: TSelection,
   ) {
