@@ -1,12 +1,11 @@
 import { EUserRole } from "../../features/user/enums/EUserRole";
 import {
-  EXAMPLE_EMAIL,
-  EXAMPLE_TENANT_NAME,
-  EXAMPLE_USER_NAME,
-  EXAMPLE_USER_PASSWORD,
+  SYSTEM_EMAIL,
+  SYSTEM_TENANT_NAME,
+  SYSTEM_USER_NAME,
+  SYSTEM_USER_PASSWORD,
 } from "../../common/constants";
 import ServiceUser from "@/features/user/services/ServiceUser";
-import ServiceExample from "@/features/example/services/ServiceExample";
 import ContextBuilder from "../context/ContextBuilder";
 import DbManager from "@/infrastructure/database/DbManager";
 import ServiceTenant from "@f/tenant/services/ServiceTenant";
@@ -19,11 +18,11 @@ export async function seed() {
   datetimeNextYear.setFullYear(datetimeNow.getFullYear() + 1);
 
   const tenant = await ServiceTenant.create(userContext, {
-    name: EXAMPLE_TENANT_NAME,
-    country: "Example Country",
-    domain: "example.com",
-    phone: "555-555-5555",
-    email: EXAMPLE_EMAIL,
+    name: SYSTEM_TENANT_NAME,
+    country: "Turkey",
+    domain: "bedest.com",
+    phone: "xxx-xxx-xxx-xxxx",
+    email: SYSTEM_EMAIL,
     plan: ETenantPlan.PROFESSIONAL,
     planStart: datetimeNow,
     planEnd: datetimeNextYear,
@@ -32,15 +31,10 @@ export async function seed() {
   userContext.tenantId = tenant.id;
 
   await ServiceUser.create(userContext, {
-    name: EXAMPLE_USER_NAME,
-    email: EXAMPLE_EMAIL,
-    password: EXAMPLE_USER_PASSWORD,
+    name: SYSTEM_USER_NAME,
+    email: SYSTEM_EMAIL,
+    password: SYSTEM_USER_PASSWORD,
     role: EUserRole.SYSTEM,
-  });
-
-  await ServiceExample.create(userContext, {
-    exampleColumn: "Example",
-    otherExampleColumn: "Example Other Column",
   });
 
   await DbManager.shutdown();

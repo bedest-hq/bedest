@@ -20,7 +20,7 @@ import { EUserRole } from "@/features/user/enums/EUserRole";
 import Elysia from "elysia";
 import jwt from "@elysiajs/jwt";
 import { password } from "bun";
-import { EXAMPLE_UUID } from "../constants";
+import { SYSTEM_UUID } from "../constants";
 
 const EnvManager = await import("@/infrastructure/env/EnvManager");
 const DbManager = await import("@/infrastructure/database/DbManager");
@@ -116,7 +116,7 @@ export const testHeaders = async (user = test_user) => {
   const token = await test_signer.decorator.accessJwt.sign({
     userId: user.id,
     tenantId: user.tenantId,
-    sessionId: EXAMPLE_UUID,
+    sessionId: SYSTEM_UUID,
     role: user.role,
   });
 

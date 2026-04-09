@@ -8,6 +8,7 @@ import { EUserRole } from "@f/user/enums/EUserRole";
 import { VEmail, VId, VQuery, VString } from "@/common/validations/VCommon";
 import { VTenantPlan } from "../validations/VTenantPlan";
 import { RouterTenantPublic } from "./RouterTenantPublic";
+import ServiceUser from "@f/user/services/ServiceUser";
 
 export const RouterTenant = new Elysia({
   prefix: "/tenant",
@@ -120,7 +121,23 @@ export const RouterTenant = new Elysia({
         .post(
           "/",
           async ({ body, userRuntime }) => {
-            return await ServiceTenant.create(userRuntime, body);
+            const tenant = await ServiceTenant.create(userRuntime, body);
+
+            const randomBuffer = new Uint8Array(6);
+            crypto.getRandomValues(randomBuffer);
+            const password = Buffer.from(randomBuffer).toString("hex");
+
+            await ServiceUser.create(
+              { ...userRuntime, tenantId: tenant.id },
+              {
+                email: body.email,
+                name: "Admin",
+                role: EUserRole.ADMIN,
+                password,
+              },
+            );
+
+            return { id: tenant.id, password };
           },
           {
             body: t.Object({
@@ -137,6 +154,10 @@ export const RouterTenant = new Elysia({
               ]),
               planStart: t.Date(),
               planEnd: t.Date(),
+            }),
+            response: t.Object({
+              id: VId,
+              password: t.String(),
             }),
 
             audit: true,

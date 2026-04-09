@@ -8,7 +8,7 @@ import {
 } from "@/common/tests/TestManager.test";
 import { RouterSystemLog } from "./RouterSystemLog";
 import { SSystemLog } from "../schemas/SSystemLog";
-import { EXAMPLE_UUID } from "@/common/constants";
+import { SYSTEM_UUID } from "@/common/constants";
 
 const api = treaty(RouterSystemLog);
 
@@ -21,7 +21,7 @@ describe("RouterSystemLog", () => {
       userId: test_user.id,
       action: "PUNCH",
       entity: "captain_test",
-      entityId: EXAMPLE_UUID,
+      entityId: SYSTEM_UUID,
       payload: { message: "Test log payload" },
     });
 
@@ -49,7 +49,7 @@ describe("RouterSystemLog", () => {
         userId: test_user.id,
         action: "DELETE",
         entity: "target_entity",
-        entityId: EXAMPLE_UUID,
+        entityId: SYSTEM_UUID,
         payload: { reason: "cleanup" },
       })
       .returning();
@@ -64,7 +64,7 @@ describe("RouterSystemLog", () => {
   it("Return 404 for non-existent log ID", async () => {
     const headers = await testHeaders();
 
-    const res = await api.log({ id: EXAMPLE_UUID }).get({ headers });
+    const res = await api.log({ id: SYSTEM_UUID }).get({ headers });
 
     expect(res.status).toBe(404);
   });

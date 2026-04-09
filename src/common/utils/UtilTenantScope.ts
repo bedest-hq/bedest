@@ -1,11 +1,12 @@
 import { ExtractTablesWithRelations, sql } from "drizzle-orm";
-import { ITenantApp } from "../interfaces/IContextApp";
+import { ITenantApp, IUserApp } from "../interfaces/IContextApp";
 import {
   NodePgDatabase,
   NodePgQueryResultHKT,
 } from "drizzle-orm/node-postgres";
 import { PgTransaction } from "drizzle-orm/pg-core";
 import { TDb } from "../types/TDb";
+import { EUserRole } from "@f/user/enums/EUserRole";
 
 type TTransaction =
   | NodePgDatabase
@@ -17,13 +18,15 @@ type TTransaction =
 
 export class UtilTenantScope {
   static async tenantScope<T>(
-    c: ITenantApp,
+    c: ITenantApp | IUserApp,
     callback: (tx: TTransaction) => Promise<T>,
   ): Promise<T> {
     return await c.db.transaction(async (tx) => {
       const currentTenant = c.tenantId || "";
+      const isSystem = "session" in c && c.session?.role === EUserRole.SYSTEM;
+      const bypassRls = isSystem ? "on" : "off";
       await tx.execute(
-        sql`SELECT set_config('app.current_tenant', ${currentTenant}, true), set_config('app.bypass_rls', 'off', true)`,
+        sql`SELECT set_config('app.current_tenant', ${currentTenant}, true), set_config('app.bypass_rls', ${bypassRls}, true)`,
       );
       return callback(tx);
     });

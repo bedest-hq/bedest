@@ -1,10 +1,10 @@
 // User Constants
-export const EXAMPLE_USER_NAME = "Example User";
-export const EXAMPLE_USER_PASSWORD = "Example Password";
+export const SYSTEM_USER_NAME = "System User";
+export const SYSTEM_USER_PASSWORD = "Password";
 
 // Tenant Constants
-export const EXAMPLE_TENANT_NAME = "Example Tenant";
+export const SYSTEM_TENANT_NAME = "System Tenant";
 
 // Global Constants
-export const EXAMPLE_UUID = "00000000-0000-0000-0000-000000000000";
-export const EXAMPLE_EMAIL = "example@example.com";
+export const SYSTEM_UUID = "00000000-0000-0000-0000-000000000000";
+export const SYSTEM_EMAIL = "bedesthq@proton.me";

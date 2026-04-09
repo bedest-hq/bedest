@@ -27,7 +27,7 @@
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.57.1"
   },
-"scripts": {
+  "scripts": {
     "dev": "NODE_ENV=development bun --watch src/index.ts",
     "build": "bun build src/index.ts --target bun --outdir ./dist",
     "start": "NODE_ENV=production bun dist/index.js",
@@ -37,7 +37,7 @@
     "check": "bun run typecheck && bun run lint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:reset": "bun run src/scripts/database/DatabaseReset.ts",
+    "db:reset": "bun run src/scripts/database/DatabaseReset.ts && bun run src/scripts/storage/StorageReset.ts",
     "db:seed": "bun run src/scripts/seed/seed.ts",
     "db:setup": "rm -rf drizzle && bun run db:reset && bun run db:generate && bun run db:migrate",
     "dev:setup": "bun run db:setup && bun run db:seed"
