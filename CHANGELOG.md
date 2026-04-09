@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/bedest-hq/bedest/compare/v1.0.4...v1.1.0) (2026-04-09)
+
+
+### Features
+
+* add storage feature with local and S3 providers ([#43](https://github.com/bedest-hq/bedest/issues/43)) ([ba8da67](https://github.com/bedest-hq/bedest/commit/ba8da6754bdca3d5c812fe4fc910b849c41fba78))
+* for guests public resolve is implemented and some buggies fixed. ([#51](https://github.com/bedest-hq/bedest/issues/51)) ([660dcf1](https://github.com/bedest-hq/bedest/commit/660dcf1aa37d010d5a62e03c48ed4a67c0578e56))
+* local storage clean script is implemented service base ordered with datetime and minor problems fixed. ([#59](https://github.com/bedest-hq/bedest/issues/59)) ([7f1b9f8](https://github.com/bedest-hq/bedest/commit/7f1b9f87285a6beacb26a7cfdac69dd3ae9aab46))
+
+
+### Bug Fixes
+
+* service base tenant context changed from IUserApp to ITenanApp. ([#48](https://github.com/bedest-hq/bedest/issues/48)) ([0907903](https://github.com/bedest-hq/bedest/commit/09079031bbebc19d1c6214510004ce5a0fe4a135))
+
 ## [1.0.4](https://github.com/bedest-hq/bedest/compare/v1.0.3...v1.0.4) (2026-03-31)
 
 
