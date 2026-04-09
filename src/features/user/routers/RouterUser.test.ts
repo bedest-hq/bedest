@@ -48,14 +48,14 @@ describe("RouterUser", () => {
     expect(res.data!.data).toStrictEqual([
       {
         createdAt: expect.any(Date),
-        name: "Test User",
-        role: EUserRole.SYSTEM,
+        name: "List User",
+        role: EUserRole.USER,
         avatarId: null,
       },
       {
         createdAt: expect.any(Date),
-        name: "List User",
-        role: EUserRole.USER,
+        name: "Test User",
+        role: EUserRole.SYSTEM,
         avatarId: null,
       },
     ]);

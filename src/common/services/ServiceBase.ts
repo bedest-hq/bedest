@@ -6,6 +6,7 @@ import {
   type InferInsertModel,
   type InferSelectModel,
   count,
+  desc,
 } from "drizzle-orm";
 import {
   PgTable,
@@ -42,6 +43,10 @@ export abstract class ServiceBase<
     }
 
     return filters;
+  }
+
+  protected getOrderBy(): SQL[] {
+    return [desc(this.table.createdAt)];
   }
 
   async create(c: TContext, data: TInsertData): Promise<{ id: TId }> {
@@ -86,9 +91,10 @@ export abstract class ServiceBase<
       .where(and(...filters))
       .$dynamic();
 
-    const data = (await dbQuery.limit(query.limit).offset(offset)) as Prettify<
-      InferSelectModel<TTable>
-    >[];
+    const data = (await dbQuery
+      .limit(query.limit)
+      .offset(offset)
+      .orderBy(...this.getOrderBy())) as Prettify<InferSelectModel<TTable>>[];
 
     return {
       data,

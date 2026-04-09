@@ -2,7 +2,7 @@ import { Elysia, status, t } from "elysia";
 import { rateLimit } from "elysia-rate-limit";
 import Context from "@/app/Context";
 import EnvManager from "@/infrastructure/env/EnvManager";
-import { EXAMPLE_EMAIL, EXAMPLE_USER_PASSWORD } from "@/common/constants";
+import { SYSTEM_EMAIL, SYSTEM_USER_PASSWORD } from "@/common/constants";
 import { EUserRole } from "@/features/user/enums/EUserRole";
 import ServiceAuth from "../services/ServiceAuth";
 import { UtilAuth } from "../utils/UtilAuth";
@@ -34,8 +34,8 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
           const payload = await ServiceAuth.login(
             { nowDatetime, db },
             {
-              email: body.email ?? EXAMPLE_EMAIL,
-              password: body.password ?? EXAMPLE_USER_PASSWORD,
+              email: body.email ?? SYSTEM_EMAIL,
+              password: body.password ?? SYSTEM_USER_PASSWORD,
             },
           );
 
@@ -59,14 +59,14 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
             email: t.String({
               format: "email",
               ...(env.NODE_ENV === "development" && {
-                default: EXAMPLE_EMAIL,
+                default: SYSTEM_EMAIL,
               }),
             }),
             password: t.String({
               minLength: 6,
               maxLength: 100,
               ...(env.NODE_ENV === "development" && {
-                default: EXAMPLE_USER_PASSWORD,
+                default: SYSTEM_USER_PASSWORD,
               }),
             }),
           }),

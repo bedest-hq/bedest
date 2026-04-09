@@ -1,6 +1,6 @@
 import { IApp, IUserApp } from "../../common/interfaces/IContextApp";
 import { EUserRole } from "../../features/user/enums/EUserRole";
-import { EXAMPLE_UUID } from "../../common/constants";
+import { SYSTEM_UUID } from "../../common/constants";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import DbManager from "@/infrastructure/database/DbManager";
 
@@ -18,10 +18,10 @@ class ContextBuilder {
 
     const userContext: IUserApp = {
       ...context,
-      tenantId: EXAMPLE_UUID,
+      tenantId: SYSTEM_UUID,
       session: {
-        userId: EXAMPLE_UUID,
-        sessionId: EXAMPLE_UUID,
+        userId: SYSTEM_UUID,
+        sessionId: SYSTEM_UUID,
         role: EUserRole.SYSTEM,
       },
     };

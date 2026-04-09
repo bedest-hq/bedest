@@ -33,18 +33,18 @@ describe("RouterTenant", () => {
     expect(res.data!.data.length).toBeGreaterThanOrEqual(2);
     expect(res.data!.data).toStrictEqual([
       {
-        name: "Test Tenant",
-        domain: "test.com",
-        email: "test@example.com",
-        country: "Test Country",
-        logoId: null,
-      },
-      {
         country: "France",
         domain: "list.tenant.com",
         email: "list@tenant.com",
         logoId: null,
         name: "List Tenant",
+      },
+      {
+        name: "Test Tenant",
+        domain: "test.com",
+        email: "test@example.com",
+        country: "Test Country",
+        logoId: null,
       },
     ]);
   });
@@ -107,7 +107,11 @@ describe("RouterTenant", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(res.data).toHaveProperty("id");
+
+    expect(res.data).toStrictEqual({
+      id: expect.any(String),
+      password: expect.any(String),
+    });
   });
 
   it("Update tenant", async () => {

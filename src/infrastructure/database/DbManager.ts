@@ -12,6 +12,7 @@ class DbManager {
       port: env.DATABASE_PORT,
       user: env.DATABASE_USER,
       password: env.DATABASE_PASSWORD,
+      database: "postgres",
       ssl:
         env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
     });

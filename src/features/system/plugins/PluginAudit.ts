@@ -45,7 +45,7 @@ export const PluginAudit = new Elysia({ name: "PluginAudit" }).macro({
     const cfg = typeof conf === "object" ? conf : {};
 
     return {
-      afterHandle({
+      afterResponse({
         request: { method, headers, url },
         path,
         params,
