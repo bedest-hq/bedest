@@ -23,6 +23,7 @@ export const RouterTenant = new Elysia({
         userRuntime,
         userRuntime.tenantId,
         {
+          id: STenant.id,
           name: STenant.name,
           domain: STenant.domain,
           email: STenant.email,
@@ -38,6 +39,7 @@ export const RouterTenant = new Elysia({
     },
     {
       response: t.Object({
+        id: VId,
         name: VString,
         domain: VString,
         email: VEmail,

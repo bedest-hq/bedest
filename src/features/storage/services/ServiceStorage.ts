@@ -2,7 +2,7 @@ import { ServiceBaseTenant } from "@/common/services/ServiceBaseTenant";
 import { SStorage } from "../schemas/SStorage";
 
 import { status } from "elysia";
-import { IUserApp } from "@/common/interfaces/IContextApp";
+import { ITenantApp, IUserApp } from "@/common/interfaces/IContextApp";
 import StorageManager from "@/infrastructure/storage/StorageManager";
 
 class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
@@ -29,7 +29,7 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     return { id: res.id, key: key };
   }
 
-  async get(c: IUserApp, id: string) {
+  async get(c: ITenantApp, id: string) {
     const fileRecord = await super.getById(c, id, {
       key: SStorage.key,
       mimeType: SStorage.mimeType,

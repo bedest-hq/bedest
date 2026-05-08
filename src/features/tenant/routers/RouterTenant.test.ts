@@ -76,6 +76,7 @@ describe("RouterTenant", () => {
 
     expect(res.status).toBe(200);
     expect(res.data).toStrictEqual({
+      id: expect.any(String),
       name: "Test Tenant",
       domain: "test.com",
       email: "test@example.com",
