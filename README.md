@@ -110,7 +110,7 @@ cp .env.example .env
 docker run -d \
   --name postgres \
   -p 5432:5432 \
-  -e POSTGRES_PASSWORD=sifreniz \
+  -e POSTGRES_PASSWORD=postgres \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_DB=postgres \
   postgres:16-alpine
