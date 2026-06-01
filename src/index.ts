@@ -4,6 +4,7 @@ import DbManager from "./infrastructure/database/DbManager";
 import { ErrorHandler } from "./infrastructure/error/ErrorHandler";
 import cors from "@elysiajs/cors";
 import { logger } from "./infrastructure/logger/logger";
+import WsManager from "./infrastructure/websocket/WsManager";
 
 const env = EnvManager.init();
 
@@ -22,6 +23,10 @@ export const app = new Elysia()
   .get("/favicon.ico", () => Bun.file("public/favicon.ico"))
   .use(Router)
   .listen(env.PORT);
+
+if (app.server) {
+  WsManager.init(app.server);
+}
 
 logger.info("✨ Hello Bedest ✨");
 logger.info(

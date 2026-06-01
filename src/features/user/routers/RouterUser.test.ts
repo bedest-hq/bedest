@@ -169,4 +169,144 @@ describe("RouterUser", () => {
 
     expect(res.status).toBe(401);
   });
+
+  it("Non-privileged user can change password with correct currentPassword", async () => {
+    const adminHeaders = await testHeaders();
+
+    const createRes = await api.user.post(
+      {
+        name: "Password Test User",
+        phone: "05550000000",
+        email: "pwtest@example.com",
+        role: EUserRole.USER,
+        password: "oldpassword1",
+      },
+      { headers: adminHeaders },
+    );
+    expect(createRes.status).toBe(200);
+    const userId = createRes.data!.id;
+
+    const { RouterAuth } = await import("@f/auth/routers/RouterAuth");
+    const authApi = treaty(RouterAuth);
+
+    const loginRes = await authApi.auth.login.post({
+      email: "pwtest@example.com",
+      password: "oldpassword1",
+    });
+    expect(loginRes.status).toBe(200);
+
+    const cookies = loginRes.response.headers.getSetCookie();
+    const userHeaders = { Cookie: cookies.join("; ") };
+
+    const changeRes = await api.user({ id: userId }).put(
+      {
+        currentPassword: "oldpassword1",
+        password: "newpassword1",
+      },
+      { headers: userHeaders },
+    );
+
+    expect(changeRes.status).toBe(200);
+    expect(changeRes.data).toStrictEqual({ success: true });
+  });
+
+  it("Non-privileged user is rejected when currentPassword is wrong", async () => {
+    const adminHeaders = await testHeaders();
+
+    const createRes = await api.user.post(
+      {
+        name: "Bad PW User",
+        phone: "05550000001",
+        email: "badpw@example.com",
+        role: EUserRole.USER,
+        password: "correctpassword",
+      },
+      { headers: adminHeaders },
+    );
+    expect(createRes.status).toBe(200);
+    const userId = createRes.data!.id;
+
+    const { RouterAuth } = await import("@f/auth/routers/RouterAuth");
+    const authApi = treaty(RouterAuth);
+
+    const loginRes = await authApi.auth.login.post({
+      email: "badpw@example.com",
+      password: "correctpassword",
+    });
+    const cookies = loginRes.response.headers.getSetCookie();
+    const userHeaders = { Cookie: cookies.join("; ") };
+
+    const changeRes = await api.user({ id: userId }).put(
+      {
+        currentPassword: "wrongpassword",
+        password: "newpassword1",
+      },
+      { headers: userHeaders },
+    );
+
+    expect(changeRes.status).toBe(401);
+  });
+
+  it("Non-privileged user is rejected when currentPassword is omitted", async () => {
+    const adminHeaders = await testHeaders();
+
+    const createRes = await api.user.post(
+      {
+        name: "No Current PW User",
+        phone: "05550000002",
+        email: "nocurrentpw@example.com",
+        role: EUserRole.USER,
+        password: "somepassword1",
+      },
+      { headers: adminHeaders },
+    );
+    expect(createRes.status).toBe(200);
+    const userId = createRes.data!.id;
+
+    const { RouterAuth } = await import("@f/auth/routers/RouterAuth");
+    const authApi = treaty(RouterAuth);
+
+    const loginRes = await authApi.auth.login.post({
+      email: "nocurrentpw@example.com",
+      password: "somepassword1",
+    });
+    const cookies = loginRes.response.headers.getSetCookie();
+    const userHeaders = { Cookie: cookies.join("; ") };
+
+    const changeRes = await api.user({ id: userId }).put(
+      {
+        password: "newpassword1",
+      },
+      { headers: userHeaders },
+    );
+
+    expect(changeRes.status).toBe(400);
+  });
+
+  it("SYSTEM user can change any password without currentPassword", async () => {
+    const adminHeaders = await testHeaders();
+
+    const createRes = await api.user.post(
+      {
+        name: "Target User",
+        phone: "05550000003",
+        email: "target@example.com",
+        role: EUserRole.USER,
+        password: "originalpassword",
+      },
+      { headers: adminHeaders },
+    );
+    expect(createRes.status).toBe(200);
+    const userId = createRes.data!.id;
+
+    const changeRes = await api.user({ id: userId }).put(
+      {
+        password: "forcedresetpassword",
+      },
+      { headers: adminHeaders },
+    );
+
+    expect(changeRes.status).toBe(200);
+    expect(changeRes.data).toStrictEqual({ success: true });
+  });
 });
