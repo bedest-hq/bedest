@@ -3,6 +3,8 @@ import { IUserApp } from "../../../common/interfaces/IContextApp";
 import { SUser } from "../schemas/SUser";
 import { ServiceBaseTenant } from "@/common/services/ServiceBaseTenant";
 import { status } from "elysia";
+import { eq, and } from "drizzle-orm";
+import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
 
 class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   constructor() {
@@ -64,13 +66,52 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   async update(
     c: IUserApp,
     id: string,
-    data: { name?: string; password?: string; avatarId?: string },
+    data: {
+      name?: string;
+      password?: string;
+      currentPassword?: string;
+      avatarId?: string;
+    },
   ) {
-    if (
-      c.session.userId !== id &&
-      ![EUserRole.ADMIN, EUserRole.SYSTEM].includes(c.session.role)
-    ) {
+    const isSelf = c.session.userId === id;
+    const isPrivileged = [EUserRole.ADMIN, EUserRole.SYSTEM].includes(
+      c.session.role,
+    );
+
+    if (!isSelf && !isPrivileged) {
       throw status("Forbidden");
+    }
+
+    if (data.password) {
+      if (!isPrivileged) {
+        if (!data.currentPassword) {
+          throw status("Bad Request", {
+            message: "currentPassword is required to change your password",
+          });
+        }
+
+        const existing = await UtilTenantScope.tenantScope(c, async (tx) => {
+          const [row] = await tx
+            .select({ password: SUser.password })
+            .from(SUser)
+            .where(and(eq(SUser.id, id), eq(SUser.isDeleted, false)))
+            .limit(1);
+          return row;
+        });
+
+        if (!existing) {
+          throw status("Not Found");
+        }
+
+        const valid = await Bun.password.verify(
+          data.currentPassword,
+          existing.password,
+        );
+
+        if (!valid) {
+          throw status("Unauthorized", { message: "Wrong current password" });
+        }
+      }
     }
 
     const payload: Partial<typeof SUser.$inferInsert> = {};

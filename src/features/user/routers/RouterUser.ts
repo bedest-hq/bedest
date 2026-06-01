@@ -57,6 +57,7 @@ export const RouterUser = new Elysia({
       params: t.Object({ id: VId }),
       body: t.Object({
         name: t.Optional(VString),
+        currentPassword: t.Optional(t.String({ minLength: 6, maxLength: 100 })),
         password: t.Optional(t.String({ minLength: 6, maxLength: 100 })),
       }),
       audit: true,
