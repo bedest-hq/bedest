@@ -1,7 +1,6 @@
-import { IUserApp } from "@/common/interfaces/IContextApp";
 import { SSystemLog } from "../schemas/SSystemLog";
-import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
 import { logger } from "@/infrastructure/logger/logger";
+import { IUserApp, UtilTenantScope } from "bedest-core";
 import { and, count, desc, eq, SQL } from "drizzle-orm";
 import { status } from "elysia";
 

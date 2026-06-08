@@ -1,17 +1,23 @@
 import { jwt } from "@elysiajs/jwt";
 import Elysia, { status } from "elysia";
 import { t } from "elysia";
-import { IUserApp, ITenantApp } from "../common/interfaces/IContextApp";
-import { ISession } from "../features/session/interfaces/ISession";
-import { EUserRole } from "../features/user/enums/EUserRole";
+import { EUserRole } from "@/features/user/enums/EUserRole";
 import DbManager from "@/infrastructure/database/DbManager";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import ServiceSystem from "@f/system/services/ServiceSystem";
+import ServiceTenant from "@f/tenant/services/ServiceTenant";
+import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 import { UtilAuth } from "@f/auth/utils/UtilAuth";
 import { VJwtPayload } from "@f/auth/validations/VJwtPayload";
-import { MacroRoleGuard } from "@/common/guards/GuardRole";
-import { MacroPlanGuard } from "@/common/guards/GuardPlan";
 import { PluginAudit } from "@f/system/plugins/PluginAudit";
+import {
+  ISession,
+  ITenantApp,
+  IUserApp,
+  MacroPlanGuard,
+  MacroRoleGuard,
+  PlanChecker,
+} from "bedest-core";
 
 class Context {
   private env = EnvManager.get();
@@ -37,9 +43,7 @@ class Context {
     return (app: Elysia) =>
       app
         .decorate("db", db)
-        .derive(() => ({
-          nowDatetime: new Date(),
-        }))
+        .derive(() => ({ nowDatetime: new Date() }))
         .use(this.refreshPlugin)
         .use(this.accessPlugin);
   }
@@ -48,35 +52,29 @@ class Context {
     return (app: Elysia) =>
       app.use(this.App()).derive(({ request, db, nowDatetime }) => {
         const tenantId = request.headers.get("x-tenant-id");
-
         if (!tenantId) {
           throw status("Bad Request", "Missing x-tenant-id header");
         }
-
-        const tenantRuntime: ITenantApp = {
-          db,
-          nowDatetime,
-          tenantId,
-        };
-
+        const tenantRuntime: ITenantApp = { db, nowDatetime, tenantId };
         return { tenantRuntime };
       });
   }
 
   User() {
+    const planChecker: PlanChecker = (tenantId, nowDatetime) => {
+      const db = DbManager.get();
+      return ServiceTenant.checkPlan({ db, nowDatetime }, tenantId);
+    };
+
     return (app: Elysia) =>
       app
         .use(this.App())
         .guard({
-          cookie: t.Cookie({
-            accessToken: t.Optional(t.String()),
-          }),
+          cookie: t.Cookie({ accessToken: t.Optional(t.String()) }),
         })
         .derive(async ({ accessJwt, nowDatetime, cookie }) => {
           const db = DbManager.get();
-
           const token = cookie.accessToken.value;
-
           const payload = await UtilAuth.validateAccessToken(accessJwt, token);
 
           if (
@@ -90,6 +88,7 @@ class Context {
             userId: payload.userId,
             sessionId: payload.sessionId,
             role: payload.role,
+            isSuperUser: payload.role === EUserRole.SYSTEM,
           };
 
           const userRuntime: IUserApp = {
@@ -102,7 +101,9 @@ class Context {
           return { userRuntime };
         })
         .macro("RoleGuard", MacroRoleGuard)
-        .macro("PlanGuard", MacroPlanGuard)
+        .macro("PlanGuard", (plans: ETenantPlan[]) =>
+          MacroPlanGuard(plans, planChecker),
+        )
         .use(PluginAudit);
   }
 }

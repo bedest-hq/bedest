@@ -1,10 +1,8 @@
 import { EUserRole } from "../enums/EUserRole";
-import { IUserApp } from "../../../common/interfaces/IContextApp";
 import { SUser } from "../schemas/SUser";
-import { ServiceBaseTenant } from "@/common/services/ServiceBaseTenant";
 import { status } from "elysia";
 import { eq, and } from "drizzle-orm";
-import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
+import { IUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core";
 
 class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   constructor() {

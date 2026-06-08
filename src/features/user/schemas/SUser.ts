@@ -1,9 +1,8 @@
 import { uuid, pgTable, varchar } from "drizzle-orm/pg-core";
 import { EUserRolePg } from "../enums/EUserRole";
 import { STenant } from "@f/tenant/schemas/STenant";
-import { baseColumns } from "@/common/schemas/SBase";
-import { UtilDbSchema } from "@/common/utils/UtilDbSchema";
 import { SStorage } from "@f/storage/schemas/SStorage";
+import { baseColumns, UtilDbSchema } from "bedest-core";
 
 export const SUser = pgTable(
   "users",

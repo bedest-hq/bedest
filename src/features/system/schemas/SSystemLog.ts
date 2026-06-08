@@ -1,5 +1,5 @@
-import { UtilDbSchema } from "@/common/utils/UtilDbSchema";
 import { STenant } from "@f/tenant/schemas/STenant";
+import { UtilDbSchema } from "bedest-core";
 import {
   pgTable,
   uuid,

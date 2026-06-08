@@ -1,6 +1,5 @@
-import { baseColumns } from "@/common/schemas/SBase";
-import { UtilDbSchema } from "@/common/utils/UtilDbSchema";
 import { STenant } from "@f/tenant/schemas/STenant";
+import { baseColumns, UtilDbSchema } from "bedest-core";
 import {
   uuid,
   pgTable,
