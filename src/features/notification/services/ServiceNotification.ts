@@ -1,10 +1,9 @@
 import WsManager from "@/infrastructure/websocket/WsManager";
 import { SNotification } from "../schemas/SNotification";
-import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
-import { IUserApp } from "@/common/interfaces/IContextApp";
 import { and, count, desc, eq } from "drizzle-orm";
 import { status } from "elysia";
 import { logger } from "@/infrastructure/logger/logger";
+import { IUserApp, UtilTenantScope } from "bedest-core";
 
 class ServiceNotification {
   /**

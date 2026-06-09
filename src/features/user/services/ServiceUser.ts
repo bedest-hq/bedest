@@ -73,7 +73,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   ) {
     const isSelf = c.session.userId === id;
     const isPrivileged = [EUserRole.ADMIN, EUserRole.SYSTEM].includes(
-      c.session.role,
+      c.session.role as EUserRole, // FIXME with a better usage.
     );
 
     if (!isSelf && !isPrivileged) {

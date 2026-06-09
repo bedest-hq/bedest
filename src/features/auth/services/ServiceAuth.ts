@@ -51,6 +51,7 @@ class ServiceAuth {
           userId: user.userId,
           role: user.role,
           sessionId: session.id,
+          isSuperUser: user.role === EUserRole.SYSTEM,
         },
       },
       {
@@ -104,6 +105,7 @@ class ServiceAuth {
           userId: payload.userId,
           role: payload.role,
           sessionId: newSession.id,
+          isSuperUser: payload.role === EUserRole.SYSTEM,
         },
       },
       {
