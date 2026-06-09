@@ -6,7 +6,7 @@ import { SYSTEM_EMAIL, SYSTEM_USER_PASSWORD } from "@/common/constants";
 import { EUserRole } from "@/features/user/enums/EUserRole";
 import ServiceAuth from "../services/ServiceAuth";
 import { UtilAuth } from "../utils/UtilAuth";
-import { VId, VString } from "@/common/validations/VCommon";
+import { VId, VString } from "bedest-core";
 
 const env = EnvManager.get();
 

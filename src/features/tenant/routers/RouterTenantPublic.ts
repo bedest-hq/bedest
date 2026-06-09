@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import Context from "@/app/Context";
-import { VId, VString } from "@/common/validations/VCommon";
 import ServiceTenant from "../services/ServiceTenant";
+import { VId, VString } from "bedest-core";
 
 export const RouterTenantPublic = new Elysia({
   prefix: "/public",

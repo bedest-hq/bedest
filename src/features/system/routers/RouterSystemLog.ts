@@ -1,9 +1,8 @@
 import { Elysia, t } from "elysia";
 import Context from "@/app/Context";
 import ServiceSystemLog from "../services/ServiceSystemLog";
-import { UtilRouter } from "@/common/utils/UtilRouter";
-import { VId, VString } from "@/common/validations/VCommon";
 import { EUserRole } from "@/features/user/enums/EUserRole";
+import { UtilRouter, VId, VString } from "bedest-core";
 
 export const RouterSystemLog = new Elysia({
   prefix: "/log",

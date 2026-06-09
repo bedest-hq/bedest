@@ -1,8 +1,7 @@
 import Context from "@/app/Context";
 import { Elysia, t } from "elysia";
 import ServiceNotification from "../services/ServiceNotification";
-import { VId, VQuery } from "@/common/validations/VCommon";
-import { UtilRouter } from "@/common/utils/UtilRouter";
+import { UtilRouter, VId, VQuery } from "bedest-core";
 
 export const RouterNotification = new Elysia({
   prefix: "/notifications",

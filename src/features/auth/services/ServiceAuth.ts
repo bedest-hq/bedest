@@ -1,12 +1,11 @@
 import { and, eq } from "drizzle-orm";
-import { IApp, IUserApp } from "../../../common/interfaces/IContextApp";
 import { SUser } from "../../user/schemas/SUser";
 import ServiceSession from "@/features/session/services/ServiceSession";
-import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { status } from "elysia";
 import ServiceSystemLog from "@f/system/services/ServiceSystemLog";
+import { IApp, IUserApp, UtilTenantScope } from "bedest-core";
 
 class ServiceAuth {
   async login(c: IApp, data: { email: string; password: string }) {
@@ -52,6 +51,7 @@ class ServiceAuth {
           userId: user.userId,
           role: user.role,
           sessionId: session.id,
+          isSuperUser: user.role === EUserRole.SYSTEM,
         },
       },
       {
@@ -105,6 +105,7 @@ class ServiceAuth {
           userId: payload.userId,
           role: payload.role,
           sessionId: newSession.id,
+          isSuperUser: payload.role === EUserRole.SYSTEM,
         },
       },
       {

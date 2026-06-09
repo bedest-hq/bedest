@@ -1,7 +1,6 @@
 import { Elysia, type Context } from "elysia";
 import ServiceSystemLog from "../services/ServiceSystemLog";
-import { UtilAudit } from "@/common/utils/UtilAudit";
-import { IUserApp } from "@/common/interfaces/IContextApp";
+import { IUserApp, UtilAudit } from "bedest-core";
 
 type AuditConf = boolean | { action?: string; entity?: string };
 

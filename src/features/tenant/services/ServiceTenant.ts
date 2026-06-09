@@ -1,7 +1,5 @@
-import { IApp } from "@/common/interfaces/IContextApp";
-import { ServiceBase } from "../../../common/services/ServiceBase";
+import { IApp, ServiceBase, UtilTenantScope } from "bedest-core";
 import { STenant } from "../schemas/STenant";
-import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
 import { and, eq } from "drizzle-orm";
 import { status } from "elysia";
 

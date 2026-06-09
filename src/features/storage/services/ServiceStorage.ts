@@ -1,9 +1,8 @@
-import { ServiceBaseTenant } from "@/common/services/ServiceBaseTenant";
 import { SStorage } from "../schemas/SStorage";
 
 import { status } from "elysia";
-import { ITenantApp, IUserApp } from "@/common/interfaces/IContextApp";
 import StorageManager from "@/infrastructure/storage/StorageManager";
+import { ITenantApp, IUserApp, ServiceBaseTenant } from "bedest-core";
 
 class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
   constructor() {

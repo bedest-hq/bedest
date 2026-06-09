@@ -1,7 +1,6 @@
 import { pgTable, varchar, timestamp, uuid } from "drizzle-orm/pg-core";
 import { ETenantPlanPg } from "../enums/ETenantPlan";
-import { baseColumns } from "@/common/schemas/SBase";
-import { UtilDbSchema } from "@/common/utils/UtilDbSchema";
+import { baseColumns, UtilDbSchema } from "bedest-core";
 
 export const STenant = pgTable(
   "tenants",

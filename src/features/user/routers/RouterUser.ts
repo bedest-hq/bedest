@@ -2,8 +2,7 @@ import { Elysia, t } from "elysia";
 import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
 import Context from "@/app/Context";
-import { UtilRouter } from "@/common/utils/UtilRouter";
-import { VEmail, VId, VQuery, VString } from "@/common/validations/VCommon";
+import { UtilRouter, VEmail, VId, VQuery, VString } from "bedest-core";
 
 export const RouterUser = new Elysia({
   prefix: "/user",

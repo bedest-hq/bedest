@@ -1,7 +1,6 @@
-import { IApp, IUserApp } from "../../../common/interfaces/IContextApp";
 import { and, eq } from "drizzle-orm";
 import { SSession } from "../schemas/SSession";
-import { UtilTenantScope } from "@/common/utils/UtilTenantScope";
+import { IApp, IUserApp, UtilTenantScope } from "bedest-core";
 
 class ServiceSession {
   async create(

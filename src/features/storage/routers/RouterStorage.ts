@@ -1,9 +1,8 @@
 import { Elysia, t } from "elysia";
 import Context from "@/app/Context";
 import ServiceStorage from "../services/ServiceStorage";
-import { VId, VQuery, VString } from "@/common/validations/VCommon";
-import { UtilRouter } from "@/common/utils/UtilRouter";
 import { SStorage } from "../schemas/SStorage";
+import { UtilRouter, VId, VQuery, VString } from "bedest-core";
 
 export const RouterStorage = new Elysia({
   prefix: "/storage",
