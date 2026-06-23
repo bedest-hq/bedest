@@ -13,7 +13,6 @@ describe("RouterUser", () => {
     const res = await api.user.post(
       {
         name: "New User",
-        phone: "05551234567",
         email: "newuser@example.com",
         role: EUserRole.USER,
         password: "securepassword",
@@ -31,7 +30,6 @@ describe("RouterUser", () => {
     await api.user.post(
       {
         name: "List User",
-        phone: "05551234567",
         email: "listuser@example.com",
         role: EUserRole.USER,
         password: "securepassword",
@@ -67,7 +65,6 @@ describe("RouterUser", () => {
     const user = await api.user.post(
       {
         name: "Get User Test",
-        phone: "05551234567",
         email: "getuser@example.com",
         role: EUserRole.ADMIN,
         password: "securepassword",
@@ -134,7 +131,6 @@ describe("RouterUser", () => {
     const user = await api.user.post(
       {
         name: "Delete User",
-        phone: "05551234567",
         email: "deleteuser@example.com",
         role: EUserRole.USER,
         password: "securepassword",
@@ -176,7 +172,6 @@ describe("RouterUser", () => {
     const createRes = await api.user.post(
       {
         name: "Password Test User",
-        phone: "05550000000",
         email: "pwtest@example.com",
         role: EUserRole.USER,
         password: "oldpassword1",
@@ -216,7 +211,6 @@ describe("RouterUser", () => {
     const createRes = await api.user.post(
       {
         name: "Bad PW User",
-        phone: "05550000001",
         email: "badpw@example.com",
         role: EUserRole.USER,
         password: "correctpassword",
@@ -253,7 +247,6 @@ describe("RouterUser", () => {
     const createRes = await api.user.post(
       {
         name: "No Current PW User",
-        phone: "05550000002",
         email: "nocurrentpw@example.com",
         role: EUserRole.USER,
         password: "somepassword1",
@@ -289,7 +282,6 @@ describe("RouterUser", () => {
     const createRes = await api.user.post(
       {
         name: "Target User",
-        phone: "05550000003",
         email: "target@example.com",
         role: EUserRole.USER,
         password: "originalpassword",
