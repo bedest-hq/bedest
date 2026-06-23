@@ -180,6 +180,7 @@ export const RouterTenant = new Elysia({
           "/",
           async ({ query, userRuntime }) => {
             const res = await ServiceTenant.getAll(userRuntime, query, {
+              id: STenant.id,
               name: STenant.name,
               domain: STenant.domain,
               country: STenant.country,
@@ -193,6 +194,7 @@ export const RouterTenant = new Elysia({
             query: VQuery,
             response: UtilRouter.defPaginatedSchema(
               t.Object({
+                id: VId,
                 name: VString,
                 domain: VString,
                 country: VString,
