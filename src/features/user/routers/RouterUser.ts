@@ -78,6 +78,8 @@ export const RouterUser = new Elysia({
             query: VQuery,
             response: UtilRouter.defPaginatedSchema(
               t.Object({
+                id: VId,
+                tenantId: VId,
                 name: VString,
                 role: t.Enum(EUserRole),
                 avatarId: t.Nullable(VId),
