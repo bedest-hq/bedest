@@ -33,6 +33,7 @@ describe("RouterTenant", () => {
     expect(res.data!.data.length).toBeGreaterThanOrEqual(2);
     expect(res.data!.data).toStrictEqual([
       {
+        id: expect.any(String),
         country: "France",
         domain: "list.tenant.com",
         email: "list@tenant.com",
@@ -40,6 +41,7 @@ describe("RouterTenant", () => {
         name: "List Tenant",
       },
       {
+        id: expect.any(String),
         name: "Test Tenant",
         domain: "test.com",
         email: "test@example.com",
