@@ -143,7 +143,7 @@ beforeEach(async () => {
       domain: "test.com",
       country: "Test Country",
       email: "test@example.com",
-      phone: "05555555555",
+      phones: ["05555555555"],
       plan: ETenantPlan.PROFESSIONAL,
       planStart: datetimeNow,
       planEnd: datetimeNextYear,
