@@ -10,7 +10,7 @@
     "bedest-core": "^1.0.2",
     "drizzle-orm": "^0.45.2",
     "elysia": "^1.4.28",
-    "elysia-rate-limit": "^4.6.2",
+    "elysia-rate-limit": "^5.0.0",
     "pg": "^8.21.0",
     "pino": "^10.3.1"
   },
