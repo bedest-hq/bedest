@@ -5,6 +5,7 @@ import { ErrorHandler } from "./infrastructure/error/ErrorHandler";
 import cors from "@elysiajs/cors";
 import { logger } from "./infrastructure/logger/logger";
 import WsManager from "./infrastructure/websocket/WsManager";
+import { checkForUpdates } from "./infrastructure/update/UpdateChecker";
 
 const env = EnvManager.init();
 
@@ -35,3 +36,5 @@ logger.info(
 logger.info(
   `📖 For API Documentation http://${app.server?.hostname}:${app.server?.port}/api/docs`,
 );
+
+void checkForUpdates();
