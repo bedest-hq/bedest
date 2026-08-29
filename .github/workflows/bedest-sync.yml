@@ -1,0 +1,48 @@
+name: Sync Bedest Upstream
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/bedest-hq/bedest.git || true
+          git fetch upstream main --tags
+
+      - name: Create sync branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b chore/bedest-upstream-sync || git checkout chore/bedest-upstream-sync
+          git merge upstream/main --no-edit -m "chore: sync upstream bedest" || true
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "chore: sync with upstream Bedest"
+          body: |
+            ## Upstream Bedest Sync
+
+            This is an automated PR with the latest changes from [`bedest-hq/bedest`](https://github.com/bedest-hq/bedest).
+
+            ### Before merging:
+            - Review the diff carefully
+            - Resolve any conflicts in files you have customized (e.g. `src/`, `Dockerfile`, `drizzle.config.ts`)
+            - Update `bedest.json` version to match the new release after merging
+
+            See the [CHANGELOG](https://github.com/bedest-hq/bedest/blob/main/CHANGELOG.md) for what changed.
+          branch: chore/bedest-upstream-sync
+          delete-branch: false
