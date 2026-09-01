@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.0](https://github.com/bedest-hq/bedest/compare/v1.1.0...v1.2.0) (2026-09-01)
+
+
+### Features
+
+* new tenant fields implemented. ([#73](https://github.com/bedest-hq/bedest/issues/73)) ([99b282c](https://github.com/bedest-hq/bedest/commit/99b282cdf24165d7f30bbd546fbc547f151c6909))
+* users gonna know when updates come to bedest ([#79](https://github.com/bedest-hq/bedest/issues/79)) ([774f83d](https://github.com/bedest-hq/bedest/commit/774f83dfdbb46dd3389184f03b10f824f22080f8))
+
+
+### Bug Fixes
+
+* little implementations for easier frontend implementations ([#72](https://github.com/bedest-hq/bedest/issues/72)) ([086ebdf](https://github.com/bedest-hq/bedest/commit/086ebdf2118492786f0400dfd0c141d461a1ddf3))
+* phone field removed from router maybe we can add again. ([#70](https://github.com/bedest-hq/bedest/issues/70)) ([d346798](https://github.com/bedest-hq/bedest/commit/d34679892b8cf73d4b8ea1fb0fd08b332af8b6c1))
+
 ## [1.1.0](https://github.com/bedest-hq/bedest/compare/v1.0.4...v1.1.0) (2026-06-01)
 
 
