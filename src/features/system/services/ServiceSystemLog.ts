@@ -1,12 +1,14 @@
 import { SSystemLog } from "../schemas/SSystemLog";
 import { logger } from "@/infrastructure/logger/logger";
-import { IUserApp, UtilTenantScope } from "bedest-core";
+import { ITenantUserApp, TDb, UtilTenantScope } from "bedest-core";
 import { and, count, desc, eq, SQL } from "drizzle-orm";
 import { status } from "elysia";
 
+export const SYSTEM_AUDIT_USER_ID = "00000000-0000-0000-0000-000000000000";
+
 class ServiceSystemLog {
   async log(
-    c: IUserApp,
+    c: ITenantUserApp,
     params: {
       action: string;
       entity: string;
@@ -30,8 +32,33 @@ class ServiceSystemLog {
     }
   }
 
+  async logEvent(
+    db: TDb,
+    params: {
+      tenantId: string;
+      userId?: string;
+      action: string;
+      entity: string;
+      entityId: string;
+      payload: unknown;
+    },
+  ) {
+    try {
+      await db.insert(SSystemLog).values({
+        tenantId: params.tenantId,
+        userId: params.userId ?? SYSTEM_AUDIT_USER_ID,
+        action: params.action,
+        entity: params.entity,
+        entityId: params.entityId,
+        payload: params.payload as Record<string, unknown>,
+      });
+    } catch (err) {
+      logger.error({ err, params }, "Audit Log insertion failed");
+    }
+  }
+
   async getAll(
-    c: IUserApp,
+    c: ITenantUserApp,
     query: {
       limit: number;
       page: number;
@@ -93,7 +120,7 @@ class ServiceSystemLog {
     });
   }
 
-  async getById(c: IUserApp, id: string) {
+  async getById(c: ITenantUserApp, id: string) {
     return await UtilTenantScope.tenantScope(c, async (tx) => {
       const [res] = await tx
         .select()

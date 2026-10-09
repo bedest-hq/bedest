@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia, status, t } from "elysia";
 import { STenant } from "../schemas/STenant";
 import { ETenantPlan } from "../enums/ETenantPlan";
 import ServiceTenant from "../services/ServiceTenant";
@@ -79,6 +79,13 @@ export const RouterTenant = new Elysia({
     async ({ params, userRuntime }) => {
       const id = params.id;
 
+      if (
+        userRuntime.session.role !== EUserRole.SYSTEM &&
+        id !== userRuntime.tenantId
+      ) {
+        throw status("Forbidden");
+      }
+
       const res = await ServiceTenant.getById(userRuntime, id, {
         name: STenant.name,
         domain: STenant.domain,
@@ -134,6 +141,16 @@ export const RouterTenant = new Elysia({
     "/:id",
     async ({ body, params, userRuntime }) => {
       const id = params.id;
+
+      if (userRuntime.session.role !== EUserRole.SYSTEM) {
+        if (id !== userRuntime.tenantId) {
+          throw status("Forbidden");
+        }
+        delete body.plan;
+        delete body.planStart;
+        delete body.planEnd;
+      }
+
       return await ServiceTenant.update(userRuntime, id, body);
     },
     {

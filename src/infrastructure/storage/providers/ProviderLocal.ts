@@ -61,4 +61,13 @@ export class ProviderLocal implements IProvider {
       return null;
     }
   }
+
+  getUploadUrl(key: string, contentType: string): Promise<string> {
+    void contentType;
+    return Promise.resolve(`/storage/upload?key=${encodeURIComponent(key)}`);
+  }
+
+  getDownloadUrl(key: string): Promise<string> {
+    return Promise.resolve(`/storage/download?key=${encodeURIComponent(key)}`);
+  }
 }

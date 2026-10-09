@@ -34,6 +34,27 @@ describe("RouterAuth", () => {
     expect(res.status).not.toBe(200);
   });
 
+  it("Prevent user enumeration by returning identical 401 response for non-existent email and wrong password", async () => {
+    const wrongPasswordRes = await authApi.auth.login.post({
+      email: test_user.email,
+      password: "wrong_password_123",
+    });
+
+    const nonExistentEmailRes = await authApi.auth.login.post({
+      email: "does_not_exist@example.com",
+      password: "wrong_password_123",
+    });
+
+    expect(wrongPasswordRes.status).toBe(401);
+    expect(nonExistentEmailRes.status).toBe(401);
+    expect(wrongPasswordRes.error?.value).toStrictEqual(
+      nonExistentEmailRes.error?.value,
+    );
+    expect(nonExistentEmailRes.error?.value as unknown).toStrictEqual({
+      message: "Invalid email or password",
+    });
+  });
+
   it("Refresh token", async () => {
     const loginRes = await authApi.auth.login.post({
       email: test_user.email,

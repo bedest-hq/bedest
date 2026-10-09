@@ -126,6 +126,68 @@ export const testHeaders = async (user = test_user) => {
 };
 
 let pass: string;
+
+export const createTestUser = async (
+  userRole = EUserRole.USER,
+  tenant = test_tenant,
+) => {
+  const [createdUser] = await test_db
+    .insert(SUser)
+    .values({
+      name: `Test User ${userRole}`,
+      email: `user_${crypto.randomUUID().slice(0, 8)}@example.com`,
+      tenantId: tenant.id,
+      password: pass,
+      role: userRole,
+      createdAt: new Date(),
+    })
+    .returning();
+
+  const headers = await testHeaders(createdUser);
+  return { user: createdUser, headers, tenant };
+};
+
+export const createForeignTenant = async (userRole = EUserRole.USER) => {
+  const datetimeNow = new Date();
+  const datetimeNextYear = new Date();
+  datetimeNextYear.setFullYear(datetimeNow.getFullYear() + 1);
+
+  const [foreignTenant] = await test_db
+    .insert(STenant)
+    .values({
+      name: "Foreign Tenant",
+      domain: `foreign-${crypto.randomUUID().slice(0, 8)}.com`,
+      country: "Foreign Country",
+      email: `foreign-${crypto.randomUUID().slice(0, 8)}@example.com`,
+      phones: ["05555555556"],
+      plan: ETenantPlan.PROFESSIONAL,
+      planStart: datetimeNow,
+      planEnd: datetimeNextYear,
+    })
+    .returning();
+
+  return await createTestUser(userRole, foreignTenant);
+};
+
+export const testUserHeaders = async (
+  userRole = EUserRole.USER,
+  tenant = test_tenant,
+) => {
+  const { headers } = await createTestUser(userRole, tenant);
+  return headers;
+};
+
+export const testAdminHeaders = async (tenant = test_tenant) => {
+  return await testUserHeaders(EUserRole.ADMIN, tenant);
+};
+
+export const testForeignTenantUserHeaders = async (
+  userRole = EUserRole.USER,
+) => {
+  const { headers } = await createForeignTenant(userRole);
+  return headers;
+};
+
 beforeAll(async () => {
   await migrate(test_db, { migrationsFolder: "drizzle" });
   pass = await password.hash("test_password");

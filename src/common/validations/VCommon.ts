@@ -22,6 +22,7 @@ export const VEnv = t.Object({
   DATABASE_NAME: t.String(),
   DATABASE_USER: t.String(),
   DATABASE_PASSWORD: t.String(),
+  DATABASE_SSL: t.Optional(t.Boolean()),
 
   SECRET_KEY: t.String(),
   REFRESH_KEY: t.String(),
@@ -35,4 +36,6 @@ export const VEnv = t.Object({
   S3_ACCESS_KEY: t.Optional(t.String()),
   S3_SECRET_KEY: t.Optional(t.String()),
   S3_BUCKET: t.Optional(t.String()),
+
+  REDIS_URL: t.Optional(t.String()),
 });

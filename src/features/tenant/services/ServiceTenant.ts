@@ -1,11 +1,49 @@
-import { IApp, ServiceBase, UtilTenantScope } from "bedest-core";
+import { IApp, ITenantUserApp, ServiceBase, UtilTenantScope } from "bedest-core";
 import { STenant } from "../schemas/STenant";
 import { and, eq } from "drizzle-orm";
 import { status } from "elysia";
 
-class ServiceTenant extends ServiceBase<typeof STenant, string> {
+class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> {
   constructor() {
     super(STenant);
+  }
+
+  override async create(
+    c: ITenantUserApp,
+    data: Parameters<ServiceBase<typeof STenant, string, ITenantUserApp>["create"]>[1],
+  ) {
+    if (!c.session?.isSuperUser) {
+      throw status("Forbidden");
+    }
+    return super.create(c, data);
+  }
+
+  override async update(
+    c: ITenantUserApp,
+    id: string,
+    data: Parameters<ServiceBase<typeof STenant, string, ITenantUserApp>["update"]>[2],
+  ) {
+    if (!c.session?.isSuperUser) {
+      if (id !== c.tenantId) {
+        throw status("Forbidden");
+      }
+      const allowedData = { ...data };
+      delete (allowedData as Record<string, unknown>).plan;
+      delete (allowedData as Record<string, unknown>).planStart;
+      delete (allowedData as Record<string, unknown>).planEnd;
+      if (Object.keys(allowedData).length === 0) {
+        return { success: true };
+      }
+      return super.update(c, id, allowedData);
+    }
+    return super.update(c, id, data);
+  }
+
+  override async remove(c: ITenantUserApp, id: string) {
+    if (!c.session?.isSuperUser && id !== c.tenantId) {
+      throw status("Forbidden");
+    }
+    return super.remove(c, id);
   }
 
   async checkPlan(c: IApp, tenantId: string) {

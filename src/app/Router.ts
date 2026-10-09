@@ -6,6 +6,7 @@ import { RouterAuth } from "@f/auth/routers/RouterAuth";
 import { RouterSystem } from "@f/system/routers/RouterSystem";
 import { RouterStorage } from "@f/storage/routers/RouterStorage";
 import { RouterNotification } from "@f/notification/routers/RouterNotification";
+import { RouterBilling } from "@f/billing/routers/RouterBilling";
 
 const v1 = new Elysia({ prefix: "/v1" })
   .use(RouterAuth)
@@ -13,6 +14,7 @@ const v1 = new Elysia({ prefix: "/v1" })
   .use(RouterTenant)
   .use(RouterStorage)
   .use(RouterSystem)
-  .use(RouterNotification);
+  .use(RouterNotification)
+  .use(RouterBilling);
 
 export const Router = new Elysia({ prefix: "/api" }).use(Swagger).use(v1);

@@ -1,8 +1,16 @@
 import { describe, it, expect } from "bun:test";
 import { treaty } from "@elysiajs/eden";
-import { test_user, testHeaders } from "@/common/tests/TestManager.test";
+import {
+  test_user,
+  test_tenant,
+  test_db,
+  testHeaders,
+  testUserHeaders,
+  createForeignTenant,
+} from "@/common/tests/TestManager.test";
 import { RouterUser } from "./RouterUser";
 import { EUserRole } from "../enums/EUserRole";
+import { SUser } from "../schemas/SUser";
 
 const api = treaty(RouterUser);
 
@@ -304,5 +312,114 @@ describe("RouterUser", () => {
 
     expect(changeRes.status).toBe(200);
     expect(changeRes.data).toStrictEqual({ success: true });
+  });
+
+  it("Tenant admin attempting to delete a SYSTEM user receives a 403 Forbidden", async () => {
+    const [tenantAdmin] = await test_db
+      .insert(SUser)
+      .values({
+        name: "Tenant Admin",
+        email: "tenantadmin-del@example.com",
+        tenantId: test_tenant.id,
+        password: "hashedpassword",
+        role: EUserRole.ADMIN,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    const adminHeaders = await testHeaders(tenantAdmin);
+
+    const res = await api
+      .user({ id: test_user.id })
+      .delete({}, { headers: adminHeaders });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("Tenant admin attempting to delete a peer ADMIN user receives a 403 Forbidden", async () => {
+    const [admin1] = await test_db
+      .insert(SUser)
+      .values({
+        name: "Admin One",
+        email: "admin1-del@example.com",
+        tenantId: test_tenant.id,
+        password: "hashedpassword",
+        role: EUserRole.ADMIN,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    const [admin2] = await test_db
+      .insert(SUser)
+      .values({
+        name: "Admin Two",
+        email: "admin2-del@example.com",
+        tenantId: test_tenant.id,
+        password: "hashedpassword",
+        role: EUserRole.ADMIN,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    const admin1Headers = await testHeaders(admin1);
+
+    const res = await api
+      .user({ id: admin2.id })
+      .delete({}, { headers: admin1Headers });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("Regular USER role cannot call POST /user (RoleGuard restriction)", async () => {
+    const userHeaders = await testUserHeaders();
+
+    const res = await api.user.post(
+      {
+        name: "Unauthorized Creation",
+        email: "unauth-user@example.com",
+        role: EUserRole.USER,
+        password: "securepassword",
+      },
+      { headers: userHeaders },
+    );
+
+    expect(res.status).toBe(403);
+  });
+
+  it("Regular USER role cannot call GET /user (RoleGuard restriction)", async () => {
+    const userHeaders = await testUserHeaders();
+
+    const res = await api.user.get({
+      headers: userHeaders,
+      query: { limit: 10, page: 1 },
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("Cross-tenant isolation: Tenant 1 admin cannot delete User from Tenant 2", async () => {
+    const foreign = await createForeignTenant(EUserRole.USER);
+
+    // Tenant 1 admin attempts to delete Tenant 2 user
+    const [adminT1] = await test_db
+      .insert(SUser)
+      .values({
+        name: "Admin T1",
+        email: "admin-t1@example.com",
+        tenantId: test_tenant.id,
+        password: "hashedpassword",
+        role: EUserRole.ADMIN,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    const adminT1Headers = await testHeaders(adminT1);
+
+    const res = await api
+      .user({ id: foreign.user.id })
+      .delete({}, { headers: adminT1Headers });
+
+    // Since user is in a different tenant, it is either not found or forbidden
+    expect([403, 404]).toContain(res.status);
   });
 });

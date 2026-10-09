@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import { SSession } from "../schemas/SSession";
-import { IApp, IUserApp, UtilTenantScope } from "bedest-core";
+import { IApp, ITenantUserApp, UtilTenantScope } from "bedest-core";
 
 class ServiceSession {
   async create(
@@ -8,8 +8,13 @@ class ServiceSession {
     data: {
       tenantId: string;
       userId: string;
+      expiresAt?: Date;
     },
   ) {
+    const expiresAt =
+      data.expiresAt ??
+      new Date(c.nowDatetime.getTime() + 7 * 24 * 60 * 60 * 1000);
+
     return await UtilTenantScope.systemScope(c.db, async (tx) => {
       const [session] = await tx
         .insert(SSession)
@@ -17,6 +22,7 @@ class ServiceSession {
           tenantId: data.tenantId,
           userId: data.userId,
           createdAt: c.nowDatetime,
+          expiresAt,
         })
         .returning({ id: SSession.id });
       return session;
@@ -28,14 +34,24 @@ class ServiceSession {
       const [res] = await tx
         .select({ userId: SSession.userId })
         .from(SSession)
-        .where(eq(SSession.id, id))
+        .where(and(eq(SSession.id, id), gt(SSession.expiresAt, c.nowDatetime)))
         .limit(1);
       return res;
     });
     return !!session;
   }
 
-  async remove(c: IUserApp, id: string) {
+  async cleanExpiredSessions(c: IApp) {
+    return await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const deleted = await tx
+        .delete(SSession)
+        .where(lt(SSession.expiresAt, c.nowDatetime))
+        .returning({ id: SSession.id });
+      return { count: deleted.length };
+    });
+  }
+
+  async remove(c: ITenantUserApp, id: string) {
     await UtilTenantScope.tenantScope(c, async (tx) => {
       await tx
         .delete(SSession)

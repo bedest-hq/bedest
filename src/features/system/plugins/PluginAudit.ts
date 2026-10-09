@@ -1,6 +1,6 @@
 import { Elysia, type Context } from "elysia";
 import ServiceSystemLog from "../services/ServiceSystemLog";
-import { IUserApp, UtilAudit } from "bedest-core";
+import { ITenantUserApp, UtilAudit } from "bedest-core";
 
 type AuditConf = boolean | { action?: string; entity?: string };
 
@@ -43,6 +43,46 @@ export const PluginAudit = new Elysia({ name: "PluginAudit" }).macro({
 
     const cfg = typeof conf === "object" ? conf : {};
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const errorHandler = (c: any) => {
+      const {
+        code,
+        error,
+        set,
+        request,
+        userRuntime,
+        path,
+        params,
+        body,
+      } = c;
+      if (!userRuntime || request.method === "GET") {
+        return;
+      }
+      const status =
+        typeof set?.status === "number" && set.status !== 500
+          ? set.status
+          : typeof code === "number"
+            ? code
+            : typeof (error as { status?: number })?.status === "number"
+              ? (error as { status?: number }).status!
+              : typeof set?.status === "number"
+                ? set.status
+                : 500;
+      const p =
+        typeof path === "string" ? path : new URL(request.url).pathname;
+      void ServiceSystemLog.log(userRuntime, {
+        action: `FAILED_${request.method}`,
+        entity: cfg.entity || p.split("/")[3] || "system",
+        entityId: getId(params) || userRuntime.session.userId,
+        payload: {
+          error: error instanceof Error ? error.message : String(error),
+          errorCode: code,
+          statusCode: status,
+          body: UtilAudit.scrub(body),
+        },
+      });
+    };
+
     return {
       afterResponse({
         request: { method, headers, url },
@@ -51,22 +91,34 @@ export const PluginAudit = new Elysia({ name: "PluginAudit" }).macro({
         body,
         response,
         userRuntime,
-      }: Context & { userRuntime?: IUserApp; response?: unknown }) {
+        set,
+      }: Context & { userRuntime?: ITenantUserApp; response?: unknown }) {
         if (!userRuntime || method === "GET") {
           return;
         }
 
         const p = typeof path === "string" ? path : new URL(url).pathname;
         const isMulti = headers.get("content-type")?.includes("multipart");
+        const status = typeof set.status === "number" ? set.status : 200;
+        const scrubbed = UtilAudit.scrub(body);
+        const payloadData = isMulti
+          ? getMeta(body)
+          : isObj(scrubbed)
+            ? scrubbed
+            : {};
 
         void ServiceSystemLog.log(userRuntime, {
           action: cfg.action || method,
           entity: cfg.entity || p.split("/")[3] || "system",
           entityId:
             getId(params) || getId(response) || userRuntime.session.userId,
-          payload: isMulti ? getMeta(body) : (UtilAudit.scrub(body) ?? {}),
+          payload: {
+            statusCode: status,
+            ...payloadData,
+          },
         });
       },
+      error: errorHandler,
     };
   },
 });

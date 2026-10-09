@@ -16,17 +16,17 @@ export const RouterSystem = new Elysia({
     },
     (app) =>
       app
-        .get("/maintenance", () => {
+        .get("/maintenance", async () => {
           return {
-            isMaintenance: ServiceSystem.getMaintenance(),
+            isMaintenance: await ServiceSystem.getMaintenance(),
           };
         })
         .post(
           "/maintenance",
-          ({ body }) => {
-            ServiceSystem.setMaintenance(body.status);
+          async ({ body }) => {
+            await ServiceSystem.setMaintenance(body.status);
             return {
-              isMaintenance: ServiceSystem.getMaintenance(),
+              isMaintenance: await ServiceSystem.getMaintenance(),
             };
           },
           {

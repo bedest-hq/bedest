@@ -109,4 +109,35 @@ describe("RouterStorage", () => {
     const checkRes = await api.storage({ id: fileId }).view.get({ headers });
     expect(checkRes.status).toBe(404);
   });
+
+  it("Generates pre-signed upload URL and pre-signed download URL", async () => {
+    const headers = await testHeaders();
+
+    // 1. Presign upload URL
+    const presignUploadRes = await api.storage["presign-upload"].post(
+      {
+        name: "document.pdf",
+        mimeType: "application/pdf",
+        size: 1024 * 100,
+      },
+      { headers },
+    );
+
+    expect(presignUploadRes.status).toBe(200);
+    expect(presignUploadRes.data?.uploadUrl).toBeDefined();
+    expect(typeof presignUploadRes.data?.uploadUrl).toBe("string");
+    expect(presignUploadRes.data?.key).toBeDefined();
+    expect(presignUploadRes.data?.id).toBeDefined();
+
+    const fileId = presignUploadRes.data!.id;
+
+    // 2. Presign download URL
+    const presignDownloadRes = await api.storage({ id: fileId })["presign-download"].get({
+      headers,
+    });
+
+    expect(presignDownloadRes.status).toBe(200);
+    expect(presignDownloadRes.data?.downloadUrl).toBeDefined();
+    expect(typeof presignDownloadRes.data?.downloadUrl).toBe("string");
+  });
 });

@@ -2,7 +2,7 @@ import { EUserRole } from "../../features/user/enums/EUserRole";
 import { SYSTEM_UUID } from "../../common/constants";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import DbManager from "@/infrastructure/database/DbManager";
-import { IApp, IUserApp } from "bedest-core";
+import { IApp, ITenantUserApp } from "bedest-core";
 
 class ContextBuilder {
   build() {
@@ -13,7 +13,7 @@ class ContextBuilder {
 
     const context: IApp = { db, nowDatetime: new Date() };
 
-    const userContext: IUserApp = {
+    const userContext: ITenantUserApp = {
       ...context,
       tenantId: SYSTEM_UUID,
       session: {

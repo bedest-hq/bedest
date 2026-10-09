@@ -5,7 +5,10 @@ import ServiceSystem from "@f/system/services/ServiceSystem";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { status } from "elysia";
 import ServiceSystemLog from "@f/system/services/ServiceSystemLog";
-import { IApp, IUserApp, UtilTenantScope } from "bedest-core";
+import { IApp, ITenantUserApp, UtilTenantScope } from "bedest-core";
+import WsManager from "@/infrastructure/websocket/WsManager";
+
+const DUMMY_HASH = await Bun.password.hash("invalid_dummy_password");
 
 class ServiceAuth {
   async login(c: IApp, data: { email: string; password: string }) {
@@ -24,16 +27,17 @@ class ServiceAuth {
     });
 
     if (!user) {
-      throw status("Not Found");
+      await Bun.password.verify(data.password, DUMMY_HASH);
+      throw status("Unauthorized", { message: "Invalid email or password" });
     }
 
     const verifyPass = await Bun.password.verify(data.password, user.password);
 
     if (!verifyPass) {
-      throw status("Unauthorized", { message: "Wrong password" });
+      throw status("Unauthorized", { message: "Invalid email or password" });
     }
 
-    if (ServiceSystem.getMaintenance() && user.role !== "SYSTEM") {
+    if ((await ServiceSystem.getMaintenance()) && user.role !== "SYSTEM") {
       throw status("Service Unavailable");
     }
 
@@ -70,8 +74,9 @@ class ServiceAuth {
     };
   }
 
-  async logout(c: IUserApp) {
+  async logout(c: ITenantUserApp) {
     await ServiceSession.remove(c, c.session.sessionId);
+    WsManager.disconnectUser(c.session.userId);
   }
 
   async refresh(

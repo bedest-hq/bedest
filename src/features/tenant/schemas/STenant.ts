@@ -27,9 +27,11 @@ export const STenant = pgTable(
     plan: ETenantPlanPg().notNull(),
     planStart: timestamp({ withTimezone: true }).notNull(),
     planEnd: timestamp({ withTimezone: true }).notNull(),
+    subscriptionId: varchar({ length: 255 }),
+    customerId: varchar({ length: 255 }),
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_tenants_active", t.id),
     UtilDbSchema.tenantIsolationPolicy(t.id),
   ],
-);
+).enableRLS();

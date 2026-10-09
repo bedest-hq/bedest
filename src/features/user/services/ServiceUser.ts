@@ -2,7 +2,7 @@ import { EUserRole } from "../enums/EUserRole";
 import { SUser } from "../schemas/SUser";
 import { status } from "elysia";
 import { eq, and } from "drizzle-orm";
-import { IUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core";
+import { ITenantUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core";
 
 class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   constructor() {
@@ -10,7 +10,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   }
 
   async create(
-    c: IUserApp,
+    c: ITenantUserApp,
     data: {
       name: string;
       email: string;
@@ -42,7 +42,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     });
   }
 
-  async getAll(c: IUserApp, query: { limit: number; page: number }) {
+  async getAll(c: ITenantUserApp, query: { limit: number; page: number }) {
     return super.getAll(c, query, {
       id: SUser.id,
       tenantId: SUser.tenantId,
@@ -53,7 +53,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     });
   }
 
-  async getById(c: IUserApp, id: string) {
+  async getById(c: ITenantUserApp, id: string) {
     return super.getById(c, id, {
       name: SUser.name,
       role: SUser.role,
@@ -64,7 +64,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   }
 
   async update(
-    c: IUserApp,
+    c: ITenantUserApp,
     id: string,
     data: {
       name?: string;
@@ -129,6 +129,42 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     await super.update(c, id, payload);
 
     return { success: true };
+  }
+
+  override async remove(c: ITenantUserApp, id: string) {
+    const target = await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const [row] = await tx
+        .select({ id: SUser.id, role: SUser.role, tenantId: SUser.tenantId })
+        .from(SUser)
+        .where(and(eq(SUser.id, id), eq(SUser.isDeleted, false)))
+        .limit(1);
+      return row;
+    });
+
+    if (!target) {
+      throw status("Not Found");
+    }
+
+    if (
+      target.role === EUserRole.SYSTEM &&
+      c.session.role !== EUserRole.SYSTEM
+    ) {
+      throw status("Forbidden");
+    }
+
+    if (
+      target.role === EUserRole.ADMIN &&
+      c.session.role !== EUserRole.SYSTEM &&
+      c.session.userId !== id
+    ) {
+      throw status("Forbidden");
+    }
+
+    if (c.session.role !== EUserRole.SYSTEM && target.tenantId !== c.tenantId) {
+      throw status("Forbidden");
+    }
+
+    return super.remove(c, id);
   }
 }
 
