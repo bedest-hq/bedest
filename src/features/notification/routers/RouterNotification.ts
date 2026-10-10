@@ -2,6 +2,7 @@ import Context from "@/app/Context";
 import { Elysia, t } from "elysia";
 import ServiceNotification from "../services/ServiceNotification";
 import { UtilRouter, VId, VQuery } from "bedest-core";
+import WsManager from "@/infrastructure/websocket/WsManager";
 
 export const RouterNotification = new Elysia({
   prefix: "/notifications",
@@ -65,6 +66,11 @@ export const RouterNotification = new Elysia({
     }),
     open(ws) {
       const { userRuntime } = ws.data;
+      WsManager.registerClient(
+        userRuntime.session.userId,
+        ws,
+        userRuntime.session.sessionId,
+      );
       ws.subscribe(`tenant:${userRuntime.tenantId}`);
       ws.subscribe(`user:${userRuntime.session.userId}`);
       ws.send({ event: "connected" });
@@ -76,6 +82,11 @@ export const RouterNotification = new Elysia({
     },
     close(ws) {
       const { userRuntime } = ws.data;
+      WsManager.unregisterClient(
+        userRuntime.session.userId,
+        ws,
+        userRuntime.session.sessionId,
+      );
       ws.unsubscribe(`tenant:${userRuntime.tenantId}`);
       ws.unsubscribe(`user:${userRuntime.session.userId}`);
     },

@@ -7,6 +7,7 @@ import {
   jsonb,
   boolean,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const SNotification = pgTable(
@@ -16,7 +17,8 @@ export const SNotification = pgTable(
     tenantId: uuid()
       .references(() => STenant.id)
       .notNull(),
-    userId: uuid().notNull(),
+    userId: uuid(),
+    isBroadcast: boolean().default(false).notNull(),
     event: varchar({ length: 100 }).notNull(),
     payload: jsonb().$type<Record<string, unknown>>().notNull().default({}),
     isRead: boolean().notNull().default(false),
@@ -27,3 +29,24 @@ export const SNotification = pgTable(
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();
+
+export const SNotificationRead = pgTable(
+  "notification_reads",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    tenantId: uuid()
+      .references(() => STenant.id)
+      .notNull(),
+    notificationId: uuid()
+      .references(() => SNotification.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid().notNull(),
+    readAt: timestamp({ withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index("idx_notification_reads_user").on(t.userId),
+    index("idx_notification_reads_notif").on(t.notificationId),
+    UtilDbSchema.tenantIsolationPolicy(t.tenantId),
+  ],
+).enableRLS();
+

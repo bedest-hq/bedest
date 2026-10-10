@@ -108,7 +108,7 @@ export const RouterUser = new Elysia({
         .delete(
           "/:id",
           async ({ params, userRuntime }) => {
-            return ServiceUser.remove(userRuntime, params.id);
+            return await ServiceUser.remove(userRuntime, params.id);
           },
           {
             params: t.Object({

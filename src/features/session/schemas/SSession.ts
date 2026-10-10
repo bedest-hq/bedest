@@ -11,7 +11,12 @@ export const SSession = pgTable(
       .references(() => STenant.id)
       .notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull(),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
   },
 
-  (t) => [index().on(t.userId), UtilDbSchema.tenantIsolationPolicy(t.tenantId)],
+  (t) => [
+    index().on(t.userId),
+    index("idx_sessions_expires_at").on(t.expiresAt),
+    UtilDbSchema.tenantIsolationPolicy(t.tenantId),
+  ],
 ).enableRLS();

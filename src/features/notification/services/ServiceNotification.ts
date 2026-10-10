@@ -1,9 +1,9 @@
 import WsManager from "@/infrastructure/websocket/WsManager";
-import { SNotification } from "../schemas/SNotification";
-import { and, count, desc, eq } from "drizzle-orm";
+import { SNotification, SNotificationRead } from "../schemas/SNotification";
+import { and, count, desc, eq, or, sql } from "drizzle-orm";
 import { status } from "elysia";
 import { logger } from "@/infrastructure/logger/logger";
-import { IUserApp, UtilTenantScope } from "bedest-core";
+import { ITenantUserApp, UtilTenantScope } from "bedest-core";
 
 class ServiceNotification {
   /**
@@ -12,7 +12,7 @@ class ServiceNotification {
    * best-effort and must never break the calling flow.
    */
   async sendToUser(
-    c: IUserApp,
+    c: ITenantUserApp,
     targetUserId: string,
     event: string,
     payload?: Record<string, unknown>,
@@ -22,6 +22,7 @@ class ServiceNotification {
         await tx.insert(SNotification).values({
           tenantId: c.tenantId,
           userId: targetUserId,
+          isBroadcast: false,
           event,
           payload: payload ?? {},
           createdAt: c.nowDatetime,
@@ -41,10 +42,10 @@ class ServiceNotification {
    * Persist a broadcast notification for every connected user in the tenant
    * and push over the tenant WebSocket topic.
    * Per-user persistence is intentionally skipped for broadcasts — store only
-   * a single tenant-scoped record using the sender's userId as the actor.
+   * a single tenant-scoped record with userId null and isBroadcast true.
    */
   async sendToTenant(
-    c: IUserApp,
+    c: ITenantUserApp,
     event: string,
     payload?: Record<string, unknown>,
   ) {
@@ -52,7 +53,8 @@ class ServiceNotification {
       await UtilTenantScope.tenantScope(c, async (tx) => {
         await tx.insert(SNotification).values({
           tenantId: c.tenantId,
-          userId: c.session.userId,
+          userId: null,
+          isBroadcast: true,
           event,
           payload: payload ?? {},
           createdAt: c.nowDatetime,
@@ -69,23 +71,42 @@ class ServiceNotification {
   }
 
   async getAll(
-    c: IUserApp,
+    c: ITenantUserApp,
     query: { limit: number; page: number; unreadOnly?: boolean },
   ) {
     return await UtilTenantScope.tenantScope(c, async (tx) => {
-      const filters = [
-        eq(SNotification.userId, c.session.userId),
-        eq(SNotification.isDeleted, false),
-      ];
+      const readJoinCondition = and(
+        eq(SNotificationRead.notificationId, SNotification.id),
+        eq(SNotificationRead.userId, c.session.userId),
+      );
 
-      if (query.unreadOnly) {
-        filters.push(eq(SNotification.isRead, false));
-      }
+      const baseVisibility = and(
+        eq(SNotification.isDeleted, false),
+        or(
+          eq(SNotification.userId, c.session.userId),
+          and(
+            eq(SNotification.tenantId, c.tenantId),
+            eq(SNotification.isBroadcast, true),
+          ),
+        ),
+      );
+
+      const isReadExpr = sql<boolean>`CASE WHEN ${SNotification.isBroadcast} THEN ${SNotificationRead.id} IS NOT NULL ELSE ${SNotification.isRead} END`;
+      const readAtExpr = sql<Date | null>`CASE WHEN ${SNotification.isBroadcast} THEN ${SNotificationRead.readAt} ELSE ${SNotification.readAt} END`;
+
+      const unreadFilter = query.unreadOnly
+        ? sql`(CASE WHEN ${SNotification.isBroadcast} THEN ${SNotificationRead.id} IS NULL ELSE ${SNotification.isRead} = false END)`
+        : undefined;
+
+      const whereClause = unreadFilter
+        ? and(baseVisibility, unreadFilter)
+        : baseVisibility;
 
       const [totalRes] = await tx
         .select({ count: count() })
         .from(SNotification)
-        .where(and(...filters));
+        .leftJoin(SNotificationRead, readJoinCondition)
+        .where(whereClause);
 
       const total = Number(totalRes.count);
       const offset = (query.page - 1) * query.limit;
@@ -95,12 +116,13 @@ class ServiceNotification {
           id: SNotification.id,
           event: SNotification.event,
           payload: SNotification.payload,
-          isRead: SNotification.isRead,
-          readAt: SNotification.readAt,
+          isRead: isReadExpr,
+          readAt: readAtExpr,
           createdAt: SNotification.createdAt,
         })
         .from(SNotification)
-        .where(and(...filters))
+        .leftJoin(SNotificationRead, readJoinCondition)
+        .where(whereClause)
         .orderBy(desc(SNotification.createdAt))
         .limit(query.limit)
         .offset(offset);
@@ -117,10 +139,14 @@ class ServiceNotification {
     });
   }
 
-  async markRead(c: IUserApp, id: string) {
+  async markRead(c: ITenantUserApp, id: string) {
     return await UtilTenantScope.tenantScope(c, async (tx) => {
       const [existing] = await tx
-        .select({ userId: SNotification.userId })
+        .select({
+          userId: SNotification.userId,
+          isBroadcast: SNotification.isBroadcast,
+          tenantId: SNotification.tenantId,
+        })
         .from(SNotification)
         .where(
           and(eq(SNotification.id, id), eq(SNotification.isDeleted, false)),
@@ -129,6 +155,34 @@ class ServiceNotification {
 
       if (!existing) {
         throw status("Not Found");
+      }
+
+      if (existing.isBroadcast) {
+        if (existing.tenantId !== c.tenantId) {
+          throw status("Forbidden");
+        }
+
+        const [alreadyRead] = await tx
+          .select({ id: SNotificationRead.id })
+          .from(SNotificationRead)
+          .where(
+            and(
+              eq(SNotificationRead.notificationId, id),
+              eq(SNotificationRead.userId, c.session.userId),
+            ),
+          )
+          .limit(1);
+
+        if (!alreadyRead) {
+          await tx.insert(SNotificationRead).values({
+            tenantId: c.tenantId,
+            notificationId: id,
+            userId: c.session.userId,
+            readAt: c.nowDatetime,
+          });
+        }
+
+        return { success: true };
       }
 
       if (existing.userId !== c.session.userId) {
@@ -144,8 +198,9 @@ class ServiceNotification {
     });
   }
 
-  async markAllRead(c: IUserApp) {
+  async markAllRead(c: ITenantUserApp) {
     return await UtilTenantScope.tenantScope(c, async (tx) => {
+      // 1. Mark personal unread notifications
       await tx
         .update(SNotification)
         .set({ isRead: true, readAt: c.nowDatetime })
@@ -156,6 +211,37 @@ class ServiceNotification {
             eq(SNotification.isDeleted, false),
           ),
         );
+
+      // 2. Mark unread broadcast notifications by inserting into SNotificationRead
+      const unreadBroadcasts = await tx
+        .select({ id: SNotification.id })
+        .from(SNotification)
+        .leftJoin(
+          SNotificationRead,
+          and(
+            eq(SNotificationRead.notificationId, SNotification.id),
+            eq(SNotificationRead.userId, c.session.userId),
+          ),
+        )
+        .where(
+          and(
+            eq(SNotification.tenantId, c.tenantId),
+            eq(SNotification.isBroadcast, true),
+            eq(SNotification.isDeleted, false),
+            sql`${SNotificationRead.id} IS NULL`,
+          ),
+        );
+
+      if (unreadBroadcasts.length > 0) {
+        await tx.insert(SNotificationRead).values(
+          unreadBroadcasts.map((b) => ({
+            tenantId: c.tenantId,
+            notificationId: b.id,
+            userId: c.session.userId,
+            readAt: c.nowDatetime,
+          })),
+        );
+      }
 
       return { success: true };
     });

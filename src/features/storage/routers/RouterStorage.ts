@@ -100,4 +100,37 @@ export const RouterStorage = new Elysia({
       return fileBlob;
     },
     { params: t.Object({ id: VId }) },
+  )
+  .post(
+    "/presign-upload",
+    async ({ body, userRuntime }) => {
+      const res = await ServiceStorage.presignUpload(userRuntime, body);
+      return res;
+    },
+    {
+      body: t.Object({
+        name: VString,
+        mimeType: VString,
+        size: t.Number({ minimum: 1 }),
+      }),
+      response: t.Object({
+        uploadUrl: VString,
+        key: VString,
+        id: VId,
+      }),
+      audit: true,
+    },
+  )
+  .get(
+    "/:id/presign-download",
+    async ({ params, userRuntime }) => {
+      const res = await ServiceStorage.presignDownload(userRuntime, params.id);
+      return res;
+    },
+    {
+      params: t.Object({ id: VId }),
+      response: t.Object({
+        downloadUrl: VString,
+      }),
+    },
   );

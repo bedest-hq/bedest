@@ -13,7 +13,7 @@ import { PluginAudit } from "@f/system/plugins/PluginAudit";
 import {
   ISession,
   ITenantApp,
-  IUserApp,
+  ITenantUserApp,
   MacroPlanGuard,
   MacroRoleGuard,
   PlanChecker,
@@ -78,7 +78,7 @@ class Context {
           const payload = await UtilAuth.validateAccessToken(accessJwt, token);
 
           if (
-            ServiceSystem.getMaintenance() &&
+            (await ServiceSystem.getMaintenance()) &&
             payload.role !== EUserRole.SYSTEM
           ) {
             throw status("Service Unavailable");
@@ -91,7 +91,7 @@ class Context {
             isSuperUser: payload.role === EUserRole.SYSTEM,
           };
 
-          const userRuntime: IUserApp = {
+          const userRuntime: ITenantUserApp = {
             db,
             tenantId: payload.tenantId,
             nowDatetime,

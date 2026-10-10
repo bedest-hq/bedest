@@ -1,0 +1,13 @@
+{
+  "name": "@bedest/client",
+  "version": "1.0.0",
+  "description": "Typed Bedest SDK generated via Elysia Eden Treaty",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "dependencies": {
+    "@elysiajs/eden": "^1.4.9"
+  },
+  "peerDependencies": {
+    "elysia": ">=1.0.0"
+  }
+}

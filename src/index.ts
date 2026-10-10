@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import EnvManager from "./infrastructure/env/EnvManager";
 import DbManager from "./infrastructure/database/DbManager";
+import RedisManager from "./infrastructure/redis/RedisManager";
 import { ErrorHandler } from "./infrastructure/error/ErrorHandler";
 import cors from "@elysiajs/cors";
 import { logger } from "./infrastructure/logger/logger";
@@ -10,6 +11,7 @@ import { checkForUpdates } from "./infrastructure/update/UpdateChecker";
 const env = EnvManager.init();
 
 DbManager.init(env);
+RedisManager.init(env.REDIS_URL);
 
 const { Router } = await import("./app/Router");
 
@@ -38,3 +40,5 @@ logger.info(
 );
 
 void checkForUpdates();
+
+export type App = typeof app;

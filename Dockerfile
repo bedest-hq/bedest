@@ -11,7 +11,7 @@ RUN DATABASE_HOST=localhost \
     DATABASE_NAME=dummy \
     DATABASE_USER=dummy \
     DATABASE_PASSWORD=dummy \
-    bun run db:gen
+    bun run db:generate
 
 RUN bun run build
 

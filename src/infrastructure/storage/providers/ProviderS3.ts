@@ -4,6 +4,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import EnvManager from "../../env/EnvManager";
 import { logger } from "../../logger/logger";
 import { IProvider } from "../interfaces/IProvider";
@@ -101,5 +102,34 @@ export class ProviderS3 implements IProvider {
       logger.error({ err: error }, "Failed to download file.");
       return null;
     }
+  }
+
+  async getUploadUrl(
+    key: string,
+    contentType: string,
+    expiresIn = 300,
+  ): Promise<string> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: contentType,
+    });
+    return await getSignedUrl(
+      this.client as unknown as Parameters<typeof getSignedUrl>[0],
+      command as unknown as Parameters<typeof getSignedUrl>[1],
+      { expiresIn },
+    );
+  }
+
+  async getDownloadUrl(key: string, expiresIn = 300): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+    return await getSignedUrl(
+      this.client as unknown as Parameters<typeof getSignedUrl>[0],
+      command as unknown as Parameters<typeof getSignedUrl>[1],
+      { expiresIn },
+    );
   }
 }
