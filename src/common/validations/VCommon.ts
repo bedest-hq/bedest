@@ -1,5 +1,8 @@
 import { VId } from "bedest-core";
 import { t } from "elysia";
+// TypeBox Integer, not Elysia's t.Integer (a string|integer union that
+// Value.Convert leaves as a string) [SEC-16][NEW-03].
+import { Type } from "@sinclair/typebox";
 
 export const VDefault = {
   id: VId,
@@ -29,12 +32,13 @@ export const VEnv = t.Object({
   DATABASE_PASSWORD: t.String(),
   DATABASE_SSL: t.Optional(t.Boolean()),
 
-  SECRET_KEY: t.String(),
-  REFRESH_KEY: t.String(),
+  // At least 32 characters; must differ from REFRESH_KEY [SEC-16].
+  SECRET_KEY: t.String({ minLength: 32 }),
+  REFRESH_KEY: t.String({ minLength: 32 }),
 
   PORT: t.Number(),
   // Hard deadline for the graceful shutdown before exiting with code 1.
-  SHUTDOWN_TIMEOUT_MS: t.Integer({ minimum: 1000, default: 15000 }),
+  SHUTDOWN_TIMEOUT_MS: Type.Integer({ minimum: 1000, default: 15000 }),
 
   LOCAL_STORAGE_PATH: t.Optional(t.String()),
   // Comma-separated MIME allowlist shared by direct and presigned uploads.
@@ -43,7 +47,7 @@ export const VEnv = t.Object({
     default: "image/jpeg,image/png,image/webp,application/pdf",
   }),
   // Maximum size of one stored file, in bytes (default 5 MiB).
-  STORAGE_MAX_BYTES: t.Integer({ minimum: 1, default: 5 * 1024 * 1024 }),
+  STORAGE_MAX_BYTES: Type.Integer({ minimum: 1, default: 5 * 1024 * 1024 }),
 
   S3_ENDPOINT: t.Optional(t.String()),
   S3_REGION: t.Optional(t.String()),
@@ -59,11 +63,11 @@ export const VEnv = t.Object({
 
   // Number of trusted reverse proxies in front of the app. 0 = ignore
   // X-Forwarded-For and use the socket address.
-  TRUST_PROXY_HOPS: t.Integer({ minimum: 0, maximum: 10, default: 0 }),
+  TRUST_PROXY_HOPS: Type.Integer({ minimum: 0, maximum: 10, default: 0 }),
   // Login attempts per minute per (client IP + normalized e-mail).
-  RATE_LIMIT_LOGIN_PER_MIN: t.Integer({ minimum: 1, default: 5 }),
+  RATE_LIMIT_LOGIN_PER_MIN: Type.Integer({ minimum: 1, default: 5 }),
   // Login attempts per minute per client IP (any e-mail).
-  RATE_LIMIT_LOGIN_IP_PER_MIN: t.Integer({ minimum: 1, default: 20 }),
+  RATE_LIMIT_LOGIN_IP_PER_MIN: Type.Integer({ minimum: 1, default: 20 }),
   // Token refreshes per minute per client IP.
-  RATE_LIMIT_REFRESH_PER_MIN: t.Integer({ minimum: 1, default: 30 }),
+  RATE_LIMIT_REFRESH_PER_MIN: Type.Integer({ minimum: 1, default: 30 }),
 });

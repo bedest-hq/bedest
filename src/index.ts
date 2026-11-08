@@ -55,7 +55,7 @@ logger.info(
   `📖 For API Documentation http://${app.server?.hostname}:${app.server?.port}/api/docs`,
 );
 
-void checkForUpdates();
+void checkForUpdates(env.NODE_ENV);
 
 // Graceful shutdown [FEAT-03][OPS-08].
 const shutdown = createShutdown({

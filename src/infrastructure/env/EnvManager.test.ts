@@ -50,3 +50,67 @@ describe("EnvManager", () => {
     expect(env.NODE_ENV).toBe("production");
   });
 });
+
+describe("EnvManager (SEC-16)", () => {
+  const messageOf = (raw: Record<string, string | undefined>) => {
+    try {
+      new EnvManager().init(raw);
+      return "";
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err);
+    }
+  };
+
+  it("[SEC-16] string values of numeric and boolean variables are coerced", () => {
+    const env = new EnvManager().init({
+      ...validRaw(),
+      DATABASE_PORT: "6543",
+      RATE_LIMIT_LOGIN_PER_MIN: "7",
+      DATABASE_SSL: "true",
+    });
+    expect(env.DATABASE_PORT).toBe(6543);
+    expect(env.RATE_LIMIT_LOGIN_PER_MIN).toBe(7);
+    expect(env.DATABASE_SSL).toBe(true);
+  });
+
+  it("[SEC-16] two simultaneous errors are both reported in one message", () => {
+    const raw = validRaw();
+    delete raw.DATABASE_HOST;
+    raw.PORT = "not-a-number";
+    const message = messageOf(raw);
+    expect(message).toContain("DATABASE_HOST");
+    expect(message).toContain("PORT");
+  });
+
+  it("[SEC-16] identical SECRET_KEY and REFRESH_KEY are rejected", () => {
+    const same = "x".repeat(40);
+    expect(
+      messageOf({ ...validRaw(), SECRET_KEY: same, REFRESH_KEY: same }),
+    ).toContain("must differ");
+  });
+
+  it("[SEC-16] a secret shorter than 32 characters is rejected", () => {
+    expect(messageOf({ ...validRaw(), SECRET_KEY: "short-secret" })).toContain(
+      "SECRET_KEY",
+    );
+  });
+
+  it("[SEC-16] .env.example placeholder values are rejected in production", async () => {
+    const example = await Bun.file(".env.example").text();
+    const placeholder = (name: string) =>
+      example
+        .split(/\r?\n/)
+        .find((line) => line.startsWith(`${name}=`))
+        ?.slice(name.length + 1) ?? "";
+    const message = messageOf({
+      ...validRaw(),
+      NODE_ENV: "production",
+      CORS_ORIGINS: "https://app.example.com",
+      SECRET_KEY: placeholder("SECRET_KEY"),
+      REFRESH_KEY: placeholder("REFRESH_KEY"),
+    });
+    expect(message).toContain("placeholder");
+    expect(message).toContain("SECRET_KEY");
+    expect(message).toContain("REFRESH_KEY");
+  });
+});

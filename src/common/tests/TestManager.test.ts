@@ -76,8 +76,8 @@ const test_env: TEnv = {
   DATABASE_PASSWORD: "test_password",
   DATABASE_PORT: 3000,
   DATABASE_USER: "test_user",
-  REFRESH_KEY: "refresh-key",
-  SECRET_KEY: "secret-key",
+  REFRESH_KEY: "test-refresh-key-at-least-32-characters-long",
+  SECRET_KEY: "test-access-key-at-least-32-characters-long",
   PORT: 3000,
   SHUTDOWN_TIMEOUT_MS: 15000,
 

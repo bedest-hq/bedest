@@ -1,3 +1,4 @@
+import { TEnv } from "@/common/types/TEnv";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -56,8 +57,11 @@ function renderBanner(
   return [top, ...middle, bottom].join("\n");
 }
 
-export async function checkForUpdates(): Promise<void> {
-  if (Bun.env.NODE_ENV !== "development") {
+export async function checkForUpdates(
+  nodeEnv: TEnv["NODE_ENV"],
+): Promise<void> {
+  // Read through VEnv by the caller, never from process env [SEC-16].
+  if (nodeEnv !== "development") {
     return;
   }
 
