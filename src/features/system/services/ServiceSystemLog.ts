@@ -49,13 +49,16 @@ class ServiceSystemLog {
     },
   ) {
     try {
-      await db.insert(SSystemLog).values({
-        tenantId: params.tenantId,
-        userId: params.userId ?? SYSTEM_AUDIT_USER_ID,
-        action: params.action,
-        entity: params.entity,
-        entityId: params.entityId,
-        payload: params.payload as Record<string, unknown>,
+      // System events are written across tenants: system scope [BUG-01].
+      await UtilTenantScope.systemScope(db, async (tx) => {
+        await tx.insert(SSystemLog).values({
+          tenantId: params.tenantId,
+          userId: params.userId ?? SYSTEM_AUDIT_USER_ID,
+          action: params.action,
+          entity: params.entity,
+          entityId: params.entityId,
+          payload: params.payload as Record<string, unknown>,
+        });
       });
     } catch (err) {
       logger.error({ err, params }, "Audit Log insertion failed");
