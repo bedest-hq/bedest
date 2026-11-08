@@ -11,7 +11,6 @@ dist/
 out/
 
 # Drizzle
-drizzle/
 sqlite.db
 
 # OS System Files
