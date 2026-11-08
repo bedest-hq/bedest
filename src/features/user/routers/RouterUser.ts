@@ -13,7 +13,7 @@ export const RouterUser = new Elysia({
   .get(
     "/self",
     async ({ userRuntime }) => {
-      const res = await ServiceUser.getById(
+      const res = await ServiceUser.getProfile(
         userRuntime,
         userRuntime.session.userId,
       );
@@ -32,7 +32,7 @@ export const RouterUser = new Elysia({
   .get(
     "/:id",
     async ({ params, userRuntime }) => {
-      const res = await ServiceUser.getById(userRuntime, params.id);
+      const res = await ServiceUser.getProfile(userRuntime, params.id);
       return res;
     },
     {
@@ -74,7 +74,7 @@ export const RouterUser = new Elysia({
         .get(
           "/",
           async ({ query, userRuntime }) => {
-            const res = await ServiceUser.getAll(userRuntime, query);
+            const res = await ServiceUser.list(userRuntime, query);
             return res;
           },
           {

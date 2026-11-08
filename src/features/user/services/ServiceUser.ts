@@ -74,8 +74,9 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     });
   }
 
-  async getAll(c: ITenantUserApp, query: { limit: number; page: number }) {
-    return super.getAll(c, query, {
+  /** Tenant users without credentials (the base getAll takes columns). */
+  async list(c: ITenantUserApp, query: { limit: number; page: number }) {
+    return this.getAll(c, query, {
       id: SUser.id,
       tenantId: SUser.tenantId,
       name: SUser.name,
@@ -85,8 +86,9 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     });
   }
 
-  async getById(c: ITenantUserApp, id: string) {
-    return super.getById(c, id, {
+  /** One user profile without credentials. */
+  async getProfile(c: ITenantUserApp, id: string) {
+    return this.getById(c, id, {
       name: SUser.name,
       role: SUser.role,
       email: SUser.email,
