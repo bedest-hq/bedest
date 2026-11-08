@@ -14,7 +14,6 @@ import { VJwtPayload } from "@f/auth/validations/VJwtPayload";
 import { PluginAudit } from "@f/system/plugins/PluginAudit";
 import {
   ISession,
-  ITenantApp,
   ITenantUserApp,
   MacroPlanGuard,
   MacroRoleGuard,
@@ -55,18 +54,6 @@ class Context {
         }))
         .use(this.refreshPlugin)
         .use(this.accessPlugin);
-  }
-
-  Tenant() {
-    return (app: Elysia) =>
-      app.use(this.App()).derive(({ request, db, nowDatetime }) => {
-        const tenantId = request.headers.get("x-tenant-id");
-        if (!tenantId) {
-          throw status("Bad Request", "Missing x-tenant-id header");
-        }
-        const tenantRuntime: ITenantApp = { db, nowDatetime, tenantId };
-        return { tenantRuntime };
-      });
   }
 
   User() {
