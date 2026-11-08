@@ -2,7 +2,6 @@ import { Elysia, status, t } from "elysia";
 import Context from "@/app/Context";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import RateLimitManager from "@/infrastructure/ratelimit/RateLimitManager";
-import { EUserRole } from "@/features/user/enums/EUserRole";
 import ServiceAuth from "../services/ServiceAuth";
 import { UtilAuth } from "../utils/UtilAuth";
 import { VId, VString } from "bedest-core";
@@ -81,19 +80,16 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
         throw status("Unauthorized");
       }
 
-      const payload = await refreshJwt.verify(refreshToken as string);
+      const payload = await refreshJwt.verify(refreshToken);
       if (!payload) {
         throw status("Unauthorized");
       }
 
+      // Only the session id is taken from the token; identity and role are
+      // re-read from the database [SEC-08].
       const newPayload = await ServiceAuth.refresh(
         { db, nowDatetime },
-        {
-          sessionId: payload.sessionId as string,
-          tenantId: payload.tenantId as string,
-          userId: payload.userId as string,
-          role: payload.role as EUserRole,
-        },
+        payload.sessionId,
       );
 
       const newAccessToken = await accessJwt.sign(newPayload);
@@ -112,6 +108,7 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
       return { accessToken: newAccessToken };
     },
     {
+      cookie: t.Cookie({ refreshToken: t.Optional(t.String()) }),
       response: t.Object({ accessToken: VString }),
     },
   );

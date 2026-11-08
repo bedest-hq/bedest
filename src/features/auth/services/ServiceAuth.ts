@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { SUser } from "../../user/schemas/SUser";
+import { STenant } from "@f/tenant/schemas/STenant";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import { EUserRole } from "@f/user/enums/EUserRole";
@@ -10,7 +11,33 @@ import WsManager from "@/infrastructure/websocket/WsManager";
 
 const DUMMY_HASH = await Bun.password.hash("invalid_dummy_password");
 
+const invalidCredentials = () =>
+  status("Unauthorized", { message: "Invalid email or password" });
+
 class ServiceAuth {
+  /** Active user of an active tenant, straight from the database. */
+  private async loadPrincipal(c: IApp, userId: string) {
+    return await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const [row] = await tx
+        .select({
+          userId: SUser.id,
+          tenantId: SUser.tenantId,
+          role: SUser.role,
+        })
+        .from(SUser)
+        .innerJoin(STenant, eq(STenant.id, SUser.tenantId))
+        .where(
+          and(
+            eq(SUser.id, userId),
+            eq(SUser.isDeleted, false),
+            eq(STenant.isDeleted, false),
+          ),
+        )
+        .limit(1);
+      return row;
+    });
+  }
+
   async login(c: IApp, data: { email: string; password: string }) {
     const user = await UtilTenantScope.systemScope(c.db, async (tx) => {
       const [res] = await tx
@@ -21,20 +48,27 @@ class ServiceAuth {
           password: SUser.password,
         })
         .from(SUser)
-        .where(and(eq(SUser.email, data.email), eq(SUser.isDeleted, false)))
+        .innerJoin(STenant, eq(STenant.id, SUser.tenantId))
+        .where(
+          and(
+            eq(SUser.email, data.email),
+            eq(SUser.isDeleted, false),
+            eq(STenant.isDeleted, false),
+          ),
+        )
         .limit(1);
       return res;
     });
 
     if (!user) {
       await Bun.password.verify(data.password, DUMMY_HASH);
-      throw status("Unauthorized", { message: "Invalid email or password" });
+      throw invalidCredentials();
     }
 
     const verifyPass = await Bun.password.verify(data.password, user.password);
 
     if (!verifyPass) {
-      throw status("Unauthorized", { message: "Invalid email or password" });
+      throw invalidCredentials();
     }
 
     if ((await ServiceSystem.getMaintenance()) && user.role !== "SYSTEM") {
@@ -79,56 +113,59 @@ class ServiceAuth {
     WsManager.disconnectUser(c.session.userId);
   }
 
-  async refresh(
-    c: IApp,
-    payload: {
-      sessionId: string;
-      tenantId: string;
-      userId: string;
-      role: EUserRole;
-    },
-  ) {
-    const isValid = await ServiceSession.isValid(c, payload.sessionId);
+  /**
+   * Rotates a refresh session. Identity, tenant and role are re-read from
+   * the database (never copied from the presented token), so deleted users,
+   * deleted tenants and role changes take effect at the next refresh.
+   */
+  async refresh(c: IApp, sessionId: string) {
+    const session = await ServiceSession.find(c, sessionId);
 
-    if (!isValid) {
+    if (!session) {
       throw status("Unauthorized");
     }
 
-    await ServiceSession.removeBySystem(c, payload.sessionId);
+    const principal = await this.loadPrincipal(c, session.userId);
+    if (!principal) {
+      await ServiceSession.revokeSession(c, sessionId);
+      throw status("Unauthorized");
+    }
+
+    await ServiceSession.removeBySystem(c, sessionId);
 
     const newSession = await ServiceSession.create(c, {
-      tenantId: payload.tenantId,
-      userId: payload.userId,
+      tenantId: principal.tenantId,
+      userId: principal.userId,
     });
 
     void ServiceSystemLog.log(
       {
         db: c.db,
         nowDatetime: c.nowDatetime,
-        tenantId: payload.tenantId,
+        tenantId: principal.tenantId,
         session: {
-          userId: payload.userId,
-          role: payload.role,
+          userId: principal.userId,
+          role: principal.role,
           sessionId: newSession.id,
-          isSuperUser: payload.role === EUserRole.SYSTEM,
+          isSuperUser: principal.role === EUserRole.SYSTEM,
         },
       },
       {
         action: "REFRESH_TOKEN",
         entity: "auth",
-        entityId: payload.userId,
+        entityId: principal.userId,
         payload: {
-          oldSessionId: payload.sessionId,
+          oldSessionId: sessionId,
           newSessionId: newSession.id,
         },
       },
     );
 
     return {
-      tenantId: payload.tenantId,
-      userId: payload.userId,
+      tenantId: principal.tenantId,
+      userId: principal.userId,
       sessionId: newSession.id,
-      role: payload.role,
+      role: principal.role,
     };
   }
 }

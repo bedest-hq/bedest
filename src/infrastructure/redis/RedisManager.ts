@@ -111,12 +111,16 @@ export class RedisManager {
     }
   }
 
-  async set(key: string, value: string): Promise<void> {
+  async set(key: string, value: string, ttlSec?: number): Promise<void> {
     if (!this.client || !this.isAvailable()) {
       return;
     }
     try {
-      await this.client.set(key, value);
+      if (ttlSec !== undefined) {
+        await this.client.set(key, value, "EX", ttlSec);
+      } else {
+        await this.client.set(key, value);
+      }
     } catch (err: unknown) {
       logger.warn(`[RedisManager] set(${key}) error: ${getErrorMessage(err)}`);
     }

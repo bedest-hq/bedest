@@ -2,6 +2,7 @@ import { IApp, ITenantUserApp, ServiceBase, UtilTenantScope } from "bedest-core"
 import { STenant } from "../schemas/STenant";
 import { and, eq } from "drizzle-orm";
 import { status } from "elysia";
+import ServiceSession from "@f/session/services/ServiceSession";
 
 class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> {
   constructor() {
@@ -43,7 +44,10 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
     if (!c.session?.isSuperUser && id !== c.tenantId) {
       throw status("Forbidden");
     }
-    return super.remove(c, id);
+    const res = await super.remove(c, id);
+    // Users of a deleted tenant must lose access immediately [SEC-08].
+    await ServiceSession.revokeTenantSessions(c, id);
+    return res;
   }
 
   async checkPlan(c: IApp, tenantId: string) {

@@ -195,8 +195,12 @@ describe("RouterTenant", () => {
 
   it("Delete tenant", async () => {
     const headers = await testHeaders();
+    // [SEC-08] Deleting a tenant revokes the sessions of its users, so the
+    // test deletes another tenant instead of the acting SYSTEM user's own
+    // tenant (which would also log the actor out; see SEC-13).
+    const foreign = await createForeignTenant(EUserRole.USER);
 
-    const res = await api.tenant({ id: test_tenant.id }).delete(
+    const res = await api.tenant({ id: foreign.tenant.id }).delete(
       {},
       {
         headers,
@@ -205,7 +209,7 @@ describe("RouterTenant", () => {
 
     expect(res.status).toBe(200);
 
-    const checkRes = await api.tenant({ id: test_tenant.id }).get({
+    const checkRes = await api.tenant({ id: foreign.tenant.id }).get({
       headers,
     });
 

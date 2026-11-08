@@ -4,6 +4,7 @@ import { status } from "elysia";
 import { eq, and } from "drizzle-orm";
 import { ITenantUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core";
 import { IPolicyActor, UtilUserPolicy } from "../utils/UtilUserPolicy";
+import ServiceSession from "@f/session/services/ServiceSession";
 
 class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   constructor() {
@@ -153,6 +154,18 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
 
     await super.update(c, id, payload);
 
+    // Credentials or privileges changed: old sessions must not survive
+    // [SEC-08]. Your own password change keeps the current session only.
+    const roleChanged = data.role !== undefined && data.role !== target.role;
+    if (data.password || roleChanged) {
+      await ServiceSession.revokeUserSessions(c, id, {
+        exceptSessionId:
+          UtilUserPolicy.isSelf(actor, target) && !roleChanged
+            ? c.session.sessionId
+            : undefined,
+      });
+    }
+
     return { success: true };
   }
 
@@ -163,7 +176,9 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       throw status("Forbidden");
     }
 
-    return super.remove(c, id);
+    const res = await super.remove(c, id);
+    await ServiceSession.revokeUserSessions(c, id);
+    return res;
   }
 }
 
