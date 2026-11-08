@@ -18,8 +18,11 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
   }
 
   /** Only READY files are ever listed or served [SEC-10]. */
-  protected override getFilters(id?: string): SQL[] {
-    return [...super.getFilters(id), eq(SStorage.status, EStorageStatus.READY)];
+  protected override getFilters(c: ITenantApp, id?: string): SQL[] {
+    return [
+      ...super.getFilters(c, id),
+      eq(SStorage.status, EStorageStatus.READY),
+    ];
   }
 
   /** Hard-deletes a row that never became READY (its object never existed). */
