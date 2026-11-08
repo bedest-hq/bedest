@@ -110,9 +110,12 @@ describe("RouterAuth", () => {
 
     expect(res.status).toBe(200);
 
-    expect(res.data).toHaveProperty("accessToken");
-
-    expect(typeof res.data?.accessToken).toBe("string");
+    // [SEC-14] Tokens travel only in HttpOnly cookies, never in the body.
+    expect(res.data).toStrictEqual({ success: true });
+    expect(JSON.stringify(res.data)).not.toContain("accessToken");
+    const setCookies = res.response.headers.getSetCookie();
+    expect(setCookies.some((c) => c.startsWith("accessToken="))).toBe(true);
+    expect(setCookies.some((c) => c.startsWith("refreshToken="))).toBe(true);
   });
 
   it("Fail to refresh without token", async () => {

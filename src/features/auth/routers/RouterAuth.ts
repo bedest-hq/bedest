@@ -4,7 +4,7 @@ import EnvManager from "@/infrastructure/env/EnvManager";
 import RateLimitManager from "@/infrastructure/ratelimit/RateLimitManager";
 import ServiceAuth from "../services/ServiceAuth";
 import { UtilAuth } from "../utils/UtilAuth";
-import { VId, VString } from "bedest-core";
+import { VId } from "bedest-core";
 
 const MINUTE_MS = 60 * 1000;
 
@@ -105,11 +105,12 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
         ...UtilAuth.cookieConf("refresh"),
       });
 
-      return { accessToken: newAccessToken };
+      // Tokens are only ever sent as HttpOnly cookies [SEC-14].
+      return { success: true };
     },
     {
       cookie: t.Cookie({ refreshToken: t.Optional(t.String()) }),
-      response: t.Object({ accessToken: VString }),
+      response: t.Object({ success: t.Boolean() }),
     },
   );
 
