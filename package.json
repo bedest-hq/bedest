@@ -43,7 +43,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:reset": "bun run src/scripts/database/DatabaseReset.ts && bun run src/scripts/storage/StorageReset.ts",
     "db:seed": "bun run src/scripts/seed/seed.ts",
-    "db:setup": "rm -rf drizzle && bun run db:reset && bun run db:generate && bun run db:migrate",
-    "dev:setup": "bun run db:setup && bun run db:seed"
+    "db:setup": "bun run db:reset && bun run db:migrate && bun run db:seed",
+    "dev:setup": "bun run db:setup"
   }
 }
