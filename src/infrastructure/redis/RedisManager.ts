@@ -25,12 +25,16 @@ end
 return 0
 `;
 
+/** Capped exponential backoff (100 ms, 200 ms, ... 10 s) that never gives up. */
+export function redisRetryDelay(times: number): number {
+  return Math.min(10_000, 100 * 2 ** Math.max(0, times - 1));
+}
+
 export class RedisManager {
   private client: Redis | null = null;
   private publisher: Redis | null = null;
   private subscriber: Redis | null = null;
   private isConfigured: boolean = false;
-  private isConnected: boolean = false;
   private patternCallbacks: Map<
     string,
     Set<(pattern: string, channel: string, message: string) => void>
@@ -43,7 +47,6 @@ export class RedisManager {
   init(redisUrl?: string) {
     if (!redisUrl) {
       this.isConfigured = false;
-      this.isConnected = false;
       return;
     }
 
@@ -52,12 +55,9 @@ export class RedisManager {
         maxRetriesPerRequest: 1,
         lazyConnect: false,
         enableOfflineQueue: false,
-        retryStrategy: (times) => {
-          if (times > 3) {
-            return null;
-          }
-          return Math.min(times * 100, 2000);
-        },
+        // Never give up: a Redis outage must not disable Redis for the
+        // lifetime of the process [BUG-09].
+        retryStrategy: redisRetryDelay,
       };
 
       this.client = new Redis(redisUrl, options);
@@ -65,19 +65,9 @@ export class RedisManager {
       this.subscriber = new Redis(redisUrl, options);
       this.isConfigured = true;
 
-      const handleErr = (name: string) => (err: Error) => {
-        logger.warn(`[RedisManager] ${name} connection error: ${err.message}`);
-        this.isConnected = false;
-      };
-
-      this.client.on("error", handleErr("client"));
-      this.publisher.on("error", handleErr("publisher"));
-      this.subscriber.on("error", handleErr("subscriber"));
-
-      this.client.on("connect", () => {
-        this.isConnected = true;
-        logger.info("[RedisManager] Redis client connected");
-      });
+      this.trackState("client", this.client);
+      this.trackState("publisher", this.publisher);
+      this.trackState("subscriber", this.subscriber);
 
       this.setupSubscriberListeners(this.subscriber);
     } catch (err: unknown) {
@@ -88,15 +78,36 @@ export class RedisManager {
     }
   }
 
+  /** Logs each connection's up/down transition once, not on every retry. */
+  private trackState(name: string, connection: Redis) {
+    let up = false;
+    connection.on("ready", () => {
+      if (!up) {
+        up = true;
+        logger.info(`[RedisManager] ${name} connected`);
+      }
+    });
+    const down = (reason: string) => {
+      if (up) {
+        up = false;
+        logger.warn(`[RedisManager] ${name} connection lost (${reason}); retrying`);
+      }
+    };
+    connection.on("error", (err: Error) => down(err.message));
+    connection.on("close", () => down("closed"));
+  }
+
+  /** The command connection (GET/SET/EVAL) is usable. */
   isAvailable(): boolean {
-    if (!this.isConfigured || !this.client) {
-      return false;
-    }
-    return (
-      this.isConnected ||
-      this.client.status === "ready" ||
-      this.client.status === "connect"
-    );
+    return this.isConfigured && this.client?.status === "ready";
+  }
+
+  isPublisherReady(): boolean {
+    return this.isConfigured && this.publisher?.status === "ready";
+  }
+
+  isSubscriberReady(): boolean {
+    return this.isConfigured && this.subscriber?.status === "ready";
   }
 
   /** Whether REDIS_URL was configured (regardless of current health). */
@@ -215,7 +226,7 @@ export class RedisManager {
   }
 
   async publish(channel: string, message: string): Promise<void> {
-    if (!this.publisher || !this.isAvailable()) {
+    if (!this.publisher || !this.isPublisherReady()) {
       return;
     }
     try {
@@ -238,7 +249,7 @@ export class RedisManager {
     }
     this.channelCallbacks.get(channel)!.add(callback);
 
-    if (isFirst && this.subscriber && this.isAvailable()) {
+    if (isFirst && this.subscriber && this.isSubscriberReady()) {
       try {
         await this.subscriber.subscribe(channel);
       } catch (err: unknown) {
@@ -260,7 +271,7 @@ export class RedisManager {
     }
     this.patternCallbacks.get(pattern)!.add(callback);
 
-    if (isFirst && this.subscriber && this.isAvailable()) {
+    if (isFirst && this.subscriber && this.isSubscriberReady()) {
       try {
         await this.subscriber.psubscribe(pattern);
       } catch (err: unknown) {
@@ -288,7 +299,7 @@ export class RedisManager {
 
     if (callbacks.size === 0) {
       this.channelCallbacks.delete(channel);
-      if (this.subscriber && this.isAvailable()) {
+      if (this.subscriber && this.isSubscriberReady()) {
         try {
           await this.subscriber.unsubscribe(channel);
         } catch {
@@ -315,7 +326,7 @@ export class RedisManager {
 
     if (callbacks.size === 0) {
       this.patternCallbacks.delete(pattern);
-      if (this.subscriber && this.isAvailable()) {
+      if (this.subscriber && this.isSubscriberReady()) {
         try {
           await this.subscriber.punsubscribe(pattern);
         } catch {
@@ -325,7 +336,31 @@ export class RedisManager {
     }
   }
 
+  /** Re-issues every registered subscription (after (re)connecting). */
+  private async resubscribe() {
+    if (!this.subscriber) {
+      return;
+    }
+    try {
+      for (const channel of this.channelCallbacks.keys()) {
+        await this.subscriber.subscribe(channel);
+      }
+      for (const pattern of this.patternCallbacks.keys()) {
+        await this.subscriber.psubscribe(pattern);
+      }
+    } catch (err: unknown) {
+      logger.warn(
+        `[RedisManager] re-subscribe failed: ${getErrorMessage(err)}`,
+      );
+    }
+  }
+
   private setupSubscriberListeners(subscriber: Redis) {
+    // Subscriptions registered while the connection was down were never
+    // sent: re-issue all of them whenever the subscriber is ready [BUG-09].
+    subscriber.on("ready", () => {
+      void this.resubscribe();
+    });
     subscriber.on("message", (channel: string, message: string) => {
       const callbacks = this.channelCallbacks.get(channel);
       if (callbacks) {
@@ -365,7 +400,6 @@ export class RedisManager {
     this.publisher = publisher as Redis;
     this.subscriber = subscriber as Redis;
     this.isConfigured = true;
-    this.isConnected = true;
 
     if (this.subscriber) {
       this.setupSubscriberListeners(this.subscriber);
@@ -391,7 +425,6 @@ export class RedisManager {
     this.publisher = null;
     this.subscriber = null;
     this.isConfigured = false;
-    this.isConnected = false;
     this.channelCallbacks.clear();
     this.patternCallbacks.clear();
   }

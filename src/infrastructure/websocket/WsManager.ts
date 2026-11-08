@@ -98,7 +98,7 @@ export class WsManager {
 
   disconnectUser(userId: string) {
     this.disconnectUserLocal(userId);
-    if (RedisManager.isAvailable()) {
+    if (RedisManager.isPublisherReady()) {
       void RedisManager.publish(`events:disconnect:user:${userId}`, "terminated");
     }
   }
@@ -121,7 +121,7 @@ export class WsManager {
 
   disconnectSession(sessionId: string) {
     this.disconnectSessionLocal(sessionId);
-    if (RedisManager.isAvailable()) {
+    if (RedisManager.isPublisherReady()) {
       void RedisManager.publish(
         `events:disconnect:session:${sessionId}`,
         "terminated",
@@ -151,7 +151,7 @@ export class WsManager {
 
   publishToUser(userId: string, event: string, payload?: unknown) {
     const data = JSON.stringify({ event, payload });
-    if (RedisManager.isAvailable()) {
+    if (RedisManager.isPublisherReady()) {
       void RedisManager.publish(`events:user:${userId}`, data);
     } else {
       this.server?.publish(`user:${userId}`, data);
@@ -160,7 +160,7 @@ export class WsManager {
 
   publishToTenant(tenantId: string, event: string, payload?: unknown) {
     const data = JSON.stringify({ event, payload });
-    if (RedisManager.isAvailable()) {
+    if (RedisManager.isPublisherReady()) {
       void RedisManager.publish(`events:tenant:${tenantId}`, data);
     } else {
       this.server?.publish(`tenant:${tenantId}`, data);

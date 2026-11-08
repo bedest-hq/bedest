@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import RedisManager from "./RedisManager";
+import RedisManager, { redisRetryDelay } from "./RedisManager";
 import WsManager, { IWsClient } from "../websocket/WsManager";
 import ServiceSystem from "@/features/system/services/ServiceSystem";
 import DbManager from "@/infrastructure/database/DbManager";
@@ -219,5 +219,44 @@ describe("RedisManager & Distributed WebSocket State", () => {
     WsManager.publishToTenant("tenant-fallback", "ping", {});
     expect(localBroadcasts.length).toBe(1);
     expect(localBroadcasts[0].topic).toBe("tenant:tenant-fallback");
+  });
+});
+
+describe("BUG-09: RedisManager recovery", () => {
+  afterEach(async () => {
+    await RedisManager.close();
+  });
+
+  it("[BUG-09] retries forever with capped exponential backoff (never gives up)", () => {
+    const delays = [1, 2, 3, 4, 5, 8, 20, 1000].map((t) => redisRetryDelay(t));
+    expect(delays.every((d) => typeof d === "number" && d > 0)).toBe(true);
+    expect(delays[1]).toBeGreaterThan(delays[0]);
+    expect(Math.max(...delays)).toBe(10_000);
+  });
+
+  it("[BUG-09] a pattern registered while the subscriber is down is subscribed on ready and receives messages", async () => {
+    const hub = new MockPubSubHub();
+    const client = new MockRedisClient();
+    const pub = new MockRedisPubSub(hub);
+    const sub = new MockRedisPubSub(hub);
+    RedisManager.setClientsForTesting(client, pub, sub);
+
+    // The subscriber connection drops.
+    sub.status = "reconnecting";
+    sub.patterns.clear();
+    const received: string[] = [];
+    await RedisManager.psubscribe("events:*", (_p, channel) => received.push(channel));
+    expect(sub.patterns.has("events:*")).toBe(false);
+    expect(RedisManager.isSubscriberReady()).toBe(false);
+    expect(RedisManager.isPublisherReady()).toBe(true);
+
+    // It comes back: registered patterns are re-issued.
+    sub.status = "ready";
+    sub.emit("ready");
+    await Bun.sleep(1);
+    expect(sub.patterns.has("events:*")).toBe(true);
+
+    await pub.publish("events:user:1", "hello");
+    expect(received).toEqual(["events:user:1"]);
   });
 });
