@@ -11,6 +11,8 @@ import DbManager from "@/infrastructure/database/DbManager";
 export const VMigrationEnv = t.Object({
   DATABASE_MIGRATION_USER: t.Optional(t.String({ minLength: 1 })),
   DATABASE_MIGRATION_PASSWORD: t.Optional(t.String()),
+  // Folder with the committed SQL migrations.
+  DATABASE_MIGRATION_DIR: t.String({ minLength: 1, default: "./drizzle" }),
 });
 
 export class UtilScriptDb {
