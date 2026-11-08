@@ -8,6 +8,8 @@ import cors from "@elysiajs/cors";
 import { logger } from "./infrastructure/logger/logger";
 import WsManager from "./infrastructure/websocket/WsManager";
 import { checkForUpdates } from "./infrastructure/update/UpdateChecker";
+import { createShutdown } from "./app/Shutdown";
+import ServiceHealth from "./features/health/services/ServiceHealth";
 
 const env = EnvManager.init();
 
@@ -54,5 +56,26 @@ logger.info(
 );
 
 void checkForUpdates();
+
+// Graceful shutdown [FEAT-03][OPS-08].
+const shutdown = createShutdown({
+  timeoutMs: env.SHUTDOWN_TIMEOUT_MS,
+  exit: (code) => process.exit(code),
+  log: (level, message, err) =>
+    level === "error" ? logger.error({ err }, message) : logger.info(message),
+  steps: [
+    { name: "markNotReady", run: () => ServiceHealth.markNotReady() },
+    { name: "stopServer", run: () => app.stop() },
+    { name: "closeWebSockets", run: () => WsManager.closeAll(1001) },
+    { name: "closeRedis", run: () => RedisManager.close() },
+    { name: "closeDb", run: () => DbManager.shutdown() },
+    {
+      name: "flushLogger",
+      run: () => new Promise<void>((resolve) => logger.flush(() => resolve())),
+    },
+  ],
+});
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));
 
 export type App = typeof app;

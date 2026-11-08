@@ -33,6 +33,8 @@ export const VEnv = t.Object({
   REFRESH_KEY: t.String(),
 
   PORT: t.Number(),
+  // Hard deadline for the graceful shutdown before exiting with code 1.
+  SHUTDOWN_TIMEOUT_MS: t.Integer({ minimum: 1000, default: 15000 }),
 
   LOCAL_STORAGE_PATH: t.Optional(t.String()),
   // Comma-separated MIME allowlist shared by direct and presigned uploads.

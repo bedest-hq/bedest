@@ -129,6 +129,26 @@ export class WsManager {
     }
   }
 
+  /** Closes every local socket (graceful shutdown uses 1001 "Going Away"). */
+  closeAll(code = 1001, reason = "Server shutting down") {
+    const sockets = new Set<IWsClient>();
+    for (const set of this.userSockets.values()) {
+      set.forEach((ws) => sockets.add(ws));
+    }
+    for (const set of this.sessionSockets.values()) {
+      set.forEach((ws) => sockets.add(ws));
+    }
+    for (const ws of sockets) {
+      try {
+        ws.close(code, reason);
+      } catch {
+        // ignore errors on already-closed sockets
+      }
+    }
+    this.userSockets.clear();
+    this.sessionSockets.clear();
+  }
+
   publishToUser(userId: string, event: string, payload?: unknown) {
     const data = JSON.stringify({ event, payload });
     if (RedisManager.isAvailable()) {

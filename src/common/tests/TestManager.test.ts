@@ -79,6 +79,7 @@ const test_env: TEnv = {
   REFRESH_KEY: "refresh-key",
   SECRET_KEY: "secret-key",
   PORT: 3000,
+  SHUTDOWN_TIMEOUT_MS: 15000,
 
   BILLING_WEBHOOK_SECRET: "whsec_test_secret_123",
 
