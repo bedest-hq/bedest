@@ -77,7 +77,7 @@ class ServiceAuth {
       throw invalidCredentials();
     }
 
-    if ((await ServiceSystem.getMaintenance()) && user.role !== "SYSTEM") {
+    if ((await ServiceSystem.getMaintenance(c)) && user.role !== "SYSTEM") {
       throw status("Service Unavailable");
     }
 

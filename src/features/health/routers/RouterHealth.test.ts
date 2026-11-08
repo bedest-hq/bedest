@@ -2,6 +2,7 @@ import { describe, it, expect, spyOn, afterEach } from "bun:test";
 import { Elysia } from "elysia";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import ServiceSystem from "@f/system/services/ServiceSystem";
+import DbManager from "@/infrastructure/database/DbManager";
 import { RouterHealth } from "./RouterHealth";
 import ServiceHealth from "../services/ServiceHealth";
 
@@ -13,7 +14,10 @@ const get = (path: string) => app.handle(new Request(`http://localhost${path}`))
 describe("FEAT-01: health endpoints", () => {
   afterEach(async () => {
     ServiceHealth.markReady();
-    await ServiceSystem.setMaintenance(false);
+    await ServiceSystem.setMaintenance(
+      { db: DbManager.get(), nowDatetime: new Date() },
+      false,
+    );
   });
 
   it("[FEAT-01] GET /api/health/live → 200 { status: ok } without any I/O", async () => {
@@ -76,7 +80,10 @@ describe("FEAT-01: health endpoints", () => {
   });
 
   it("[FEAT-01] health is not blocked by maintenance mode and needs no auth", async () => {
-    await ServiceSystem.setMaintenance(true);
+    await ServiceSystem.setMaintenance(
+      { db: DbManager.get(), nowDatetime: new Date() },
+      true,
+    );
     expect((await get("/api/health/live")).status).toBe(200);
   });
 });

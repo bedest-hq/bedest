@@ -78,6 +78,13 @@
       "when": 1794166709958,
       "tag": "0010_notification_reads_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794167117207,
+      "tag": "0011_system_settings",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import RedisManager from "./RedisManager";
 import WsManager, { IWsClient } from "../websocket/WsManager";
 import ServiceSystem from "@/features/system/services/ServiceSystem";
+import DbManager from "@/infrastructure/database/DbManager";
 import { EventEmitter } from "events";
 
 class MockRedisClient extends EventEmitter {
@@ -127,18 +128,20 @@ describe("RedisManager & Distributed WebSocket State", () => {
     await RedisManager.close();
   });
 
-  it("Distributed Maintenance Mode: get and set maintenance status via Redis key", async () => {
+  it("[BUG-08] Distributed Maintenance Mode: the database is the source of truth and writes publish an invalidation", async () => {
     expect(RedisManager.isAvailable()).toBe(true);
+    const c = { db: DbManager.get(), nowDatetime: new Date() };
+    const published: string[] = [];
+    mockSub.on("message", (channel: string) => published.push(channel));
+    await RedisManager.subscribe("system:settings:invalidate", () => {});
 
-    expect(await ServiceSystem.getMaintenance()).toBe(false);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(false);
+    await ServiceSystem.setMaintenance(c, true);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(true);
+    expect(published).toContain("system:settings:invalidate");
 
-    await ServiceSystem.setMaintenance(true);
-    expect(await ServiceSystem.getMaintenance()).toBe(true);
-    expect(await mockClient.get("system:maintenance_mode")).toBe("true");
-
-    await ServiceSystem.setMaintenance(false);
-    expect(await ServiceSystem.getMaintenance()).toBe(false);
-    expect(await mockClient.get("system:maintenance_mode")).toBe("false");
+    await ServiceSystem.setMaintenance(c, false);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(false);
   });
 
   it("Distributed WebSocket: Multi-node event broadcasting via Redis pub/sub", async () => {
@@ -197,12 +200,13 @@ describe("RedisManager & Distributed WebSocket State", () => {
     await RedisManager.close();
     expect(RedisManager.isAvailable()).toBe(false);
 
-    // Maintenance mode still works in-memory
-    await ServiceSystem.setMaintenance(true);
-    expect(await ServiceSystem.getMaintenance()).toBe(true);
+    // [BUG-08] Maintenance mode still works: the database is the source.
+    const c = { db: DbManager.get(), nowDatetime: new Date() };
+    await ServiceSystem.setMaintenance(c, true);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(true);
 
-    await ServiceSystem.setMaintenance(false);
-    expect(await ServiceSystem.getMaintenance()).toBe(false);
+    await ServiceSystem.setMaintenance(c, false);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(false);
 
     // WebSocket publishes locally when server is available
     const localBroadcasts: { topic: string; data: string }[] = [];

@@ -8,6 +8,7 @@ import cors from "@elysiajs/cors";
 import { logger } from "./infrastructure/logger/logger";
 import WsManager from "./infrastructure/websocket/WsManager";
 import { checkForUpdates } from "./infrastructure/update/UpdateChecker";
+import ServiceSystem from "./features/system/services/ServiceSystem";
 import { createShutdown } from "./app/Shutdown";
 import { PluginSecurityHeaders } from "./app/plugins/PluginSecurityHeaders";
 import { PluginBodyLimit } from "./app/plugins/PluginBodyLimit";
@@ -24,6 +25,8 @@ const roleWarning = await DbManager.verifyRuntimeRole(
   env.NODE_ENV,
 );
 RedisManager.init(env.REDIS_URL);
+// Maintenance-mode invalidations from other nodes [BUG-08].
+await ServiceSystem.listen();
 
 const { Router } = await import("./app/Router");
 
