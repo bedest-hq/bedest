@@ -1,4 +1,6 @@
 export interface IProvider {
+  /** Throws when the backend is not usable (readiness probe). */
+  healthCheck(): Promise<void>;
   upload(
     key: string,
     body: Buffer | ArrayBuffer,

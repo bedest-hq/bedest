@@ -1,4 +1,5 @@
 import path from "node:path";
+import { access, constants, mkdir } from "node:fs/promises";
 import { logger } from "../../logger/logger";
 import { IProvider } from "../interfaces/IProvider";
 
@@ -7,6 +8,12 @@ export class ProviderLocal implements IProvider {
 
   constructor(basePath: string) {
     this.basePath = basePath;
+  }
+
+  /** The storage directory exists (created if needed) and is writable. */
+  async healthCheck(): Promise<void> {
+    await mkdir(this.basePath, { recursive: true });
+    await access(this.basePath, constants.W_OK);
   }
 
   async upload(key: string, body: Buffer | ArrayBuffer): Promise<void> {

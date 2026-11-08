@@ -7,6 +7,7 @@ import { RouterSystem } from "@f/system/routers/RouterSystem";
 import { RouterStorage } from "@f/storage/routers/RouterStorage";
 import { RouterNotification } from "@f/notification/routers/RouterNotification";
 import { RouterBilling } from "@f/billing/routers/RouterBilling";
+import { RouterHealth } from "@f/health/routers/RouterHealth";
 import { TEnv } from "@/common/types/TEnv";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import { logger } from "@/infrastructure/logger/logger";
@@ -20,7 +21,11 @@ export const createRouter = (env: Pick<TEnv, "BILLING_WEBHOOK_SECRET">) => {
     .use(RouterSystem)
     .use(RouterNotification);
 
-  const api = new Elysia({ prefix: "/api" }).use(Swagger).use(v1);
+  // Health lives outside /api/v1 (FEAT-01).
+  const api = new Elysia({ prefix: "/api" })
+    .use(Swagger)
+    .use(RouterHealth)
+    .use(v1);
 
   // The webhook is only reachable when a signing secret is configured; it is
   // not part of the client-facing API type.

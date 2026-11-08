@@ -27,6 +27,15 @@ class StorageManager {
     }
   }
 
+  /** Readiness probe: throws when the configured provider is unusable. */
+  async healthCheck(): Promise<"ok" | "disabled"> {
+    if (!this.activeProvider) {
+      return "disabled";
+    }
+    await this.activeProvider.healthCheck();
+    return "ok";
+  }
+
   async upload(
     key: string,
     body: Buffer | ArrayBuffer,

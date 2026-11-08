@@ -99,6 +99,32 @@ export class RedisManager {
     );
   }
 
+  /** Whether REDIS_URL was configured (regardless of current health). */
+  isEnabled(): boolean {
+    return this.isConfigured;
+  }
+
+  /** PING with a timeout; false when unreachable or not configured. */
+  async ping(timeoutMs = 2000): Promise<boolean> {
+    if (!this.client) {
+      return false;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const reply = await Promise.race([
+        this.client.ping(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("ping timeout")), timeoutMs);
+        }),
+      ]);
+      return reply === "PONG";
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async get(key: string): Promise<string | null> {
     if (!this.client || !this.isAvailable()) {
       return null;
