@@ -15,6 +15,16 @@ export class UtilAuth {
     };
   }
 
+  /** Normalized e-mail of a (not yet validated) login body, for rate keys. */
+  static rateLimitEmail(body: unknown): string {
+    if (typeof body !== "object" || body === null || !("email" in body)) {
+      return "";
+    }
+    return typeof body.email === "string"
+      ? body.email.trim().toLowerCase().slice(0, 254)
+      : "";
+  }
+
   static async validateAccessToken(
     accessJwt: {
       verify: (token: string) => Promise<TJwtPayload | false>;

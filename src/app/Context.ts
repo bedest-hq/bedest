@@ -4,6 +4,7 @@ import { t } from "elysia";
 import { EUserRole } from "@/features/user/enums/EUserRole";
 import DbManager from "@/infrastructure/database/DbManager";
 import EnvManager from "@/infrastructure/env/EnvManager";
+import { UtilClientIp } from "@/infrastructure/ratelimit/UtilClientIp";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import ServiceTenant from "@f/tenant/services/ServiceTenant";
 import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
@@ -43,7 +44,14 @@ class Context {
     return (app: Elysia) =>
       app
         .decorate("db", db)
-        .derive(() => ({ nowDatetime: new Date() }))
+        .derive(({ request, server }) => ({
+          nowDatetime: new Date(),
+          clientIp: UtilClientIp.resolve(
+            request,
+            server,
+            EnvManager.get().TRUST_PROXY_HOPS,
+          ),
+        }))
         .use(this.refreshPlugin)
         .use(this.accessPlugin);
   }

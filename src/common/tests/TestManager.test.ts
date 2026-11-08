@@ -80,6 +80,11 @@ const test_env: TEnv = {
   SECRET_KEY: "secret-key",
   PORT: 3000,
 
+  TRUST_PROXY_HOPS: 0,
+  RATE_LIMIT_LOGIN_PER_MIN: 5,
+  RATE_LIMIT_LOGIN_IP_PER_MIN: 20,
+  RATE_LIMIT_REFRESH_PER_MIN: 30,
+
   LOCAL_STORAGE_PATH: "./test_uploads",
   S3_ENDPOINT: "http://localhost:9000",
   S3_REGION: "us-east-1",
@@ -94,6 +99,11 @@ const test_db = drizzle(test_client);
 spyOn(EnvManager.default, "get").mockReturnValue(test_env);
 spyOn(DbManager.default, "get").mockReturnValue(
   test_db as unknown as NodePgDatabase,
+);
+
+// Imported after the spies: it pulls in modules that read the env on import.
+const RateLimitManager = await import(
+  "@/infrastructure/ratelimit/RateLimitManager"
 );
 
 const test_signer = new Elysia().use(
@@ -230,6 +240,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  await RateLimitManager.default.resetAll();
   await test_db.execute(sql`
     DO $$ DECLARE
       r RECORD;

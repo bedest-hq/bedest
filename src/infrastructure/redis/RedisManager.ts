@@ -8,6 +8,23 @@ function getErrorMessage(err: unknown): string {
   return String(err);
 }
 
+const INCREMENT_WINDOW_SCRIPT = `
+local count = redis.call("INCR", KEYS[1])
+local ttl = redis.call("PTTL", KEYS[1])
+if count == 1 or ttl < 0 then
+  redis.call("PEXPIRE", KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return { count, ttl }
+`;
+
+const DECREMENT_WINDOW_SCRIPT = `
+if redis.call("EXISTS", KEYS[1]) == 1 then
+  return redis.call("DECR", KEYS[1])
+end
+return 0
+`;
+
 export class RedisManager {
   private client: Redis | null = null;
   private publisher: Redis | null = null;
@@ -113,6 +130,57 @@ export class RedisManager {
       await this.client.del(key);
     } catch (err: unknown) {
       logger.warn(`[RedisManager] del(${key}) error: ${getErrorMessage(err)}`);
+    }
+  }
+
+  /**
+   * Atomically increments a fixed-window counter and returns the new count
+   * and the remaining window in ms. `null` when Redis is unavailable, so the
+   * caller can fall back to a local counter.
+   */
+  async incrementWindow(
+    key: string,
+    windowMs: number,
+  ): Promise<{ count: number; ttlMs: number } | null> {
+    if (!this.client || !this.isAvailable()) {
+      return null;
+    }
+    try {
+      const res: unknown = await this.client.eval(
+        INCREMENT_WINDOW_SCRIPT,
+        1,
+        key,
+        String(windowMs),
+      );
+      if (
+        Array.isArray(res) &&
+        typeof res[0] === "number" &&
+        typeof res[1] === "number"
+      ) {
+        return { count: res[0], ttlMs: res[1] };
+      }
+      return null;
+    } catch (err: unknown) {
+      logger.warn(
+        `[RedisManager] incrementWindow(${key}) error: ${getErrorMessage(err)}`,
+      );
+      return null;
+    }
+  }
+
+  /** Decrements a counter created by `incrementWindow`; false when unavailable. */
+  async decrementWindow(key: string): Promise<boolean> {
+    if (!this.client || !this.isAvailable()) {
+      return false;
+    }
+    try {
+      await this.client.eval(DECREMENT_WINDOW_SCRIPT, 1, key);
+      return true;
+    } catch (err: unknown) {
+      logger.warn(
+        `[RedisManager] decrementWindow(${key}) error: ${getErrorMessage(err)}`,
+      );
+      return false;
     }
   }
 

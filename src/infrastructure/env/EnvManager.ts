@@ -27,13 +27,9 @@ export class EnvManager {
       );
     }
 
-    const raw = {
-      ...source,
-      DATABASE_PORT: Number(source.DATABASE_PORT),
-      PORT: Number(source.PORT),
-    };
-
-    const withDefaults = Value.Default(VEnv, raw);
+    // Env values are strings: convert numeric/boolean fields first, then
+    // apply defaults, then validate.
+    const withDefaults = Value.Default(VEnv, Value.Convert(VEnv, { ...source }));
 
     if (!Value.Check(VEnv, withDefaults)) {
       const firstError = [...Value.Errors(VEnv, withDefaults)][0];
