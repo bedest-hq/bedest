@@ -1,5 +1,5 @@
 import { and, eq, type SQL } from "drizzle-orm";
-import { IApp, TTransaction, UtilTenantScope } from "bedest-core";
+import { IApp, TDbOrTx, UtilTenantScope } from "bedest-core";
 import { STenant } from "@/features/tenant/schemas/STenant";
 import { ETenantPlan } from "@/features/tenant/enums/ETenantPlan";
 import ServiceSystemLog from "@/features/system/services/ServiceSystemLog";
@@ -105,7 +105,7 @@ export class ServiceBilling {
   }
 
   private async findTenantId(
-    tx: TTransaction,
+    tx: TDbOrTx,
     ref: { tenantId?: string; customerId?: string; subscriptionId?: string },
   ): Promise<string | undefined> {
     // An explicit tenant id is authoritative (and must be a UUID); otherwise
@@ -133,7 +133,7 @@ export class ServiceBilling {
     return undefined;
   }
 
-  private async activeTenant(tx: TTransaction, match: SQL) {
+  private async activeTenant(tx: TDbOrTx, match: SQL) {
     const [row] = await tx
       .select({ id: STenant.id })
       .from(STenant)
@@ -143,7 +143,7 @@ export class ServiceBilling {
   }
 
   private async apply(
-    tx: TTransaction,
+    tx: TDbOrTx,
     c: IApp,
     evt: TStripeEvent,
   ): Promise<IBillingWebhookResult> {
@@ -207,7 +207,7 @@ export class ServiceBilling {
 
   /** Checkout Session: the subscription id is only ever `.subscription`. */
   private async onCheckoutCompleted(
-    tx: TTransaction,
+    tx: TDbOrTx,
     c: IApp,
     evt: TStripeEvent,
   ): Promise<IBillingWebhookResult> {
@@ -265,7 +265,7 @@ export class ServiceBilling {
 
   /** customer.subscription.created | customer.subscription.updated */
   private async onSubscriptionChanged(
-    tx: TTransaction,
+    tx: TDbOrTx,
     c: IApp,
     evt: TStripeEvent,
   ): Promise<IBillingWebhookResult> {
@@ -322,7 +322,7 @@ export class ServiceBilling {
   }
 
   private async onSubscriptionDeleted(
-    tx: TTransaction,
+    tx: TDbOrTx,
     evt: TStripeEvent,
   ): Promise<IBillingWebhookResult> {
     const sub = evt.data.object;
@@ -364,7 +364,7 @@ export class ServiceBilling {
 
   /** invoice.paid: extend planEnd to the end of the paid period. */
   private async onInvoicePaid(
-    tx: TTransaction,
+    tx: TDbOrTx,
     evt: TStripeEvent,
   ): Promise<IBillingWebhookResult> {
     const invoice = evt.data.object;
@@ -410,7 +410,7 @@ export class ServiceBilling {
 
   /** invoice.payment_failed: log and audit, never change the plan. */
   private async onInvoicePaymentFailed(
-    tx: TTransaction,
+    tx: TDbOrTx,
     evt: TStripeEvent,
   ): Promise<IBillingWebhookResult> {
     const invoice = evt.data.object;
@@ -444,7 +444,7 @@ export class ServiceBilling {
     return { success: true, event: evt.type, tenantId };
   }
 
-  private async invoiceTenant(tx: TTransaction, invoice: TRecord) {
+  private async invoiceTenant(tx: TDbOrTx, invoice: TRecord) {
     const details = rec(rec(invoice.parent).subscription_details);
     // Older API versions: invoice.subscription; 2025-03-31.basil and later:
     // invoice.parent.subscription_details.subscription.

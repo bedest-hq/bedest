@@ -3,7 +3,7 @@ import { logger } from "@/infrastructure/logger/logger";
 import {
   ITenantUserApp,
   TDb,
-  TTransaction,
+  TDbOrTx,
   UtilTenantScope,
 } from "bedest-core";
 import { and, count, desc, eq, SQL } from "drizzle-orm";
@@ -71,7 +71,7 @@ class ServiceSystemLog {
    * rolls back when the audit row cannot be written.
    */
   async insertEvent(
-    tx: TTransaction,
+    tx: TDbOrTx,
     params: {
       tenantId: string;
       userId?: string;

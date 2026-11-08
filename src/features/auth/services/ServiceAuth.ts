@@ -10,7 +10,7 @@ import ServiceSystemLog from "@f/system/services/ServiceSystemLog";
 import {
   IApp,
   ITenantUserApp,
-  TTransaction,
+  TDbOrTx,
   UtilTenantScope,
 } from "bedest-core";
 import WsManager from "@/infrastructure/websocket/WsManager";
@@ -22,7 +22,7 @@ const invalidCredentials = () =>
 
 class ServiceAuth {
   /** Active user of an active tenant, straight from the database. */
-  private async loadPrincipal(tx: TTransaction, userId: string) {
+  private async loadPrincipal(tx: TDbOrTx, userId: string) {
     const [row] = await tx
       .select({
         userId: SUser.id,

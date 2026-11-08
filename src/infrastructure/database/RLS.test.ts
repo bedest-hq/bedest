@@ -3,7 +3,7 @@ import { sql, type SQL } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import {
   ITenantUserApp,
-  TTransaction,
+  TDbOrTx,
   UtilTenantScope,
 } from "bedest-core";
 import {
@@ -38,7 +38,7 @@ interface IRlsCase {
   id: PgColumn;
   tenantColumn: PgColumn;
   /** Inserts a fresh row for `tenantId` and returns nothing. */
-  insert: (tx: TTransaction, tenantId: string) => Promise<unknown>;
+  insert: (tx: TDbOrTx, tenantId: string) => Promise<unknown>;
   /** Audit rows are append-only: UPDATE/DELETE are never granted. */
   appendOnly?: boolean;
 }
@@ -82,13 +82,13 @@ const errorOf = async (fn: () => Promise<unknown>) => {
   }
 };
 
-const select = (tx: TTransaction, c: IRlsCase, id: string): Promise<unknown> =>
+const select = (tx: TDbOrTx, c: IRlsCase, id: string): Promise<unknown> =>
   tx.execute(sql`SELECT ${c.id} FROM ${c.table} WHERE ${c.id} = ${id}`);
-const update = (tx: TTransaction, c: IRlsCase, id: string) =>
+const update = (tx: TDbOrTx, c: IRlsCase, id: string) =>
   tx.execute(
     sql`UPDATE ${c.table} SET ${sql.identifier(c.tenantColumn.name)} = ${c.tenantColumn} WHERE ${c.id} = ${id} RETURNING ${c.id}`,
   );
-const remove = (tx: TTransaction, c: IRlsCase, id: string) =>
+const remove = (tx: TDbOrTx, c: IRlsCase, id: string) =>
   tx.execute(sql`DELETE FROM ${c.table} WHERE ${c.id} = ${id} RETURNING ${c.id}`);
 const raw = (q: SQL) => DbManager.get().execute(q);
 

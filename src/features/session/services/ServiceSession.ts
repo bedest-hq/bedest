@@ -3,7 +3,7 @@ import { SSession } from "../schemas/SSession";
 import {
   IApp,
   ITenantUserApp,
-  TTransaction,
+  TDbOrTx,
   UtilTenantScope,
 } from "bedest-core";
 import RedisManager from "@/infrastructure/redis/RedisManager";
@@ -107,7 +107,7 @@ class ServiceSession {
     c: IApp,
     sessionId: string,
     resolvePrincipal: (
-      tx: TTransaction,
+      tx: TDbOrTx,
       userId: string,
     ) => Promise<TPrincipal | undefined>,
   ): Promise<{ principal: TPrincipal; sessionId: string } | null> {
