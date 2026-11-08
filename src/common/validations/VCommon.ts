@@ -30,7 +30,17 @@ export const VEnv = t.Object({
   DATABASE_NAME: t.String(),
   DATABASE_USER: t.String(),
   DATABASE_PASSWORD: t.String(),
-  DATABASE_SSL: t.Optional(t.Boolean()),
+  // Postgres TLS [SEC-15]: disable | require (TLS, no certificate check) |
+  // verify-full. Default: verify-full in production, disable otherwise.
+  DATABASE_SSL_MODE: t.Optional(
+    t.Union([
+      t.Literal("disable"),
+      t.Literal("require"),
+      t.Literal("verify-full"),
+    ]),
+  ),
+  // CA certificate for verify-full: PEM content or a file path.
+  DATABASE_SSL_CA: t.Optional(t.String({ minLength: 1 })),
 
   // At least 32 characters; must differ from REFRESH_KEY [SEC-16].
   SECRET_KEY: t.String({ minLength: 32 }),

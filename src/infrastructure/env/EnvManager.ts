@@ -78,6 +78,11 @@ export class EnvManager {
     }
 
     const warnings: string[] = [];
+    if (source.DATABASE_SSL !== undefined) {
+      warnings.push(
+        "DATABASE_SSL is no longer read; use DATABASE_SSL_MODE (disable | require | verify-full).",
+      );
+    }
     errors.push(...this.semanticErrors(value, warnings));
     if (errors.length > 0) {
       throw new Error(formatErrors(errors));
@@ -94,6 +99,12 @@ export class EnvManager {
 
     if (env.SECRET_KEY === env.REFRESH_KEY) {
       errors.push("[REFRESH_KEY] SECRET_KEY and REFRESH_KEY must differ.");
+    }
+
+    if (env.DATABASE_SSL_MODE === "require") {
+      warnings.push(
+        "DATABASE_SSL_MODE=require encrypts the database connection but does not verify the server certificate; prefer verify-full (with DATABASE_SSL_CA).",
+      );
     }
 
     if (env.CORS_ORIGIN !== undefined) {

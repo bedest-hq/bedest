@@ -3,6 +3,7 @@ import pg from "pg";
 import { TEnv } from "@/common/types/TEnv";
 import { sql } from "drizzle-orm";
 import { TDb } from "bedest-core";
+import { UtilDbSsl } from "./UtilDbSsl";
 
 class DbManager {
   private db: NodePgDatabase | undefined;
@@ -19,10 +20,7 @@ class DbManager {
       user: env.DATABASE_USER,
       password: env.DATABASE_PASSWORD,
       database: "postgres",
-      ssl:
-        env.NODE_ENV === "production" || env.DATABASE_SSL === true
-          ? { rejectUnauthorized: false }
-          : false,
+      ssl: UtilDbSsl.options(env),
     });
     await client.connect();
     await client.query(
@@ -47,10 +45,7 @@ class DbManager {
       user: env.DATABASE_USER,
       password: env.DATABASE_PASSWORD,
       database: env.DATABASE_NAME,
-      ssl:
-        env.NODE_ENV === "production" || env.DATABASE_SSL === true
-          ? { rejectUnauthorized: false }
-          : false,
+      ssl: UtilDbSsl.options(env),
     });
 
     this.db = drizzle(this.pool);
@@ -67,10 +62,7 @@ class DbManager {
       user: credentials.user,
       password: credentials.password,
       database: env.DATABASE_NAME,
-      ssl:
-        env.NODE_ENV === "production" || env.DATABASE_SSL === true
-          ? { rejectUnauthorized: false }
-          : false,
+      ssl: UtilDbSsl.options(env),
     });
     return { db: drizzle(pool), end: () => pool.end() };
   }
