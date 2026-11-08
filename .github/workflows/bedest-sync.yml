@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 9 * * 1'  # Every Monday at 9am UTC
   workflow_dispatch:
+    inputs:
+      allow_unrelated_histories:
+        description: "Allow merging unrelated histories (needed once for repositories created from the GitHub template)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -22,14 +27,50 @@ jobs:
           git remote add upstream https://github.com/bedest-hq/bedest.git || true
           git fetch upstream main --tags
 
-      - name: Create sync branch
+      - name: Merge upstream into the sync branch
+        id: merge
+        env:
+          ALLOW_UNRELATED: ${{ github.event.inputs.allow_unrelated_histories == 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b chore/bedest-upstream-sync || git checkout chore/bedest-upstream-sync
-          git merge upstream/main --no-edit -m "chore: sync upstream bedest" || true
+          git checkout -B chore/bedest-upstream-sync
+
+          if git merge-base --is-ancestor upstream/main HEAD 2>/dev/null; then
+            echo "Already up to date with upstream/main; nothing to merge."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          args=(--no-edit -m "chore: sync upstream bedest")
+          if [ "$ALLOW_UNRELATED" = "true" ]; then
+            args+=(--allow-unrelated-histories)
+          fi
+
+          if ! git merge upstream/main "${args[@]}"; then
+            git merge --abort 2>/dev/null || true
+            echo "::error::Merging upstream/main failed (conflicts, or unrelated histories for repositories created from the template). Merge manually, or re-run this workflow with allow_unrelated_histories=true."
+            exit 1
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse conflict markers
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          check="$(git diff --check HEAD^1 HEAD || true)"
+          if echo "$check" | grep -q 'leftover conflict marker'; then
+            echo "$check"
+            echo "::error::Leftover conflict markers in the merge."
+            exit 1
+          fi
+          if git grep -n '^<<<<<<< ' -- .; then
+            echo "::error::Conflict markers found in the merged tree."
+            exit 1
+          fi
 
       - name: Create Pull Request
+        if: steps.merge.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
           title: "chore: sync with upstream Bedest"
@@ -41,7 +82,7 @@ jobs:
             ### Before merging:
             - Review the diff carefully
             - Resolve any conflicts in files you have customized (e.g. `src/`, `Dockerfile`, `drizzle.config.ts`)
-            - Update `bedest.json` version to match the new release after merging
+            - Check the CHANGELOG "Upgrading" notes (new migrations, env vars, one-off scripts)
 
             See the [CHANGELOG](https://github.com/bedest-hq/bedest/blob/main/CHANGELOG.md) for what changed.
           branch: chore/bedest-upstream-sync
