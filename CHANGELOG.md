@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Required one-off steps for existing deployments
+
+* **Redact plaintext secrets already stored in audit logs [SEC-06].** Older versions stored fields such as `currentPassword` unredacted in `system_audit_logs.payload`. After upgrading run `bun run src/scripts/audit/RedactAuditLogs.ts` (dry run, reports the number of affected rows) and then `bun run src/scripts/audit/RedactAuditLogs.ts --apply` (rewrites them in batches of 500). Rotate any password that may have been exposed.
+
 ## [1.2.0](https://github.com/bedest-hq/bedest/compare/v1.1.0...v1.2.0) (2026-10-10)
 
 
