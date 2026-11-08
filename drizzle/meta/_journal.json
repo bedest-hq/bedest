@@ -36,6 +36,20 @@
       "when": 1794152394293,
       "tag": "0004_rls_roles_and_force",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794165102986,
+      "tag": "0005_users_email_lowercase_dedupe",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794165104066,
+      "tag": "0006_users_email_lower_unique",
+      "breakpoints": true
     }
   ]
 }

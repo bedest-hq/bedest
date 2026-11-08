@@ -1,4 +1,5 @@
-import { uuid, pgTable, varchar } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { uuid, pgTable, varchar, uniqueIndex } from "drizzle-orm/pg-core";
 import { EUserRolePg } from "../enums/EUserRole";
 import { STenant } from "@f/tenant/schemas/STenant";
 import { SStorage } from "@f/storage/schemas/SStorage";
@@ -19,7 +20,10 @@ export const SUser = pgTable(
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_users_active", t.id),
-    UtilDbSchema.activeUniqueIndex("idx_users_email", t.email),
+    // Case-insensitive uniqueness among active users [SEC-21].
+    uniqueIndex("idx_users_email_lower")
+      .on(sql`lower(${t.email})`)
+      .where(sql`"isDeleted" = false`),
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();

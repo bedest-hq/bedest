@@ -100,7 +100,7 @@ export const RouterUser = new Elysia({
           {
             body: t.Object({
               name: VString,
-              email: VString,
+              email: VEmail,
               role: t.Enum(EUserRole),
               password: t.String({ minLength: 6, maxLength: 100 }),
             }),

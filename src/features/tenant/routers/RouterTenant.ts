@@ -175,7 +175,7 @@ export const RouterTenant = new Elysia({
         tagline: t.Optional(t.Nullable(VString)),
         workingHours: t.Optional(t.Nullable(VString)),
         copyright: t.Optional(t.Nullable(VString)),
-        email: t.Optional(VString),
+        email: t.Optional(VEmail),
         logoId: t.Optional(VId),
         plan: t.Optional(
           t.Union([
@@ -235,7 +235,7 @@ export const RouterTenant = new Elysia({
               tagline: t.Optional(t.Nullable(VString)),
               workingHours: t.Optional(t.Nullable(VString)),
               copyright: t.Optional(t.Nullable(VString)),
-              email: VString,
+              email: VEmail,
               logoId: t.Optional(VId),
               plan: t.Union([
                 t.Literal(ETenantPlan.BASIC),

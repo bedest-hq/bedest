@@ -4,6 +4,7 @@ import { status } from "elysia";
 import { eq, and } from "drizzle-orm";
 import { ITenantUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core";
 import { IPolicyActor, UtilUserPolicy } from "../utils/UtilUserPolicy";
+import { UtilEmail } from "../utils/UtilEmail";
 import ServiceSession from "@f/session/services/ServiceSession";
 
 class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
@@ -68,6 +69,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
 
     return super.create(c, {
       ...data,
+      email: UtilEmail.normalize(data.email),
       password: hash,
     });
   }

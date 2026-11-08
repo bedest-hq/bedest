@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { status } from "elysia";
 import type { SelectedFields } from "drizzle-orm/pg-core";
 import ServiceSession from "@f/session/services/ServiceSession";
+import { UtilEmail } from "@f/user/utils/UtilEmail";
 
 class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> {
   constructor() {
@@ -47,7 +48,9 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
     if (!c.session?.isSuperUser) {
       throw status("Forbidden");
     }
-    return this.scoped(c, (sc) => super.create(sc, data));
+    return this.scoped(c, (sc) =>
+      super.create(sc, { ...data, email: UtilEmail.normalize(data.email) }),
+    );
   }
 
   override async update(
@@ -55,6 +58,9 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
     id: string,
     data: Parameters<ServiceBase<typeof STenant, string, ITenantUserApp>["update"]>[2],
   ) {
+    if (typeof data.email === "string") {
+      data = { ...data, email: UtilEmail.normalize(data.email) };
+    }
     if (!c.session?.isSuperUser) {
       if (id !== c.tenantId) {
         throw status("Forbidden");

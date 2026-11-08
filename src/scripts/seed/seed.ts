@@ -10,6 +10,7 @@ import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import DbManager from "@/infrastructure/database/DbManager";
 import { UtilSeedPassword } from "./UtilSeedPassword";
+import { UtilEmail } from "@f/user/utils/UtilEmail";
 
 /** Script-only variables, validated here and never part of the server VEnv. */
 export const VSeedEnv = t.Object({
@@ -64,7 +65,7 @@ export async function runSeed(
     throw new Error("Unable to determine the SYSTEM user password.");
   }
   const passwordHash = await Bun.password.hash(plainPassword);
-  const email = opts.seedEnv.SEED_SYSTEM_EMAIL;
+  const email = UtilEmail.normalize(opts.seedEnv.SEED_SYSTEM_EMAIL);
 
   const created = await UtilTenantScope.systemScope(db, async (tx) => {
     const [existingSystemUser] = await tx

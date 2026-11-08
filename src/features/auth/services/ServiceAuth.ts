@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { SUser } from "../../user/schemas/SUser";
 import { STenant } from "@f/tenant/schemas/STenant";
+import { UtilEmail } from "@f/user/utils/UtilEmail";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import { EUserRole } from "@f/user/enums/EUserRole";
@@ -42,6 +43,7 @@ class ServiceAuth {
   }
 
   async login(c: IApp, data: { email: string; password: string }) {
+    const email = UtilEmail.normalize(data.email);
     const user = await UtilTenantScope.systemScope(c.db, async (tx) => {
       const [res] = await tx
         .select({
@@ -54,7 +56,8 @@ class ServiceAuth {
         .innerJoin(STenant, eq(STenant.id, SUser.tenantId))
         .where(
           and(
-            eq(SUser.email, data.email),
+            // Matches the unique index on lower(email) [SEC-21].
+            sql`lower(${SUser.email}) = ${email}`,
             eq(SUser.isDeleted, false),
             eq(STenant.isDeleted, false),
           ),
@@ -99,7 +102,7 @@ class ServiceAuth {
         action: "LOGIN",
         entity: "auth",
         entityId: user.userId,
-        payload: { email: data.email },
+        payload: { email },
       },
     );
 
