@@ -47,6 +47,8 @@ export const VEnv = t.Object({
   REFRESH_KEY: t.String({ minLength: 32 }),
 
   PORT: t.Number(),
+  // Serve /api/docs in production too (always served in other modes).
+  ENABLE_API_DOCS: t.Optional(t.Boolean()),
   // Hard deadline for the graceful shutdown before exiting with code 1.
   SHUTDOWN_TIMEOUT_MS: Type.Integer({ minimum: 1000, default: 15000 }),
 

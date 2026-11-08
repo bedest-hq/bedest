@@ -1,6 +1,6 @@
 import Elysia from "elysia";
 import { RouterUser } from "../features/user/routers/RouterUser";
-import { Swagger } from "./Swagger";
+import { createDocs, shouldServeDocs } from "./Swagger";
 import { RouterTenant } from "@f/tenant/routers/RouterTenant";
 import { RouterAuth } from "@f/auth/routers/RouterAuth";
 import { RouterSystem } from "@f/system/routers/RouterSystem";
@@ -12,7 +12,9 @@ import { TEnv } from "@/common/types/TEnv";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import { logger } from "@/infrastructure/logger/logger";
 
-export const createRouter = (env: Pick<TEnv, "BILLING_WEBHOOK_SECRET">) => {
+export const createRouter = (
+  env: Pick<TEnv, "BILLING_WEBHOOK_SECRET" | "NODE_ENV" | "ENABLE_API_DOCS">,
+) => {
   const v1 = new Elysia({ prefix: "/v1" })
     .use(RouterAuth)
     .use(RouterUser)
@@ -22,10 +24,11 @@ export const createRouter = (env: Pick<TEnv, "BILLING_WEBHOOK_SECRET">) => {
     .use(RouterNotification);
 
   // Health lives outside /api/v1 (FEAT-01).
-  const api = new Elysia({ prefix: "/api" })
-    .use(Swagger)
-    .use(RouterHealth)
-    .use(v1);
+  const api = new Elysia({ prefix: "/api" }).use(RouterHealth).use(v1);
+
+  if (shouldServeDocs(env)) {
+    api.use(createDocs());
+  }
 
   // The webhook is only reachable when a signing secret is configured; it is
   // not part of the client-facing API type.

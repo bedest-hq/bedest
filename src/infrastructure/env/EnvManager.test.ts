@@ -67,10 +67,12 @@ describe("EnvManager (SEC-16)", () => {
       DATABASE_PORT: "6543",
       RATE_LIMIT_LOGIN_PER_MIN: "7",
       DATABASE_SSL_MODE: "verify-full",
+      ENABLE_API_DOCS: "true",
     });
     expect(env.DATABASE_PORT).toBe(6543);
     expect(env.RATE_LIMIT_LOGIN_PER_MIN).toBe(7);
     expect(env.DATABASE_SSL_MODE).toBe("verify-full");
+    expect(env.ENABLE_API_DOCS).toBe(true);
   });
 
   it("[SEC-16] two simultaneous errors are both reported in one message", () => {
