@@ -173,6 +173,27 @@ bun run dev
 
 Access the Swagger documentation at: `http://localhost:3000/api/docs`
 
+## Billing (Stripe webhooks)
+
+`POST /api/v1/billing/webhook` exists only when `BILLING_WEBHOOK_SECRET` is set. Every request must carry a valid `Stripe-Signature` (HMAC-SHA256 over the exact raw body, 300 s tolerance); each event id is processed once (`billing_events`), and the tenant update, its audit row and the event record are written in one transaction. Unknown tenants or plans are acknowledged with `200 { ignored: true }` so Stripe stops retrying.
+
+**API version.** Configure the endpoint with Stripe API version **`2025-03-31.basil`** or later. Billing periods are read from `items.data[].current_period_*` (basil) and, for older versions, from the subscription's top-level `current_period_*`; invoice subscriptions from `parent.subscription_details.subscription` (basil) or `subscription` (older).
+
+**Metadata contract.** Put on the Checkout Session (and the Subscription):
+
+| Key | Required | Meaning |
+| --- | --- | --- |
+| `metadata.tenantId` (or `client_reference_id` on the session) | yes, on checkout | Tenant UUID to bill. Later events also resolve the tenant by `customer` or subscription id. |
+| `metadata.plan` | yes, on checkout | `BASIC`/`FREE`, `STANDARD`/`STARTER`/`GROWTH` or `PROFESSIONAL`/`PRO`/`ENTERPRISE`. On subscriptions the first item price's `metadata.plan`, `lookup_key` or `nickname` is used when `metadata.plan` is absent. Anything else is ignored (the plan never defaults to a paid tier). |
+
+| Event | Effect |
+| --- | --- |
+| `checkout.session.completed` | Sets plan, customer and subscription id (from `.subscription` only); plan end defaults to +30 days until period events arrive. |
+| `customer.subscription.created` / `.updated` | Sets plan and the billing period. |
+| `customer.subscription.deleted` | Downgrades to `BASIC`. |
+| `invoice.paid` | Extends `planEnd` to the end of the paid period (never shortens it). |
+| `invoice.payment_failed` | Logged and audited (`PAYMENT_FAILED`); the plan is unchanged. |
+
 ## Database roles & RLS
 
 Tenant isolation is enforced by PostgreSQL row-level security, which **superusers, table owners and `BYPASSRLS` roles silently skip**. Bedest therefore uses two kinds of database credentials:
