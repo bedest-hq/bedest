@@ -8,6 +8,7 @@ import {
   boolean,
   timestamp,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const SNotification = pgTable(
@@ -44,7 +45,12 @@ export const SNotificationRead = pgTable(
     readAt: timestamp({ withTimezone: true }).notNull(),
   },
   (t) => [
-    index("idx_notification_reads_user").on(t.userId),
+    // One receipt per (user, notification) [BUG-05]; leading userId also
+    // serves the per-user lookups (PERF-01).
+    uniqueIndex("uq_notification_reads_user_notification").on(
+      t.userId,
+      t.notificationId,
+    ),
     index("idx_notification_reads_notif").on(t.notificationId),
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],

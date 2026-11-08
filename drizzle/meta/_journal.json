@@ -64,6 +64,20 @@
       "when": 1794165375516,
       "tag": "0008_mark_system_tenant",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794166708839,
+      "tag": "0009_notification_reads_dedupe",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794166709958,
+      "tag": "0010_notification_reads_unique",
+      "breakpoints": true
     }
   ]
 }

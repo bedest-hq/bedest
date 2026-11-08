@@ -173,7 +173,8 @@ const CASES: IRlsCase[] = [
       tx.insert(SNotificationRead).values({
         tenantId,
         notificationId: tenantId === tenantB ? notifB : notifA,
-        userId: tenantId === tenantB ? userB : userA,
+        // A fresh reader: (user, notification) is unique [BUG-05].
+        userId: crypto.randomUUID(),
         readAt: new Date(),
       }),
   },

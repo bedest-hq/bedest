@@ -162,25 +162,17 @@ class ServiceNotification {
           throw status("Forbidden");
         }
 
-        const [alreadyRead] = await tx
-          .select({ id: SNotificationRead.id })
-          .from(SNotificationRead)
-          .where(
-            and(
-              eq(SNotificationRead.notificationId, id),
-              eq(SNotificationRead.userId, c.session.userId),
-            ),
-          )
-          .limit(1);
-
-        if (!alreadyRead) {
-          await tx.insert(SNotificationRead).values({
+        // Idempotent under concurrency: the unique (user, notification)
+        // index decides, not a prior SELECT [BUG-05].
+        await tx
+          .insert(SNotificationRead)
+          .values({
             tenantId: c.tenantId,
             notificationId: id,
             userId: c.session.userId,
             readAt: c.nowDatetime,
-          });
-        }
+          })
+          .onConflictDoNothing();
 
         return { success: true };
       }
@@ -233,14 +225,17 @@ class ServiceNotification {
         );
 
       if (unreadBroadcasts.length > 0) {
-        await tx.insert(SNotificationRead).values(
-          unreadBroadcasts.map((b) => ({
-            tenantId: c.tenantId,
-            notificationId: b.id,
-            userId: c.session.userId,
-            readAt: c.nowDatetime,
-          })),
-        );
+        await tx
+          .insert(SNotificationRead)
+          .values(
+            unreadBroadcasts.map((b) => ({
+              tenantId: c.tenantId,
+              notificationId: b.id,
+              userId: c.session.userId,
+              readAt: c.nowDatetime,
+            })),
+          )
+          .onConflictDoNothing();
       }
 
       return { success: true };

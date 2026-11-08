@@ -40,6 +40,46 @@ const tagStartingWith = (prefix: string) => {
   return entry.tag;
 };
 
+describe("migrations (BUG-05)", () => {
+  it("[BUG-05] 0009/0010 keep the earliest receipt per (notification, user) and then enforce uniqueness", async () => {
+    const db = new PGlite();
+    try {
+      await migrateThrough(db, tagStartingWith("0008_"));
+      await db.exec(`
+        INSERT INTO tenants (id, name, domain, country, email, plan, "planStart", "planEnd")
+        VALUES ('11111111-1111-1111-1111-111111111111', 'T', 't.example', 'X', 't@example.com', 'BASIC', now(), now());
+        INSERT INTO notifications (id, "tenantId", "isBroadcast", event)
+        VALUES ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', true, 'news');
+        INSERT INTO notification_reads ("tenantId", "notificationId", "userId", "readAt") VALUES
+          ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', '2024-01-02'),
+          ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', '2024-01-01'),
+          ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', '2024-01-03');
+      `);
+
+      await apply(db, tagStartingWith("0009_"));
+      await apply(db, tagStartingWith("0010_"));
+
+      const rows = await db.query<{ readAt: Date }>(
+        "SELECT \"readAt\" FROM notification_reads",
+      );
+      expect(rows.rows).toHaveLength(1);
+      expect(rows.rows[0]?.readAt.toISOString()).toStartWith("2024-01-01");
+
+      const again = await db
+        .exec(
+          "INSERT INTO notification_reads (\"tenantId\", \"notificationId\", \"userId\", \"readAt\") VALUES ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', now())",
+        )
+        .then(
+          () => "inserted",
+          (err: unknown) => String(err),
+        );
+      expect(again).toContain("uq_notification_reads_user_notification");
+    } finally {
+      await db.close();
+    }
+  });
+});
+
 describe("migrations", () => {
   it("[SEC-21] 0005/0006 keep the oldest of case-duplicates, soft-delete the rest, lower-case all and enforce case-insensitive uniqueness", async () => {
     const db = new PGlite();
