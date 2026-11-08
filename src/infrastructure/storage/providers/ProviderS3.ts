@@ -87,6 +87,8 @@ export class ProviderS3 implements IProvider {
       logger.info(`File deleted from S3 successfully: ${key}`);
     } catch (error) {
       logger.error({ err: error, key }, "Failed to delete file from S3");
+      // Propagate: the purge job decides whether to retry [BUG-03].
+      throw new Error("S3 storage delete failed", { cause: error });
     }
   }
 

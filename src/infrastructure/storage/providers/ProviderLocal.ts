@@ -46,6 +46,8 @@ export class ProviderLocal implements IProvider {
         { err, key, path: fullPath },
         "Failed to delete file locally",
       );
+      // Propagate: the purge job decides whether to retry [BUG-03].
+      throw new Error("Local storage delete failed", { cause: err });
     }
   }
 

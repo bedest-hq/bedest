@@ -1,11 +1,16 @@
 import { SStorage } from "../schemas/SStorage";
 
 import { status } from "elysia";
-import { eq, type SQL } from "drizzle-orm";
+import { and, eq, type SQL } from "drizzle-orm";
 import StorageManager from "@/infrastructure/storage/StorageManager";
-import { ITenantApp, ITenantUserApp, ServiceBaseTenant } from "bedest-core";
+import {
+  ITenantApp,
+  ITenantUserApp,
+  ServiceBaseTenant,
+  UtilTenantScope,
+} from "bedest-core";
 import { EStorageStatus } from "../enums/EStorageStatus";
-import { UtilStorage } from "../utils/UtilStorage";
+import { storageExtensionFor, UtilStorage } from "../utils/UtilStorage";
 
 class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
   constructor() {
@@ -17,22 +22,46 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     return [...super.getFilters(id), eq(SStorage.status, EStorageStatus.READY)];
   }
 
+  /** Hard-deletes a row that never became READY (its object never existed). */
+  private async discardPending(c: ITenantUserApp, id: string) {
+    await UtilTenantScope.tenantScope(c, (tx) =>
+      tx
+        .delete(SStorage)
+        .where(
+          and(eq(SStorage.id, id), eq(SStorage.status, EStorageStatus.PENDING)),
+        ),
+    );
+  }
+
+  /**
+   * Row first (PENDING), then the object, then READY [BUG-03]: a failed
+   * object write removes the row, a failed row insert never writes an
+   * object. The key extension comes from the MIME type, not the file name.
+   */
   async upload(c: ITenantUserApp, file: File) {
-    const fileExtension = file.name.split(".").pop();
-    const uniqueFileName = `${crypto.randomUUID()}.${fileExtension}`;
-    const key = `${c.tenantId}/${uniqueFileName}`;
-
-    const arrayBuffer = await file.arrayBuffer();
-
-    await StorageManager.upload(key, arrayBuffer, file.type);
+    const key = `${c.tenantId}/${crypto.randomUUID()}.${storageExtensionFor(file.type)}`;
 
     const res = await super.create(c, {
       name: file.name,
       key: key,
       mimeType: file.type,
       size: file.size,
-      status: EStorageStatus.READY,
+      status: EStorageStatus.PENDING,
     });
+
+    try {
+      await StorageManager.upload(key, await file.arrayBuffer(), file.type);
+    } catch (err) {
+      await this.discardPending(c, res.id);
+      throw err;
+    }
+
+    await UtilTenantScope.tenantScope(c, (tx) =>
+      tx
+        .update(SStorage)
+        .set({ status: EStorageStatus.READY })
+        .where(eq(SStorage.id, res.id)),
+    );
 
     return { id: res.id, key: key };
   }
@@ -66,8 +95,7 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
       throw status("Not Found");
     }
 
-    await StorageManager.delete(fileRecord.key);
-
+    // Soft delete only; the object is removed by the purge job [BUG-03].
     return await super.remove(c, id);
   }
 
@@ -87,11 +115,7 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
       });
     }
 
-    const fileExtension = data.name.includes(".")
-      ? data.name.split(".").pop()
-      : "bin";
-    const uniqueFileName = `${crypto.randomUUID()}.${fileExtension}`;
-    const key = `${c.tenantId}/${uniqueFileName}`;
+    const key = `${c.tenantId}/${crypto.randomUUID()}.${storageExtensionFor(data.mimeType)}`;
 
     // The row stays PENDING (never served) until the upload is finalized.
     const res = await super.create(c, {
