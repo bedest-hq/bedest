@@ -103,6 +103,13 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     c: ITenantUserApp,
     data: { name: string; mimeType: string; size: number },
   ) {
+    // Fail before creating any row when presigning is unsupported [BUG-04].
+    if (!StorageManager.supportsPresign()) {
+      throw status(501, {
+        error: "Not Implemented",
+        message: "The active storage provider does not support presigned URLs",
+      });
+    }
     // Same allowlist and size limit as direct uploads [SEC-10].
     if (!UtilStorage.allowedTypes().includes(data.mimeType)) {
       throw status("Bad Request", {

@@ -27,6 +27,29 @@ class StorageManager {
     }
   }
 
+  /** Whether the active provider can issue presigned URLs [BUG-04]. */
+  supportsPresign(): boolean {
+    return Boolean(
+      this.activeProvider?.getUploadUrl && this.activeProvider.getDownloadUrl,
+    );
+  }
+
+  private static notImplemented() {
+    return status(501, {
+      error: "Not Implemented",
+      message: "The active storage provider does not support presigned URLs",
+    });
+  }
+
+  /** Test hook: swap the provider; returns a function restoring the old one. */
+  useProviderForTesting(provider: IProvider | null) {
+    const previous = this.activeProvider;
+    this.activeProvider = provider;
+    return () => {
+      this.activeProvider = previous;
+    };
+  }
+
   /** Readiness probe: throws when the configured provider is unusable. */
   async healthCheck(): Promise<"ok" | "disabled"> {
     if (!this.activeProvider) {
@@ -70,25 +93,26 @@ class StorageManager {
     if (!this.activeProvider) {
       throw status("Service Unavailable");
     }
-    if (this.activeProvider.getUploadUrl) {
-      return await this.activeProvider.getUploadUrl(
-        key,
-        contentType,
-        contentLength,
-        expiresIn,
-      );
+    // No fake URLs pointing at routes that do not exist [BUG-04].
+    if (!this.activeProvider.getUploadUrl) {
+      throw StorageManager.notImplemented();
     }
-    return `/storage/upload?key=${encodeURIComponent(key)}`;
+    return await this.activeProvider.getUploadUrl(
+      key,
+      contentType,
+      contentLength,
+      expiresIn,
+    );
   }
 
   async getDownloadUrl(key: string, expiresIn = 300): Promise<string> {
     if (!this.activeProvider) {
       throw status("Service Unavailable");
     }
-    if (this.activeProvider.getDownloadUrl) {
-      return await this.activeProvider.getDownloadUrl(key, expiresIn);
+    if (!this.activeProvider.getDownloadUrl) {
+      throw StorageManager.notImplemented();
     }
-    return `/storage/download?key=${encodeURIComponent(key)}`;
+    return await this.activeProvider.getDownloadUrl(key, expiresIn);
   }
 }
 
