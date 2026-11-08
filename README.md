@@ -109,7 +109,7 @@ The ErrorHandler implementation utilizes a type-safe recursive strategy to trave
 The API follows strict REST standards enforced by Elysia macros:
 
 * `402 Payment Required`: Triggered automatically via `MacroPlanGuard` when a tenant plan expires.
-* `426 Upgrade Required`: Triggered via `MacroPlanGuard` when the tenant's plan doesn't include the requested feature.
+* `403 Forbidden` with `{ "error": "Forbidden", "message": "PLAN_UPGRADE_REQUIRED" }`: Triggered via `MacroPlanGuard` when the tenant's plan doesn't include the requested feature (`402 Payment Required` when the plan has expired).
 * `403 Forbidden`: Returned via `MacroRoleGuard` for insufficient RBAC roles or cross-tenant modification attempts.
 * `503 Service Unavailable`: Used during Maintenance Mode to signal temporary downtime.
 * `409 Conflict`: Maps unique constraint violations (like duplicate emails) dynamically.

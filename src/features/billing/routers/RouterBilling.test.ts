@@ -180,7 +180,8 @@ describe("SEC-05: billing webhook processing", () => {
     const initialRes = await protectedClient["pro-feature"].get({
       headers: userHeaders,
     });
-    expect(initialRes.status).toBe(426);
+    // [CORE-07] insufficient plan is 403 PLAN_UPGRADE_REQUIRED (was 426).
+    expect(initialRes.status).toBe(403);
 
     const raw = event(
       "checkout.session.completed",
@@ -338,6 +339,7 @@ describe("SEC-05: billing webhook processing", () => {
     const blockedRes = await treaty(protectedApp)["pro-feature"].get({
       headers: await testHeaders(),
     });
-    expect(blockedRes.status).toBe(426);
+    // [CORE-07] insufficient plan is 403 PLAN_UPGRADE_REQUIRED (was 426).
+    expect(blockedRes.status).toBe(403);
   });
 });
