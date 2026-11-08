@@ -1,16 +1,18 @@
-import { IApp, UtilTenantScope } from "bedest-core";
+import { and, eq } from "drizzle-orm";
+import { IApp, TTransaction, UtilTenantScope } from "bedest-core";
 import { STenant } from "@/features/tenant/schemas/STenant";
 import { ETenantPlan } from "@/features/tenant/enums/ETenantPlan";
 import ServiceSystemLog from "@/features/system/services/ServiceSystemLog";
-import { eq } from "drizzle-orm";
-import { status } from "elysia";
 import { logger } from "@/infrastructure/logger/logger";
+import { SBillingEvent } from "../schemas/SBillingEvent";
+import { TStripeEvent } from "../validations/VStripeEvent";
 
-export function mapPlan(rawPlan?: unknown): ETenantPlan {
+/** Maps a provider plan label to a plan; `null` for anything unknown. */
+export function mapPlan(rawPlan?: unknown): ETenantPlan | null {
   if (typeof rawPlan !== "string") {
-    return ETenantPlan.STANDARD;
+    return null;
   }
-  const upper = rawPlan.toUpperCase();
+  const upper = rawPlan.trim().toUpperCase();
   if (upper === "PRO" || upper === "PROFESSIONAL" || upper === "ENTERPRISE") {
     return ETenantPlan.PROFESSIONAL;
   }
@@ -20,7 +22,7 @@ export function mapPlan(rawPlan?: unknown): ETenantPlan {
   if (upper === "BASIC" || upper === "FREE") {
     return ETenantPlan.BASIC;
   }
-  return ETenantPlan.STANDARD;
+  return null;
 }
 
 export function parseDate(val: unknown): Date | null {
@@ -46,279 +48,255 @@ export function parseDate(val: unknown): Date | null {
   return null;
 }
 
-export function verifyWebhookSignature(
-  rawBody: string,
-  signatureHeader: string | null,
-  secret?: string,
-): boolean {
-  if (!secret) {
-    return true;
-  }
-  if (!signatureHeader) {
-    return false;
-  }
-  if (signatureHeader === secret) {
-    return true;
-  }
-
-  try {
-    const parts = signatureHeader.split(",");
-    const tPart = parts.find((p) => p.startsWith("t="))?.slice(2);
-    const v1Part = parts.find((p) => p.startsWith("v1="))?.slice(3);
-
-    if (tPart && v1Part) {
-      const payloadToSign = `${tPart}.${rawBody}`;
-      const hasher = new Bun.CryptoHasher("sha256", secret);
-      hasher.update(payloadToSign);
-      const computed = hasher.digest("hex");
-      return computed === v1Part;
-    }
-
-    const hasher = new Bun.CryptoHasher("sha256", secret);
-    hasher.update(rawBody);
-    const computed = hasher.digest("hex");
-    return computed === signatureHeader;
-  } catch {
-    return false;
-  }
-}
-
 export interface IBillingWebhookResult {
   success: boolean;
   event: string;
-  tenantId: string;
-  plan: ETenantPlan;
+  tenantId?: string;
+  plan?: ETenantPlan;
+  ignored?: boolean;
+  duplicate?: boolean;
+  reason?: string;
 }
 
-interface IPlanData {
-  nickname?: string;
-  id?: string;
-}
+type TRecord = Record<string, unknown>;
 
-interface ISubscriptionData {
-  plan?: IPlanData;
-  current_period_start?: number | string | Date;
-  current_period_end?: number | string | Date;
-  items?: { data?: Array<{ plan?: IPlanData }> };
-}
+const isRecord = (v: unknown): v is TRecord =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+
+const str = (v: unknown): string | undefined =>
+  typeof v === "string" && v.length > 0 ? v : undefined;
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class ServiceBilling {
-  async handleWebhook(
+  /**
+   * Processes a verified provider event exactly once: the event record,
+   * the tenant update and the audit row are written in one transaction.
+   */
+  async handleEvent(
     c: IApp,
-    payload: Record<string, unknown>,
+    evt: TStripeEvent,
   ): Promise<IBillingWebhookResult> {
-    const event = String(payload.type || payload.event || "unknown");
-    const dataObj =
-      (payload.data && typeof payload.data === "object"
-        ? (payload.data as Record<string, unknown>).object
-        : null) || payload;
+    return await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const [fresh] = await tx
+        .insert(SBillingEvent)
+        .values({ id: evt.id, type: evt.type, receivedAt: c.nowDatetime })
+        .onConflictDoNothing()
+        .returning({ id: SBillingEvent.id });
 
-    const dataRecord = (dataObj || {}) as Record<string, unknown> &
-      ISubscriptionData;
-
-    const metadata =
-      dataRecord.metadata && typeof dataRecord.metadata === "object"
-        ? (dataRecord.metadata as Record<string, unknown>)
-        : {};
-
-    const tenantIdCandidate =
-      (metadata.tenantId as string) ||
-      (metadata.tenant_id as string) ||
-      (dataRecord.client_reference_id as string) ||
-      (dataRecord.tenantId as string) ||
-      (payload.tenantId as string);
-
-    const customerId =
-      (dataRecord.customer as string) ||
-      (dataRecord.customerId as string) ||
-      (payload.customerId as string);
-
-    const subscriptionId =
-      (dataRecord.subscription as string) ||
-      (dataRecord.id as string) ||
-      (payload.subscriptionId as string);
-
-    // Find target tenant
-    let targetTenantId = tenantIdCandidate;
-    if (targetTenantId) {
-      const [exists] = await UtilTenantScope.systemScope(c.db, async (tx) => {
-        return await tx
-          .select({ id: STenant.id })
-          .from(STenant)
-          .where(eq(STenant.id, targetTenantId))
-          .limit(1);
-      });
-
-      if (!exists) {
-        logger.warn(
-          { event, targetTenantId },
-          "[ServiceBilling] Target tenant ID does not exist in database",
+      if (!fresh) {
+        logger.info(
+          { eventId: evt.id, event: evt.type },
+          "[ServiceBilling] Duplicate webhook delivery ignored",
         );
-        throw status("Not Found", "Tenant not found for billing event");
+        return { success: true, event: evt.type, duplicate: true };
       }
+
+      const result = await this.apply(tx, c, evt);
+
+      await tx
+        .update(SBillingEvent)
+        .set({ processedAt: c.nowDatetime })
+        .where(eq(SBillingEvent.id, evt.id));
+
+      return result;
+    });
+  }
+
+  private async findTenantId(
+    tx: TTransaction,
+    ref: { tenantId?: string; customerId?: string; subscriptionId?: string },
+  ): Promise<string | undefined> {
+    let match;
+    if (ref.tenantId) {
+      if (!UUID_RE.test(ref.tenantId)) {
+        return undefined;
+      }
+      match = eq(STenant.id, ref.tenantId);
+    } else if (ref.customerId) {
+      match = eq(STenant.customerId, ref.customerId);
+    } else if (ref.subscriptionId) {
+      match = eq(STenant.subscriptionId, ref.subscriptionId);
     } else {
-      const [found] = await UtilTenantScope.systemScope(c.db, async (tx) => {
-        if (customerId) {
-          return await tx
-            .select({ id: STenant.id })
-            .from(STenant)
-            .where(eq(STenant.customerId, customerId))
-            .limit(1);
-        }
-        if (subscriptionId) {
-          return await tx
-            .select({ id: STenant.id })
-            .from(STenant)
-            .where(eq(STenant.subscriptionId, subscriptionId))
-            .limit(1);
-        }
-        return [];
-      });
-
-      if (found) {
-        targetTenantId = found.id;
-      }
+      return undefined;
     }
 
-    if (!targetTenantId) {
+    const [row] = await tx
+      .select({ id: STenant.id })
+      .from(STenant)
+      .where(and(match, eq(STenant.isDeleted, false)))
+      .limit(1);
+    return row?.id;
+  }
+
+  private async apply(
+    tx: TTransaction,
+    c: IApp,
+    evt: TStripeEvent,
+  ): Promise<IBillingWebhookResult> {
+    const obj = evt.data.object;
+    const metadata = isRecord(obj.metadata) ? obj.metadata : {};
+    const planObj = isRecord(obj.plan) ? obj.plan : {};
+
+    const customerId = str(obj.customer);
+    const subscriptionId = str(obj.subscription) ?? str(obj.id);
+
+    const tenantId = await this.findTenantId(tx, {
+      tenantId:
+        str(metadata.tenantId) ??
+        str(metadata.tenant_id) ??
+        str(obj.client_reference_id),
+      customerId,
+      subscriptionId,
+    });
+
+    if (!tenantId) {
       logger.warn(
-        { event, customerId, subscriptionId },
-        "[ServiceBilling] No tenant found for webhook",
+        { eventId: evt.id, event: evt.type, customerId, subscriptionId },
+        "[ServiceBilling] No tenant found for webhook; ignoring",
       );
-      throw status("Not Found", "Tenant not found for billing event");
+      return {
+        success: true,
+        event: evt.type,
+        ignored: true,
+        reason: "unknown_tenant",
+      };
     }
 
-    let resultingPlan: ETenantPlan = ETenantPlan.BASIC;
+    const ignoredPlan = (rawPlan: unknown): IBillingWebhookResult => {
+      logger.warn(
+        { eventId: evt.id, event: evt.type, tenantId, rawPlan },
+        "[ServiceBilling] Unknown plan; keeping the current plan",
+      );
+      return {
+        success: true,
+        event: evt.type,
+        tenantId,
+        ignored: true,
+        reason: "unknown_plan",
+      };
+    };
 
-    switch (event) {
+    switch (evt.type) {
       case "checkout.session.completed":
-      case "subscription.created":
       case "customer.subscription.created": {
-        const rawPlan =
-          metadata.plan ||
-          dataRecord.plan?.nickname ||
-          dataRecord.plan?.id ||
-          payload.plan;
-
-        resultingPlan = mapPlan(rawPlan);
-        const planStart =
-          parseDate(dataRecord.current_period_start) || c.nowDatetime;
+        const rawPlan = metadata.plan ?? planObj.nickname ?? planObj.id;
+        const plan = mapPlan(rawPlan);
+        if (!plan) {
+          return ignoredPlan(rawPlan);
+        }
+        const planStart = parseDate(obj.current_period_start) ?? c.nowDatetime;
         const planEnd =
-          parseDate(dataRecord.current_period_end) ||
+          parseDate(obj.current_period_end) ??
           new Date(c.nowDatetime.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-        await UtilTenantScope.systemScope(c.db, async (tx) => {
-          await tx
-            .update(STenant)
-            .set({
-              plan: resultingPlan,
-              planStart,
-              planEnd,
-              customerId: customerId || undefined,
-              subscriptionId: subscriptionId || undefined,
-            })
-            .where(eq(STenant.id, targetTenantId));
-        });
-
-        await ServiceSystemLog.logEvent(c.db, {
-          tenantId: targetTenantId,
-          action: "SUBSCRIPTION_CREATED",
-          entity: "tenant",
-          entityId: targetTenantId,
-          payload: {
-            plan: resultingPlan,
+        await tx
+          .update(STenant)
+          .set({
+            plan,
             planStart,
             planEnd,
+            customerId: customerId ?? undefined,
+            subscriptionId: subscriptionId ?? undefined,
+          })
+          .where(eq(STenant.id, tenantId));
+
+        await ServiceSystemLog.insertEvent(tx, {
+          tenantId,
+          action: "SUBSCRIPTION_CREATED",
+          entity: "tenant",
+          entityId: tenantId,
+          payload: {
+            eventId: evt.id,
+            plan,
+            planStart: planStart.toISOString(),
+            planEnd: planEnd.toISOString(),
             customerId,
             subscriptionId,
           },
         });
-        break;
+        return { success: true, event: evt.type, tenantId, plan };
       }
 
       case "customer.subscription.updated": {
-        const rawPlan =
-          metadata.plan ||
-          dataRecord.plan?.nickname ||
-          dataRecord.items?.data?.[0]?.plan?.nickname ||
-          payload.plan;
+        const items = isRecord(obj.items) ? obj.items.data : undefined;
+        const firstItem =
+          Array.isArray(items) && isRecord(items[0]) ? items[0] : {};
+        const itemPlan = isRecord(firstItem.plan) ? firstItem.plan : {};
+        const rawPlan = metadata.plan ?? planObj.nickname ?? itemPlan.nickname;
+        const plan = mapPlan(rawPlan);
+        if (!plan) {
+          return ignoredPlan(rawPlan);
+        }
+        const planStart = parseDate(obj.current_period_start);
+        const planEnd = parseDate(obj.current_period_end);
 
-        resultingPlan = mapPlan(rawPlan);
-        const planStart = parseDate(dataRecord.current_period_start);
-        const planEnd = parseDate(dataRecord.current_period_end);
+        await tx
+          .update(STenant)
+          .set({
+            plan,
+            ...(planStart ? { planStart } : {}),
+            ...(planEnd ? { planEnd } : {}),
+            ...(subscriptionId ? { subscriptionId } : {}),
+          })
+          .where(eq(STenant.id, tenantId));
 
-        await UtilTenantScope.systemScope(c.db, async (tx) => {
-          const updatePayload: Partial<typeof STenant.$inferInsert> = {
-            plan: resultingPlan,
-          };
-          if (planStart) {
-            updatePayload.planStart = planStart;
-          }
-          if (planEnd) {
-            updatePayload.planEnd = planEnd;
-          }
-          if (subscriptionId) {
-            updatePayload.subscriptionId = subscriptionId;
-          }
-          await tx
-            .update(STenant)
-            .set(updatePayload)
-            .where(eq(STenant.id, targetTenantId));
-        });
-
-        await ServiceSystemLog.logEvent(c.db, {
-          tenantId: targetTenantId,
+        await ServiceSystemLog.insertEvent(tx, {
+          tenantId,
           action: "SUBSCRIPTION_UPDATED",
           entity: "tenant",
-          entityId: targetTenantId,
+          entityId: tenantId,
           payload: {
-            plan: resultingPlan,
-            planStart,
-            planEnd,
+            eventId: evt.id,
+            plan,
+            planStart: planStart?.toISOString() ?? null,
+            planEnd: planEnd?.toISOString() ?? null,
             subscriptionId,
           },
         });
-        break;
+        return { success: true, event: evt.type, tenantId, plan };
       }
 
-      case "customer.subscription.deleted":
-      case "subscription.canceled": {
-        resultingPlan = ETenantPlan.BASIC;
+      case "customer.subscription.deleted": {
+        await tx
+          .update(STenant)
+          .set({ plan: ETenantPlan.BASIC })
+          .where(eq(STenant.id, tenantId));
 
-        await UtilTenantScope.systemScope(c.db, async (tx) => {
-          await tx
-            .update(STenant)
-            .set({
-              plan: ETenantPlan.BASIC,
-            })
-            .where(eq(STenant.id, targetTenantId));
-        });
-
-        await ServiceSystemLog.logEvent(c.db, {
-          tenantId: targetTenantId,
+        await ServiceSystemLog.insertEvent(tx, {
+          tenantId,
           action: "SUBSCRIPTION_CANCELED",
           entity: "tenant",
-          entityId: targetTenantId,
+          entityId: tenantId,
           payload: {
+            eventId: evt.id,
             plan: ETenantPlan.BASIC,
             subscriptionId,
           },
         });
-        break;
+        return {
+          success: true,
+          event: evt.type,
+          tenantId,
+          plan: ETenantPlan.BASIC,
+        };
       }
 
       default: {
-        logger.info({ event }, "[ServiceBilling] Unhandled webhook event type");
-        break;
+        logger.info(
+          { eventId: evt.id, event: evt.type },
+          "[ServiceBilling] Unhandled webhook event type",
+        );
+        return {
+          success: true,
+          event: evt.type,
+          tenantId,
+          ignored: true,
+          reason: "unhandled_event",
+        };
       }
     }
-
-    return {
-      success: true,
-      event,
-      tenantId: targetTenantId,
-      plan: resultingPlan,
-    };
   }
 }
 

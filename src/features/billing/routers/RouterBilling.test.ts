@@ -1,39 +1,179 @@
 import { describe, it, expect } from "bun:test";
+import { createHmac } from "node:crypto";
 import { treaty } from "@elysiajs/eden";
 import { Elysia } from "elysia";
+import { and, eq, sql } from "drizzle-orm";
 import Context from "@/app/Context";
+import { createRouter } from "@/app/Router";
+import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterBilling } from "./RouterBilling";
 import {
   test_db,
+  test_env,
   test_tenant,
   testHeaders,
 } from "@/common/tests/TestManager.test";
 import { STenant } from "@/features/tenant/schemas/STenant";
 import { SSystemLog } from "@/features/system/schemas/SSystemLog";
 import { ETenantPlan } from "@/features/tenant/enums/ETenantPlan";
-import { eq, and } from "drizzle-orm";
 
-const billingApi = treaty(RouterBilling);
+const SECRET = test_env.BILLING_WEBHOOK_SECRET ?? "";
+const nowSec = () => Math.floor(Date.now() / 1000);
 
-describe("RouterBilling & PlanGuard Subscription Lifecycle", () => {
-  it("checkout.session.completed: upgrades tenant to PROFESSIONAL and grants PlanGuard access", async () => {
-    // 1. Ensure test tenant starts at BASIC plan
-    await test_db
-      .update(STenant)
-      .set({
-        plan: ETenantPlan.BASIC,
-        planStart: new Date(),
-        planEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      })
-      .where(eq(STenant.id, test_tenant.id));
+/** Builds a Stripe-style `Stripe-Signature` header over the exact bytes. */
+const sign = (raw: string, secret = SECRET, t = nowSec()) =>
+  `t=${t},v1=${createHmac("sha256", secret).update(`${t}.${raw}`).digest("hex")}`;
 
-    // Verify PlanGuard rejects access to PROFESSIONAL endpoint
+const event = (
+  type: string,
+  object: Record<string, unknown>,
+  id = `evt_${crypto.randomUUID()}`,
+) =>
+  JSON.stringify({
+    id,
+    object: "event",
+    api_version: "2024-06-20",
+    type,
+    data: { object },
+  });
+
+const app = new Elysia().use(ErrorHandler).use(RouterBilling);
+
+const send = (raw: string, signature?: string) =>
+  app.handle(
+    new Request("http://localhost/billing/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(signature ? { "stripe-signature": signature } : {}),
+      },
+      body: raw,
+    }),
+  );
+
+const tenantRow = async () => {
+  const [row] = await test_db
+    .select()
+    .from(STenant)
+    .where(eq(STenant.id, test_tenant.id));
+  return row;
+};
+
+const auditRows = (action: string) =>
+  test_db
+    .select()
+    .from(SSystemLog)
+    .where(
+      and(eq(SSystemLog.tenantId, test_tenant.id), eq(SSystemLog.action, action)),
+    );
+
+const setPlan = (plan: ETenantPlan) =>
+  test_db
+    .update(STenant)
+    .set({
+      plan,
+      planStart: new Date(),
+      planEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    })
+    .where(eq(STenant.id, test_tenant.id));
+
+const checkoutCompleted = (plan?: string) => ({
+  client_reference_id: test_tenant.id,
+  customer: "cus_stripe_123",
+  subscription: "sub_stripe_abc",
+  current_period_start: nowSec(),
+  current_period_end: nowSec() + 60 * 24 * 60 * 60,
+  metadata: { tenantId: test_tenant.id, ...(plan ? { plan } : {}) },
+});
+
+describe("SEC-05: billing webhook authenticity", () => {
+  it("[SEC-05] no signature → 401", async () => {
+    const raw = event("checkout.session.completed", checkoutCompleted("PRO"));
+    expect((await send(raw)).status).toBe(401);
+    expect((await tenantRow()).plan).toBe(ETenantPlan.PROFESSIONAL);
+  });
+
+  it("[SEC-05] the raw secret used as the signature header → 401", async () => {
+    await setPlan(ETenantPlan.BASIC);
+    const raw = event("checkout.session.completed", checkoutCompleted("PRO"));
+    expect((await send(raw, SECRET)).status).toBe(401);
+    expect((await tenantRow()).plan).toBe(ETenantPlan.BASIC);
+  });
+
+  it("[SEC-05] a plain HMAC of the body (legacy scheme) → 401", async () => {
+    const raw = event("checkout.session.completed", checkoutCompleted("PRO"));
+    const legacy = createHmac("sha256", SECRET).update(raw).digest("hex");
+    expect((await send(raw, legacy)).status).toBe(401);
+  });
+
+  it("[SEC-05] a valid signature over a re-serialized body (re-ordered / whitespace) → 401", async () => {
+    const raw = event("checkout.session.completed", checkoutCompleted("PRO"));
+    const signature = sign(raw);
+    const reformatted = JSON.stringify(JSON.parse(raw), null, 2);
+    expect((await send(reformatted, signature)).status).toBe(401);
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const reordered = JSON.stringify(
+      Object.fromEntries(Object.entries(parsed).reverse()),
+    );
+    expect((await send(reordered, signature)).status).toBe(401);
+  });
+
+  it("[SEC-05] a timestamp older than 300 s → 401 (replay)", async () => {
+    const raw = event("checkout.session.completed", checkoutCompleted("PRO"));
+    expect((await send(raw, sign(raw, SECRET, nowSec() - 301))).status).toBe(
+      401,
+    );
+    expect((await send(raw, sign(raw, SECRET, nowSec() + 301))).status).toBe(
+      401,
+    );
+  });
+
+  it("[SEC-05] a signature made with another secret → 401", async () => {
+    const raw = event("checkout.session.completed", checkoutCompleted("PRO"));
+    expect((await send(raw, sign(raw, "whsec_other"))).status).toBe(401);
+  });
+
+  it("[SEC-05] any one of several v1 signatures may match (secret rotation)", async () => {
+    await setPlan(ETenantPlan.BASIC);
+    const raw = event("checkout.session.completed", checkoutCompleted("PRO"));
+    const t = nowSec();
+    const wrong = createHmac("sha256", "old_secret")
+      .update(`${t}.${raw}`)
+      .digest("hex");
+    const valid = sign(raw, SECRET, t).split(",v1=")[1];
+    const res = await send(raw, `t=${t},v1=${wrong},v1=${valid}`);
+    expect(res.status).toBe(200);
+    expect((await tenantRow()).plan).toBe(ETenantPlan.PROFESSIONAL);
+  });
+
+  it("[SEC-05] the router is not mounted when BILLING_WEBHOOK_SECRET is unset → 404", async () => {
+    const raw = event("checkout.session.completed", checkoutCompleted("PRO"));
+    const request = () =>
+      new Request("http://localhost/api/v1/billing/webhook", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: raw,
+      });
+
+    const disabled = new Elysia()
+      .use(ErrorHandler)
+      .use(createRouter({ ...test_env, BILLING_WEBHOOK_SECRET: undefined }));
+    expect((await disabled.handle(request())).status).toBe(404);
+
+    const enabled = new Elysia().use(ErrorHandler).use(createRouter(test_env));
+    expect((await enabled.handle(request())).status).toBe(401);
+  });
+});
+
+describe("SEC-05: billing webhook processing", () => {
+  it("[SEC-05] checkout.session.completed with a valid signature upgrades the tenant and grants PlanGuard access", async () => {
+    await setPlan(ETenantPlan.BASIC);
+
     const protectedApp = new Elysia()
       .use(Context.User())
       .get("/pro-feature", () => ({ feature: "unlocked" }), {
         PlanGuard: [ETenantPlan.PROFESSIONAL],
       });
-
     const protectedClient = treaty(protectedApp);
     const userHeaders = await testHeaders();
 
@@ -42,220 +182,162 @@ describe("RouterBilling & PlanGuard Subscription Lifecycle", () => {
     });
     expect(initialRes.status).toBe(426);
 
-    // 2. Process checkout.session.completed webhook
-    const periodEnd = Math.floor(Date.now() / 1000) + 60 * 24 * 60 * 60; // 60 days
-    const webhookRes = await billingApi.billing.webhook.post({
-      type: "checkout.session.completed",
-      data: {
-        object: {
-          client_reference_id: test_tenant.id,
-          customer: "cus_stripe_123",
-          subscription: "sub_stripe_abc",
-          current_period_start: Math.floor(Date.now() / 1000),
-          current_period_end: periodEnd,
-          metadata: {
-            plan: "PROFESSIONAL",
-            tenantId: test_tenant.id,
-          },
-        },
-      },
-    });
-
-    expect(webhookRes.status).toBe(200);
-    expect(webhookRes.data).toStrictEqual({
+    const raw = event(
+      "checkout.session.completed",
+      checkoutCompleted("PROFESSIONAL"),
+    );
+    const res = await send(raw, sign(raw));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toStrictEqual({
       success: true,
       event: "checkout.session.completed",
       tenantId: test_tenant.id,
       plan: ETenantPlan.PROFESSIONAL,
     });
 
-    // 3. Verify STenant record in DB updated
-    const [updatedTenant] = await test_db
-      .select()
-      .from(STenant)
-      .where(eq(STenant.id, test_tenant.id));
+    const updated = await tenantRow();
+    expect(updated.plan).toBe(ETenantPlan.PROFESSIONAL);
+    expect(updated.customerId).toBe("cus_stripe_123");
+    expect(updated.subscriptionId).toBe("sub_stripe_abc");
+    expect(await auditRows("SUBSCRIPTION_CREATED")).toHaveLength(1);
 
-    expect(updatedTenant.plan).toBe(ETenantPlan.PROFESSIONAL);
-    expect(updatedTenant.customerId).toBe("cus_stripe_123");
-    expect(updatedTenant.subscriptionId).toBe("sub_stripe_abc");
-
-    // 4. Verify system_audit_logs entry created
-    const [auditLog] = await test_db
-      .select()
-      .from(SSystemLog)
-      .where(
-        and(
-          eq(SSystemLog.tenantId, test_tenant.id),
-          eq(SSystemLog.action, "SUBSCRIPTION_CREATED"),
-        ),
-      );
-
-    expect(auditLog).toBeDefined();
-    expect(auditLog.action).toBe("SUBSCRIPTION_CREATED");
-
-    // 5. Verify PlanGuard now GRANTS access to PROFESSIONAL endpoint
     const postUpgradeRes = await protectedClient["pro-feature"].get({
       headers: userHeaders,
     });
     expect(postUpgradeRes.status).toBe(200);
-    expect(postUpgradeRes.data).toStrictEqual({ feature: "unlocked" });
   });
 
-  it("customer.subscription.updated: updates subscription end date and logs audit event", async () => {
-    const newPeriodEnd = Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60; // 90 days
+  it("[SEC-05] the same event id delivered twice is processed once", async () => {
+    await setPlan(ETenantPlan.BASIC);
+    const raw = event(
+      "checkout.session.completed",
+      checkoutCompleted("PRO"),
+      "evt_duplicate_1",
+    );
 
-    const webhookRes = await billingApi.billing.webhook.post({
-      type: "customer.subscription.updated",
-      data: {
-        object: {
-          id: "sub_stripe_abc",
-          customer: "cus_stripe_123",
-          current_period_end: newPeriodEnd,
-          metadata: {
-            tenantId: test_tenant.id,
-          },
-        },
-      },
+    const first = await send(raw, sign(raw));
+    expect(first.status).toBe(200);
+    expect((await tenantRow()).plan).toBe(ETenantPlan.PROFESSIONAL);
+
+    // If the second delivery were re-applied the plan would flip back.
+    await setPlan(ETenantPlan.BASIC);
+    const second = await send(raw, sign(raw));
+    expect(second.status).toBe(200);
+    expect(await second.json()).toMatchObject({ duplicate: true });
+    expect((await tenantRow()).plan).toBe(ETenantPlan.BASIC);
+    expect(await auditRows("SUBSCRIPTION_CREATED")).toHaveLength(1);
+  });
+
+  it("[SEC-05] an unknown plan string keeps the current plan and is ignored", async () => {
+    await setPlan(ETenantPlan.BASIC);
+    const raw = event(
+      "checkout.session.completed",
+      checkoutCompleted("PLATINUM_DELUXE"),
+    );
+    const res = await send(raw, sign(raw));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ignored: true });
+    expect((await tenantRow()).plan).toBe(ETenantPlan.BASIC);
+  });
+
+  it("[SEC-05] a missing plan never maps to the paid STANDARD tier", async () => {
+    await setPlan(ETenantPlan.BASIC);
+    const raw = event("checkout.session.completed", checkoutCompleted());
+    const res = await send(raw, sign(raw));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ignored: true });
+    expect((await tenantRow()).plan).toBe(ETenantPlan.BASIC);
+  });
+
+  it("[SEC-05] an unknown tenant → 200 { ignored: true } so the provider stops retrying", async () => {
+    const raw = event("checkout.session.completed", {
+      client_reference_id: "00000000-0000-0000-0000-999999999999",
+      customer: "cus_unknown",
+      subscription: "sub_unknown",
+      metadata: { plan: "PRO" },
     });
+    const res = await send(raw, sign(raw));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ignored: true });
+  });
 
-    expect(webhookRes.status).toBe(200);
-    expect(webhookRes.data?.success).toBe(true);
-
-    // Verify STenant has extended planEnd
-    const [tenant] = await test_db
-      .select()
-      .from(STenant)
-      .where(eq(STenant.id, test_tenant.id));
-
-    expect(tenant.planEnd.getTime()).toBeGreaterThan(Date.now());
-
-    // Verify audit log
-    const [auditLog] = await test_db
-      .select()
-      .from(SSystemLog)
-      .where(
-        and(
-          eq(SSystemLog.tenantId, test_tenant.id),
-          eq(SSystemLog.action, "SUBSCRIPTION_UPDATED"),
-        ),
+  it("[SEC-05] tenant update, audit row and event record commit or roll back together", async () => {
+    await setPlan(ETenantPlan.BASIC);
+    await test_db.execute(sql`
+      CREATE OR REPLACE FUNCTION test_fail_audit() RETURNS trigger AS $$
+      BEGIN RAISE EXCEPTION 'audit insert failed'; END $$ LANGUAGE plpgsql;
+    `);
+    await test_db.execute(sql`
+      CREATE TRIGGER test_fail_audit BEFORE INSERT ON system_audit_logs
+      FOR EACH ROW EXECUTE FUNCTION test_fail_audit();
+    `);
+    const raw = event(
+      "checkout.session.completed",
+      checkoutCompleted("PRO"),
+      "evt_atomic_1",
+    );
+    try {
+      expect((await send(raw, sign(raw))).status).toBe(500);
+      expect((await tenantRow()).plan).toBe(ETenantPlan.BASIC);
+    } finally {
+      await test_db.execute(
+        sql`DROP TRIGGER IF EXISTS test_fail_audit ON system_audit_logs`,
       );
+      await test_db.execute(sql`DROP FUNCTION IF EXISTS test_fail_audit()`);
+    }
 
-    expect(auditLog).toBeDefined();
-    expect(auditLog.action).toBe("SUBSCRIPTION_UPDATED");
+    // The failed attempt left no event record, so the retry is processed.
+    expect((await send(raw, sign(raw))).status).toBe(200);
+    expect((await tenantRow()).plan).toBe(ETenantPlan.PROFESSIONAL);
   });
 
-  it("customer.subscription.deleted: downgrades tenant to BASIC and revokes PlanGuard access", async () => {
-    // 1. Process customer.subscription.deleted
-    const webhookRes = await billingApi.billing.webhook.post({
-      type: "customer.subscription.deleted",
-      data: {
-        object: {
-          id: "sub_stripe_abc",
-          customer: "cus_stripe_123",
-          metadata: {
-            tenantId: test_tenant.id,
-          },
-        },
-      },
+  it("customer.subscription.updated: updates the subscription end date and logs an audit event", async () => {
+    const newPeriodEnd = nowSec() + 90 * 24 * 60 * 60;
+    const raw = event("customer.subscription.updated", {
+      id: "sub_stripe_abc",
+      customer: "cus_stripe_123",
+      current_period_start: nowSec(),
+      current_period_end: newPeriodEnd,
+      metadata: { tenantId: test_tenant.id, plan: "PROFESSIONAL" },
     });
+    const res = await send(raw, sign(raw));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toStrictEqual({
+      success: true,
+      event: "customer.subscription.updated",
+      tenantId: test_tenant.id,
+      plan: ETenantPlan.PROFESSIONAL,
+    });
+    const updated = await tenantRow();
+    expect(Math.floor(updated.planEnd.getTime() / 1000)).toBe(newPeriodEnd);
+    expect(await auditRows("SUBSCRIPTION_UPDATED")).toHaveLength(1);
+  });
 
-    expect(webhookRes.status).toBe(200);
-    expect(webhookRes.data).toStrictEqual({
+  it("customer.subscription.deleted: downgrades the tenant to BASIC and revokes PlanGuard access", async () => {
+    const raw = event("customer.subscription.deleted", {
+      id: "sub_stripe_abc",
+      customer: "cus_stripe_123",
+      metadata: { tenantId: test_tenant.id },
+    });
+    const res = await send(raw, sign(raw));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toStrictEqual({
       success: true,
       event: "customer.subscription.deleted",
       tenantId: test_tenant.id,
       plan: ETenantPlan.BASIC,
     });
+    expect((await tenantRow()).plan).toBe(ETenantPlan.BASIC);
+    expect(await auditRows("SUBSCRIPTION_CANCELED")).toHaveLength(1);
 
-    // 2. Verify STenant record in DB is now BASIC
-    const [downgradedTenant] = await test_db
-      .select()
-      .from(STenant)
-      .where(eq(STenant.id, test_tenant.id));
-
-    expect(downgradedTenant.plan).toBe(ETenantPlan.BASIC);
-
-    // 3. Verify audit log
-    const [auditLog] = await test_db
-      .select()
-      .from(SSystemLog)
-      .where(
-        and(
-          eq(SSystemLog.tenantId, test_tenant.id),
-          eq(SSystemLog.action, "SUBSCRIPTION_CANCELED"),
-        ),
-      );
-
-    expect(auditLog).toBeDefined();
-    expect(auditLog.action).toBe("SUBSCRIPTION_CANCELED");
-
-    // 4. Verify PlanGuard now BLOCKS access with 403 Forbidden
     const protectedApp = new Elysia()
       .use(Context.User())
       .get("/pro-feature", () => ({ feature: "unlocked" }), {
         PlanGuard: [ETenantPlan.PROFESSIONAL],
       });
-
-    const protectedClient = treaty(protectedApp);
-    const userHeaders = await testHeaders();
-
-    const blockedRes = await protectedClient["pro-feature"].get({
-      headers: userHeaders,
+    const blockedRes = await treaty(protectedApp)["pro-feature"].get({
+      headers: await testHeaders(),
     });
     expect(blockedRes.status).toBe(426);
-  });
-
-  it("Webhook Signature: Rejects invalid or missing signature when secret is configured", async () => {
-    const secret = "whsec_test_secret_123";
-    const originalSecret = Bun.env.BILLING_WEBHOOK_SECRET;
-    Bun.env.BILLING_WEBHOOK_SECRET = secret;
-
-    try {
-      const payload = {
-        type: "customer.subscription.updated",
-        tenantId: test_tenant.id,
-      };
-
-      // Missing signature header
-      const noSigRes = await billingApi.billing.webhook.post(payload);
-      expect(noSigRes.status).toBe(401);
-
-      // Invalid signature header
-      const badSigRes = await billingApi.billing.webhook.post(payload, {
-        headers: {
-          "stripe-signature": "invalid_sig",
-        },
-      });
-      expect(badSigRes.status).toBe(401);
-
-      // Valid signature header (simple secret match or HMAC)
-      const validSigRes = await billingApi.billing.webhook.post(payload, {
-        headers: {
-          "stripe-signature": secret,
-        },
-      });
-      expect(validSigRes.status).toBe(200);
-    } finally {
-      if (originalSecret !== undefined) {
-        Bun.env.BILLING_WEBHOOK_SECRET = originalSecret;
-      } else {
-        delete Bun.env.BILLING_WEBHOOK_SECRET;
-      }
-    }
-  });
-
-  it("Negative: Non-existent tenant returns 404 Not Found", async () => {
-    const res = await billingApi.billing.webhook.post({
-      type: "checkout.session.completed",
-      data: {
-        object: {
-          client_reference_id: "00000000-0000-0000-0000-999999999999",
-          customer: "cus_unknown",
-          subscription: "sub_unknown",
-        },
-      },
-    });
-
-    expect(res.status).toBe(404);
   });
 });

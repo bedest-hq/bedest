@@ -8,6 +8,13 @@
       "when": 1791726662957,
       "tag": "0000_shallow_exiles",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794150914951,
+      "tag": "0001_billing_events",
+      "breakpoints": true
     }
   ]
 }

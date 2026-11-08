@@ -80,6 +80,8 @@ const test_env: TEnv = {
   SECRET_KEY: "secret-key",
   PORT: 3000,
 
+  BILLING_WEBHOOK_SECRET: "whsec_test_secret_123",
+
   TRUST_PROXY_HOPS: 0,
   RATE_LIMIT_LOGIN_PER_MIN: 5,
   RATE_LIMIT_LOGIN_IP_PER_MIN: 20,

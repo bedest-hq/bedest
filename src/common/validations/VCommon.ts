@@ -44,6 +44,10 @@ export const VEnv = t.Object({
 
   REDIS_URL: t.Optional(t.String()),
 
+  // Stripe webhook signing secret (whsec_...). When unset the billing
+  // webhook route is not mounted at all.
+  BILLING_WEBHOOK_SECRET: t.Optional(t.String({ minLength: 1 })),
+
   // Number of trusted reverse proxies in front of the app. 0 = ignore
   // X-Forwarded-For and use the socket address.
   TRUST_PROXY_HOPS: t.Integer({ minimum: 0, maximum: 10, default: 0 }),
