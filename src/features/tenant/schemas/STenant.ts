@@ -1,4 +1,10 @@
-import { pgTable, varchar, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  varchar,
+  timestamp,
+  uuid,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { ETenantPlanPg } from "../enums/ETenantPlan";
 import { baseColumns, UtilDbSchema } from "bedest-core";
 
@@ -29,6 +35,9 @@ export const STenant = pgTable(
     planEnd: timestamp({ withTimezone: true }).notNull(),
     subscriptionId: varchar({ length: 255 }),
     customerId: varchar({ length: 255 }),
+    // The tenant that owns the platform SYSTEM users; never deletable
+    // [SEC-13]. Set by the seed.
+    isSystem: boolean().notNull().default(false),
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_tenants_active", t.id),

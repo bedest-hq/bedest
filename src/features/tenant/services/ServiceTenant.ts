@@ -81,6 +81,22 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
     if (!c.session?.isSuperUser && id !== c.tenantId) {
       throw status("Forbidden");
     }
+    // Never orphan the platform or lock the actor out [SEC-13].
+    if (id === c.tenantId) {
+      throw status("Conflict", {
+        message: "Cannot delete the tenant of the acting user",
+      });
+    }
+    const [target] = await UtilTenantScope.systemScope(c.db, (tx) =>
+      tx
+        .select({ isSystem: STenant.isSystem })
+        .from(STenant)
+        .where(and(eq(STenant.id, id), eq(STenant.isDeleted, false)))
+        .limit(1),
+    );
+    if (target?.isSystem) {
+      throw status("Conflict", { message: "Cannot delete the system tenant" });
+    }
     const res = await this.scoped(c, (sc) => super.remove(sc, id));
     // Users of a deleted tenant must lose access immediately [SEC-08].
     await ServiceSession.revokeTenantSessions(c, id);

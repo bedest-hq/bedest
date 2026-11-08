@@ -50,6 +50,20 @@
       "when": 1794165104066,
       "tag": "0006_users_email_lower_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794165374726,
+      "tag": "0007_tenants_is_system",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794165375516,
+      "tag": "0008_mark_system_tenant",
+      "breakpoints": true
     }
   ]
 }

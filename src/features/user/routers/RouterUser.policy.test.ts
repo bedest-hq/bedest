@@ -62,6 +62,10 @@ describe("SEC-12: user management policy matrix", () => {
             const target = sameTenant
               ? await createTestUser(targetRole)
               : await createForeignTenant(targetRole);
+            if (action === "remove" && targetRole === EUserRole.ADMIN) {
+              // [SEC-13] the last ADMIN of a tenant can never be deleted.
+              await createTestUser(EUserRole.ADMIN, target.tenant);
+            }
 
             const res = await perform(action, actor.headers, target.user.id);
             expect(res.status).toBe(status);

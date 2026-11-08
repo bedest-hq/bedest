@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { t } from "elysia";
 import { TDb, UtilTenantScope } from "bedest-core";
 import { TEnv } from "@/common/types/TEnv";
@@ -82,7 +82,10 @@ export async function runSeed(
       .select({ id: STenant.id })
       .from(STenant)
       .where(
-        and(eq(STenant.name, SYSTEM_TENANT_NAME), eq(STenant.isDeleted, false)),
+        and(
+          or(eq(STenant.isSystem, true), eq(STenant.name, SYSTEM_TENANT_NAME)),
+          eq(STenant.isDeleted, false),
+        ),
       )
       .limit(1);
 
@@ -93,6 +96,7 @@ export async function runSeed(
           .insert(STenant)
           .values({
             name: SYSTEM_TENANT_NAME,
+            isSystem: true,
             country: "Turkey",
             domain: "bedest.com",
             phones: ["xxx-xxx-xxx-xxxx"],

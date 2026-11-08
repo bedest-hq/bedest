@@ -1,7 +1,7 @@
 import { EUserRole } from "../enums/EUserRole";
 import { SUser } from "../schemas/SUser";
 import { status } from "elysia";
-import { eq, and } from "drizzle-orm";
+import { and, count, eq, ne } from "drizzle-orm";
 import { ITenantUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core";
 import { IPolicyActor, UtilUserPolicy } from "../utils/UtilUserPolicy";
 import { UtilEmail } from "../utils/UtilEmail";
@@ -171,12 +171,44 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     return { success: true };
   }
 
+  /**
+   * Refuses to delete the last active ADMIN of a tenant or the last active
+   * SYSTEM user of the platform (self-lockout, orphaned tenants) [SEC-13].
+   */
+  private async assertNotLastPrivileged(
+    c: ITenantUserApp,
+    target: { id: string; role: string; tenantId: string },
+  ) {
+    if (target.role !== EUserRole.ADMIN && target.role !== EUserRole.SYSTEM) {
+      return;
+    }
+    const sameRole = and(
+      eq(SUser.role, target.role === EUserRole.ADMIN ? EUserRole.ADMIN : EUserRole.SYSTEM),
+      eq(SUser.isDeleted, false),
+      ne(SUser.id, target.id),
+      target.role === EUserRole.ADMIN ? eq(SUser.tenantId, target.tenantId) : undefined,
+    );
+    const [others] = await UtilTenantScope.systemScope(c.db, (tx) =>
+      tx.select({ n: count() }).from(SUser).where(sameRole),
+    );
+    if (Number(others?.n ?? 0) === 0) {
+      throw status("Conflict", {
+        message:
+          target.role === EUserRole.ADMIN
+            ? "Cannot delete the last active ADMIN of the tenant"
+            : "Cannot delete the last active SYSTEM user",
+      });
+    }
+  }
+
   override async remove(c: ITenantUserApp, id: string) {
     const target = await this.loadTarget(c, id);
 
     if (!UtilUserPolicy.canManage(this.actor(c), target)) {
       throw status("Forbidden");
     }
+
+    await this.assertNotLastPrivileged(c, target);
 
     const res = await super.remove(c, id);
     await ServiceSession.revokeUserSessions(c, id);
