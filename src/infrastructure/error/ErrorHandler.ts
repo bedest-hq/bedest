@@ -61,7 +61,8 @@ export const ErrorHandler = new Elysia({
     };
   }
 
-  logger.error({ error }, "Internal Server Error.");
+  // pino serializes Error objects only under "err" [SEC-20].
+  logger.error({ err: error }, "Internal Server Error.");
 
   set.status = 500;
   return {

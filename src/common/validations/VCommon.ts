@@ -47,6 +47,18 @@ export const VEnv = t.Object({
   REFRESH_KEY: t.String({ minLength: 32 }),
 
   PORT: t.Number(),
+  // pino level; default info (silent when NODE_ENV=test).
+  LOG_LEVEL: t.Optional(
+    t.Union([
+      t.Literal("fatal"),
+      t.Literal("error"),
+      t.Literal("warn"),
+      t.Literal("info"),
+      t.Literal("debug"),
+      t.Literal("trace"),
+      t.Literal("silent"),
+    ]),
+  ),
   // Serve /api/docs in production too (always served in other modes).
   ENABLE_API_DOCS: t.Optional(t.Boolean()),
   // Hard deadline for the graceful shutdown before exiting with code 1.
