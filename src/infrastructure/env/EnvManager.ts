@@ -1,6 +1,7 @@
 import { TEnv } from "@/common/types/TEnv";
 import { VEnv } from "@/common/validations/VCommon";
 import { Value } from "@sinclair/typebox/value";
+import type { Static, TSchema } from "elysia";
 import { UtilEnv } from "./UtilEnv";
 
 export type TRawEnv = Record<string, string | undefined>;
@@ -72,6 +73,24 @@ export class EnvManager {
         "Env Configuration Error [CORS_ORIGINS]: wildcard origins are not allowed in production.",
       );
     }
+  }
+
+  /**
+   * Validates script-only variables (seed, provisioning, maintenance
+   * scripts) against their own schema. They never enter the server `VEnv`.
+   */
+  parseScript<T extends TSchema>(
+    schema: T,
+    source: TRawEnv = Bun.env,
+  ): Static<T> {
+    const value = Value.Default(schema, Value.Convert(schema, { ...source }));
+    if (!Value.Check(schema, value)) {
+      const errors = [...Value.Errors(schema, value)].map(
+        (e) => `[${e.path.replace(/^\//, "")}] ${e.message}`,
+      );
+      throw new Error(`Script Env Configuration Error: ${errors.join("; ")}`);
+    }
+    return value;
   }
 
   /** Non-fatal configuration warnings collected by the last `init()`. */
