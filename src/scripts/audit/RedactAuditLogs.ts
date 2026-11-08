@@ -2,7 +2,7 @@ import { asc, eq, gt, sql } from "drizzle-orm";
 import { TDb, UtilAudit, UtilTenantScope } from "bedest-core";
 import { SSystemLog } from "@f/system/schemas/SSystemLog";
 import EnvManager from "@/infrastructure/env/EnvManager";
-import DbManager from "@/infrastructure/database/DbManager";
+import { UtilScriptDb } from "../database/UtilScriptDb";
 
 export interface IRedactOptions {
   /** false (default) = dry run: report what would change, write nothing. */
@@ -92,14 +92,16 @@ export async function redactAuditLogs(
 
 async function main() {
   const env = EnvManager.init();
-  DbManager.init(env);
+  // The application role may not UPDATE audit rows [SEC-04]: run as the
+  // schema owner (DATABASE_MIGRATION_USER).
+  const owner = UtilScriptDb.openOwner(env);
   try {
-    await redactAuditLogs(DbManager.get(), {
+    await redactAuditLogs(owner.db, {
       apply: process.argv.includes("--apply"),
       print: (line) => process.stdout.write(`${line}\n`),
     });
   } finally {
-    await DbManager.shutdown();
+    await owner.end();
   }
 }
 

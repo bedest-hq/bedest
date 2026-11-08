@@ -173,6 +173,28 @@ bun run dev
 
 Access the Swagger documentation at: `http://localhost:3000/api/docs`
 
+## Database roles & RLS
+
+Tenant isolation is enforced by PostgreSQL row-level security, which **superusers, table owners and `BYPASSRLS` roles silently skip**. Bedest therefore uses two kinds of database credentials:
+
+| Role | Used by | Privileges |
+| --- | --- | --- |
+| Schema owner (`DATABASE_MIGRATION_USER` / `DATABASE_MIGRATION_PASSWORD`) | `drizzle-kit`, the migration runner and maintenance scripts (`RedactAuditLogs`) | Owns the tables; runs DDL. |
+| `bedest_app` (group role, `NOLOGIN NOSUPERUSER NOBYPASSRLS`) | — | `SELECT, INSERT, UPDATE, DELETE` on all tables, `SELECT, INSERT` only on `system_audit_logs`; future tables via default privileges. |
+| Runtime login (`DATABASE_USER` / `DATABASE_PASSWORD`) | The API server | Member of `bedest_app`, nothing else. |
+
+Every RLS table has `FORCE ROW LEVEL SECURITY` (migration `0004_rls_roles_and_force`), so even the owner is subject to the policies. All application queries run inside `UtilTenantScope.tenantScope` (tenant-bound) or `UtilTenantScope.systemScope` (explicit, audited cross-tenant access); unscoped queries see no rows.
+
+Provision the roles once per environment with superuser credentials, then migrate as the owner:
+
+```bash
+DATABASE_ADMIN_USER=postgres DATABASE_ADMIN_PASSWORD=... bun run src/scripts/database/ProvisionRoles.ts
+```
+
+`ProvisionRoles` creates `bedest_app` (if missing) and the `DATABASE_USER` login as its member with `DATABASE_PASSWORD`; it is idempotent and can be re-run to rotate the password. At boot the server checks `pg_roles` for the current user: in `production` it **refuses to start** as a superuser or `BYPASSRLS` role; in other environments it logs a warning.
+
+In tests the application connection runs as `bedest_app` as well (`TestManager` wraps every app statement in `SET LOCAL ROLE bedest_app`), and `src/infrastructure/database/RLS.test.ts` proves for every RLS table that one tenant can neither read, change, delete nor insert another tenant's rows.
+
 ## Testing
 
 Bedest uses **PGlite** for lightning-fast, isolated database tests. Tests run against an in-memory instance, allowing for safe mutations, real schema checks, and instant feedback without requiring a running Docker container.

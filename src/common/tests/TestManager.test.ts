@@ -1,5 +1,5 @@
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
+import { PGlite, type Transaction } from "@electric-sql/pglite";
+import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { sql } from "drizzle-orm";
 import {
@@ -98,12 +98,46 @@ const test_env: TEnv = {
 };
 
 const test_client = new PGlite();
+/** Superuser connection: migrations, fixtures and assertions only. */
 const test_db = drizzle(test_client);
 
+/**
+ * The application's connection [SEC-04]: every statement runs inside a
+ * transaction as the non-privileged `bedest_app` role, exactly like the
+ * production login, so RLS policies are really enforced in tests.
+ */
+const appClient = new Proxy(test_client, {
+  get(target, prop) {
+    if (prop === "query") {
+      return (...args: Parameters<PGlite["query"]>) =>
+        target.transaction(async (tx) => {
+          await tx.exec("SET LOCAL ROLE bedest_app");
+          return await tx.query(...args);
+        });
+    }
+    if (prop === "transaction") {
+      return <T>(fn: (tx: Transaction) => Promise<T>) =>
+        target.transaction(async (tx) => {
+          await tx.exec("SET LOCAL ROLE bedest_app");
+          return await fn(tx);
+        });
+    }
+    const value: unknown = Reflect.get(target, prop, target);
+    return typeof value === "function" ? value.bind(target) : value;
+  },
+});
+const test_app_db = drizzle({ client: appClient });
+
+// drizzle's PGlite and node-postgres database types are not mutually
+// assignable although the runtime API is the same (see CORE-10).
+const asNodePg = (db: PgliteDatabase): NodePgDatabase =>
+  db as unknown as NodePgDatabase;
+
+/** Superuser handle typed like the app's database (for script functions). */
+export const test_owner_db = asNodePg(test_db);
+
 spyOn(EnvManager.default, "get").mockReturnValue(test_env);
-spyOn(DbManager.default, "get").mockReturnValue(
-  test_db as unknown as NodePgDatabase,
-);
+spyOn(DbManager.default, "get").mockReturnValue(asNodePg(test_app_db));
 
 // Imported after the spies: they pull in modules that read the env on import.
 const RateLimitManager = await import(

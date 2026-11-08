@@ -12,6 +12,12 @@ import { checkForUpdates } from "./infrastructure/update/UpdateChecker";
 const env = EnvManager.init();
 
 DbManager.init(env);
+
+// Superuser / BYPASSRLS connections silently disable RLS [SEC-04].
+const roleWarning = await DbManager.verifyRuntimeRole(
+  DbManager.get(),
+  env.NODE_ENV,
+);
 RedisManager.init(env.REDIS_URL);
 
 const { Router } = await import("./app/Router");
@@ -32,7 +38,10 @@ if (app.server) {
   WsManager.init(app.server);
 }
 
-for (const warning of EnvManager.getWarnings()) {
+for (const warning of [
+  ...EnvManager.getWarnings(),
+  ...(roleWarning ? [roleWarning] : []),
+]) {
   logger.warn(warning);
 }
 

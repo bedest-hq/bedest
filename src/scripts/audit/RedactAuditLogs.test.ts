@@ -2,11 +2,12 @@ import { describe, it, expect } from "bun:test";
 import { eq } from "drizzle-orm";
 import {
   test_db,
+  test_owner_db,
   test_tenant,
   test_user,
 } from "@/common/tests/TestManager.test";
 import { SSystemLog } from "@f/system/schemas/SSystemLog";
-import DbManager from "@/infrastructure/database/DbManager";
+
 import { redactAuditLogs } from "./RedactAuditLogs";
 
 const insertLog = async (payload: Record<string, unknown>) => {
@@ -42,7 +43,9 @@ describe("RedactAuditLogs", () => {
     }
     const clean = await insertLog({ name: "unchanged", statusCode: 200 });
     const lines: string[] = [];
-    const db = DbManager.get();
+    // Maintenance runs as the schema owner: the app role may not UPDATE
+    // audit rows [SEC-04].
+    const db = test_owner_db;
 
     const dry = await redactAuditLogs(db, {
       apply: false,
