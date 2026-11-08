@@ -116,3 +116,15 @@ describe("EnvManager (SEC-16)", () => {
     expect(message).toContain("REFRESH_KEY");
   });
 });
+
+describe("EnvManager (SEC-18)", () => {
+  it("[SEC-18] MAX_REQUEST_BODY_BYTES must leave room for STORAGE_MAX_BYTES uploads", () => {
+    expect(() =>
+      new EnvManager().init({
+        ...validRaw(),
+        STORAGE_MAX_BYTES: String(10 * 1024 * 1024),
+        MAX_REQUEST_BODY_BYTES: String(10 * 1024 * 1024),
+      }),
+    ).toThrow(/MAX_REQUEST_BODY_BYTES/);
+  });
+});

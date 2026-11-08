@@ -79,6 +79,7 @@ const test_env: TEnv = {
   REFRESH_KEY: "test-refresh-key-at-least-32-characters-long",
   SECRET_KEY: "test-access-key-at-least-32-characters-long",
   PORT: 3000,
+  MAX_REQUEST_BODY_BYTES: 10 * 1024 * 1024,
   SHUTDOWN_TIMEOUT_MS: 15000,
 
   BILLING_WEBHOOK_SECRET: "whsec_test_secret_123",

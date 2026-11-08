@@ -101,6 +101,13 @@ export class EnvManager {
       errors.push("[REFRESH_KEY] SECRET_KEY and REFRESH_KEY must differ.");
     }
 
+    // Uploads arrive as multipart bodies: leave room for the envelope.
+    if (env.MAX_REQUEST_BODY_BYTES < env.STORAGE_MAX_BYTES + 64 * 1024) {
+      errors.push(
+        "[MAX_REQUEST_BODY_BYTES] must be at least STORAGE_MAX_BYTES + 65536 (multipart overhead).",
+      );
+    }
+
     if (env.DATABASE_SSL_MODE === "require") {
       warnings.push(
         "DATABASE_SSL_MODE=require encrypts the database connection but does not verify the server certificate; prefer verify-full (with DATABASE_SSL_CA).",

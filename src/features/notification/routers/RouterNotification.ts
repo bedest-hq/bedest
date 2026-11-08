@@ -3,6 +3,8 @@ import { Elysia, t } from "elysia";
 import ServiceNotification from "../services/ServiceNotification";
 import { UtilRouter, VId, VQuery } from "bedest-core";
 import WsManager from "@/infrastructure/websocket/WsManager";
+import EnvManager from "@/infrastructure/env/EnvManager";
+import { UtilOrigin } from "@/app/plugins/UtilOrigin";
 
 export const RouterNotification = new Elysia({
   prefix: "/notifications",
@@ -61,6 +63,18 @@ export const RouterNotification = new Elysia({
   // WebSocket
 
   .ws("/live", {
+    // Cross-site WebSocket hijacking protection [SEC-18]: in production the
+    // upgrade is refused unless Origin is one of CORS_ORIGINS.
+    beforeHandle({ request, set }) {
+      const env = EnvManager.get();
+      if (
+        env.NODE_ENV === "production" &&
+        !UtilOrigin.isAllowed(request.headers.get("origin"), env)
+      ) {
+        set.status = 403;
+        return "Forbidden";
+      }
+    },
     body: t.Object({
       event: t.Literal("ping"),
     }),

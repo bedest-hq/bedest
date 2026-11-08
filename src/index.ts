@@ -9,6 +9,9 @@ import { logger } from "./infrastructure/logger/logger";
 import WsManager from "./infrastructure/websocket/WsManager";
 import { checkForUpdates } from "./infrastructure/update/UpdateChecker";
 import { createShutdown } from "./app/Shutdown";
+import { PluginSecurityHeaders } from "./app/plugins/PluginSecurityHeaders";
+import { PluginBodyLimit } from "./app/plugins/PluginBodyLimit";
+import { PluginCsrf } from "./app/plugins/PluginCsrf";
 import ServiceHealth from "./features/health/services/ServiceHealth";
 
 const env = EnvManager.init();
@@ -31,10 +34,14 @@ export const app = new Elysia()
       credentials: true,
     }),
   )
+  // HTTP hardening [SEC-18]: headers, body limit and CSRF run first.
+  .use(PluginSecurityHeaders)
+  .use(PluginBodyLimit)
+  .use(PluginCsrf)
   .use(ErrorHandler)
   .get("/favicon.ico", () => Bun.file("public/favicon.ico"))
   .use(Router)
-  .listen(env.PORT);
+  .listen({ port: env.PORT, maxRequestBodySize: env.MAX_REQUEST_BODY_BYTES });
 
 if (app.server) {
   WsManager.init(app.server);
