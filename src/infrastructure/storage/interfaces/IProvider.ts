@@ -9,6 +9,7 @@ export interface IProvider {
   getUploadUrl?(
     key: string,
     contentType: string,
+    contentLength: number,
     expiresIn?: number,
   ): Promise<string>;
   getDownloadUrl?(key: string, expiresIn?: number): Promise<string>;

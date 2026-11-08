@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import Context from "@/app/Context";
 import ServiceStorage from "../services/ServiceStorage";
 import { SStorage } from "../schemas/SStorage";
+import { UtilStorage } from "../utils/UtilStorage";
 import { UtilRouter, VId, VQuery, VString } from "bedest-core";
 
 export const RouterStorage = new Elysia({
@@ -17,9 +18,10 @@ export const RouterStorage = new Elysia({
     },
     {
       body: t.Object({
+        // The shared allowlist and size limit (also used by presign) [SEC-10].
         file: t.File({
-          maxSize: 5 * 1024 * 1024,
-          type: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+          maxSize: UtilStorage.maxBytes(),
+          type: UtilStorage.allowedTypes(),
         }),
       }),
       response: t.Object({
@@ -72,11 +74,7 @@ export const RouterStorage = new Elysia({
         params.id,
       );
 
-      set.headers["Content-Type"] = metadata.mimeType;
-
-      const encodedName = encodeURIComponent(metadata.name);
-      set.headers["Content-Disposition"] =
-        `attachment; filename*=UTF-8''${encodedName}`;
+      Object.assign(set.headers, UtilStorage.fileHeaders(metadata, "attachment"));
 
       return fileBlob;
     },
@@ -90,12 +88,8 @@ export const RouterStorage = new Elysia({
         params.id,
       );
 
-      set.headers["Content-Type"] = metadata.mimeType;
-
-      const encodedName = encodeURIComponent(metadata.name);
-
-      set.headers["Content-Disposition"] =
-        `inline; filename*=UTF-8''${encodedName}`;
+      // Inline only for inline-safe types; always nosniff + sandbox [SEC-10].
+      Object.assign(set.headers, UtilStorage.fileHeaders(metadata, "inline"));
 
       return fileBlob;
     },
@@ -111,7 +105,7 @@ export const RouterStorage = new Elysia({
       body: t.Object({
         name: VString,
         mimeType: VString,
-        size: t.Number({ minimum: 1 }),
+        size: t.Integer({ minimum: 1 }),
       }),
       response: t.Object({
         uploadUrl: VString,

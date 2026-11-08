@@ -35,6 +35,13 @@ export const VEnv = t.Object({
   PORT: t.Number(),
 
   LOCAL_STORAGE_PATH: t.Optional(t.String()),
+  // Comma-separated MIME allowlist shared by direct and presigned uploads.
+  STORAGE_ALLOWED_TYPES: t.String({
+    minLength: 1,
+    default: "image/jpeg,image/png,image/webp,application/pdf",
+  }),
+  // Maximum size of one stored file, in bytes (default 5 MiB).
+  STORAGE_MAX_BYTES: t.Integer({ minimum: 1, default: 5 * 1024 * 1024 }),
 
   S3_ENDPOINT: t.Optional(t.String()),
   S3_REGION: t.Optional(t.String()),

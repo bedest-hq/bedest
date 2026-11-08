@@ -104,20 +104,30 @@ export class ProviderS3 implements IProvider {
     }
   }
 
+  /**
+   * Presigned PUT that binds the declared type and size: Content-Type and
+   * Content-Length are part of the signature, so the client cannot upload a
+   * different type or more bytes than declared [SEC-10].
+   */
   async getUploadUrl(
     key: string,
     contentType: string,
+    contentLength: number,
     expiresIn = 300,
   ): Promise<string> {
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
       ContentType: contentType,
+      ContentLength: contentLength,
     });
     return await getSignedUrl(
       this.client as unknown as Parameters<typeof getSignedUrl>[0],
       command as unknown as Parameters<typeof getSignedUrl>[1],
-      { expiresIn },
+      {
+        expiresIn,
+        signableHeaders: new Set(["content-type", "content-length"]),
+      },
     );
   }
 

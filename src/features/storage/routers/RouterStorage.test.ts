@@ -1,6 +1,9 @@
 import { describe, it, expect, spyOn, mock } from "bun:test";
 import { treaty } from "@elysiajs/eden";
-import { testHeaders } from "@/common/tests/TestManager.test";
+import { eq } from "drizzle-orm";
+import { test_db, testHeaders } from "@/common/tests/TestManager.test";
+import { SStorage } from "../schemas/SStorage";
+import { EStorageStatus } from "../enums/EStorageStatus";
 import { RouterStorage } from "./RouterStorage";
 
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
@@ -130,6 +133,13 @@ describe("RouterStorage", () => {
     expect(presignUploadRes.data?.id).toBeDefined();
 
     const fileId = presignUploadRes.data!.id;
+
+    // [SEC-10] A presigned upload starts PENDING and is never served until
+    // it is finalized; simulate the finalization (FEAT-12) here.
+    await test_db
+      .update(SStorage)
+      .set({ status: EStorageStatus.READY })
+      .where(eq(SStorage.id, fileId));
 
     // 2. Presign download URL
     const presignDownloadRes = await api.storage({ id: fileId })["presign-download"].get({

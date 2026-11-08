@@ -88,6 +88,8 @@ const test_env: TEnv = {
   RATE_LIMIT_REFRESH_PER_MIN: 30,
 
   LOCAL_STORAGE_PATH: "./test_uploads",
+  STORAGE_ALLOWED_TYPES: "image/jpeg,image/png,image/webp,application/pdf",
+  STORAGE_MAX_BYTES: 5 * 1024 * 1024,
   S3_ENDPOINT: "http://localhost:9000",
   S3_REGION: "us-east-1",
   S3_ACCESS_KEY: "testkey",

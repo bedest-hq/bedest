@@ -55,13 +55,19 @@ class StorageManager {
   async getUploadUrl(
     key: string,
     contentType: string,
+    contentLength: number,
     expiresIn = 300,
   ): Promise<string> {
     if (!this.activeProvider) {
       throw status("Service Unavailable");
     }
     if (this.activeProvider.getUploadUrl) {
-      return await this.activeProvider.getUploadUrl(key, contentType, expiresIn);
+      return await this.activeProvider.getUploadUrl(
+        key,
+        contentType,
+        contentLength,
+        expiresIn,
+      );
     }
     return `/storage/upload?key=${encodeURIComponent(key)}`;
   }
