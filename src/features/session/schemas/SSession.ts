@@ -10,6 +10,8 @@ export const SSession = pgTable(
     tenantId: uuid()
       .references(() => STenant.id)
       .notNull(),
+    // All sessions produced by rotating one login share a family [SEC-09].
+    familyId: uuid().defaultRandom().notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull(),
     expiresAt: timestamp({ withTimezone: true }).notNull(),
   },
@@ -17,6 +19,7 @@ export const SSession = pgTable(
   (t) => [
     index().on(t.userId),
     index("idx_sessions_expires_at").on(t.expiresAt),
+    index("idx_sessions_family").on(t.familyId),
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();

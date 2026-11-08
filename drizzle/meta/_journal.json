@@ -15,6 +15,13 @@
       "when": 1794150914951,
       "tag": "0001_billing_events",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794151821214,
+      "tag": "0002_session_token_families",
+      "breakpoints": true
     }
   ]
 }
