@@ -113,7 +113,8 @@ class ServiceAuth {
 
   async logout(c: ITenantUserApp) {
     await ServiceSession.remove(c, c.session.sessionId);
-    WsManager.disconnectUser(c.session.userId);
+    // Only this device: other sessions of the user stay connected [BUG-06].
+    WsManager.disconnectSession(c.session.sessionId);
   }
 
   /**
