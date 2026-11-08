@@ -2,7 +2,6 @@ import { Elysia, status, t } from "elysia";
 import { rateLimit } from "elysia-rate-limit";
 import Context from "@/app/Context";
 import EnvManager from "@/infrastructure/env/EnvManager";
-import { SYSTEM_EMAIL, SYSTEM_USER_PASSWORD } from "@/common/constants";
 import { EUserRole } from "@/features/user/enums/EUserRole";
 import ServiceAuth from "../services/ServiceAuth";
 import { UtilAuth } from "../utils/UtilAuth";
@@ -33,10 +32,7 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
         async ({ body, nowDatetime, db, refreshJwt, accessJwt, cookie }) => {
           const payload = await ServiceAuth.login(
             { nowDatetime, db },
-            {
-              email: body.email ?? SYSTEM_EMAIL,
-              password: body.password ?? SYSTEM_USER_PASSWORD,
-            },
+            { email: body.email, password: body.password },
           );
 
           const refreshToken = await refreshJwt.sign(payload);
@@ -56,19 +52,8 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
         },
         {
           body: t.Object({
-            email: t.String({
-              format: "email",
-              ...(env.NODE_ENV === "development" && {
-                default: SYSTEM_EMAIL,
-              }),
-            }),
-            password: t.String({
-              minLength: 6,
-              maxLength: 100,
-              ...(env.NODE_ENV === "development" && {
-                default: SYSTEM_USER_PASSWORD,
-              }),
-            }),
+            email: t.String({ format: "email" }),
+            password: t.String({ minLength: 6, maxLength: 100 }),
           }),
           response: t.Object({ success: t.Boolean(), id: VId }),
         },

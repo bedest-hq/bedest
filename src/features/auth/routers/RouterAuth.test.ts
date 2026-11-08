@@ -1,9 +1,50 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, spyOn } from "bun:test";
 import { treaty } from "@elysiajs/eden";
-import { testHeaders, test_user } from "@/common/tests/TestManager.test";
+import { Elysia } from "elysia";
+import {
+  testHeaders,
+  test_env,
+  test_user,
+} from "@/common/tests/TestManager.test";
+import EnvManager from "@/infrastructure/env/EnvManager";
+import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterAuth } from "./RouterAuth";
 
 const authApi = treaty(RouterAuth);
+
+const postLogin = (app: { handle: (r: Request) => Promise<Response> }, body: unknown) =>
+  app.handle(
+    new Request("http://localhost/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
+
+describe("SEC-01: login never falls back to seeded credentials", () => {
+  for (const nodeEnv of ["development", "test", "production"] as const) {
+    it(`[SEC-01] NODE_ENV=${nodeEnv}: {} and { email } only are rejected with 400`, async () => {
+      const envSpy = spyOn(EnvManager, "get").mockReturnValue({
+        ...test_env,
+        NODE_ENV: nodeEnv,
+      });
+      // A fresh module instance so the router is built under this NODE_ENV.
+      const modulePath = `./RouterAuth.ts?sec01=${nodeEnv}`;
+      const mod: typeof import("./RouterAuth") = await import(modulePath);
+      envSpy.mockReturnValue(test_env);
+
+      const app = new Elysia().use(ErrorHandler).use(mod.RouterAuth);
+
+      const empty = await postLogin(app, {});
+      expect(empty.status).toBe(400);
+      expect(empty.headers.getSetCookie()).toHaveLength(0);
+
+      const emailOnly = await postLogin(app, { email: test_user.email });
+      expect(emailOnly.status).toBe(400);
+      expect(emailOnly.headers.getSetCookie()).toHaveLength(0);
+    });
+  }
+});
 
 describe("RouterAuth", () => {
   it("Login", async () => {
