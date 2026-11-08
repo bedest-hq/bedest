@@ -69,9 +69,6 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
       delete (allowedData as Record<string, unknown>).plan;
       delete (allowedData as Record<string, unknown>).planStart;
       delete (allowedData as Record<string, unknown>).planEnd;
-      if (Object.keys(allowedData).length === 0) {
-        return { success: true };
-      }
       return this.scoped(c, (sc) => super.update(sc, id, allowedData));
     }
     return this.scoped(c, (sc) => super.update(sc, id, data));
