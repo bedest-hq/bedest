@@ -10,11 +10,16 @@ export const VDefault = {
 };
 
 export const VEnv = t.Object({
-  NODE_ENV: t.Union(
-    [t.Literal("development"), t.Literal("production"), t.Literal("test")],
-    { default: "development" },
-  ),
-  CORS_ORIGIN: t.String({ default: "http://localhost:3000" }),
+  // Required: no default, so a forgotten NODE_ENV can never mean "development".
+  NODE_ENV: t.Union([
+    t.Literal("development"),
+    t.Literal("production"),
+    t.Literal("test"),
+  ]),
+  // Comma-separated list of allowed browser origins (required in production).
+  CORS_ORIGINS: t.Optional(t.String()),
+  // DEPRECATED: use CORS_ORIGINS. Still read (with a warning) for one release.
+  CORS_ORIGIN: t.Optional(t.String()),
 
   DATABASE_HOST: t.String(),
   DATABASE_PORT: t.Number(),

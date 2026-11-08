@@ -1,19 +1,35 @@
 import { TEnv } from "@/common/types/TEnv";
 import { VEnv } from "@/common/validations/VCommon";
 import { Value } from "@sinclair/typebox/value";
+import { UtilEnv } from "./UtilEnv";
 
-class EnvManager {
+export type TRawEnv = Record<string, string | undefined>;
+
+const NODE_ENVS = ["development", "test", "production"];
+
+export class EnvManager {
   private env: TEnv | undefined;
+  private warnings: string[] = [];
 
-  init(): TEnv {
+  /**
+   * Validates the process environment (or an injected record, for tests)
+   * once and caches the result.
+   */
+  init(source: TRawEnv = Bun.env): TEnv {
     if (this.env) {
       return this.env;
     }
 
+    if (!source.NODE_ENV || !NODE_ENVS.includes(source.NODE_ENV)) {
+      throw new Error(
+        `Env Configuration Error [NODE_ENV]: NODE_ENV is required and must be one of ${NODE_ENVS.join(", ")} (got ${source.NODE_ENV === undefined ? "nothing" : `"${source.NODE_ENV}"`}).`,
+      );
+    }
+
     const raw = {
-      ...Bun.env,
-      DATABASE_PORT: Number(Bun.env.DATABASE_PORT),
-      PORT: Number(Bun.env.PORT),
+      ...source,
+      DATABASE_PORT: Number(source.DATABASE_PORT),
+      PORT: Number(source.PORT),
     };
 
     const withDefaults = Value.Default(VEnv, raw);
@@ -26,8 +42,41 @@ class EnvManager {
       );
     }
 
+    const warnings: string[] = [];
+    this.checkCors(withDefaults, warnings);
+
+    this.warnings = warnings;
     this.env = withDefaults;
     return this.env;
+  }
+
+  private checkCors(env: TEnv, warnings: string[]) {
+    if (env.CORS_ORIGIN !== undefined) {
+      warnings.push(
+        "CORS_ORIGIN is deprecated and will be removed in the next release; use CORS_ORIGINS (comma-separated).",
+      );
+    }
+
+    if (env.NODE_ENV !== "production") {
+      return;
+    }
+
+    const origins = UtilEnv.corsOrigins(env);
+    if (origins.length === 0) {
+      throw new Error(
+        "Env Configuration Error [CORS_ORIGINS]: CORS_ORIGINS must be set explicitly in production (comma-separated list of allowed origins).",
+      );
+    }
+    if (origins.some((origin) => origin.includes("*"))) {
+      throw new Error(
+        "Env Configuration Error [CORS_ORIGINS]: wildcard origins are not allowed in production.",
+      );
+    }
+  }
+
+  /** Non-fatal configuration warnings collected by the last `init()`. */
+  getWarnings(): readonly string[] {
+    return this.warnings;
   }
 
   get(): TEnv {
