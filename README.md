@@ -162,8 +162,10 @@ docker run -d \
 Execute the full database setup (resets, generates, migrates, and seeds):
 
 ```bash
-bun run dev:setup
+CONFIRM_RESET=<DATABASE_NAME> bun run dev:setup
 ```
+
+The reset drops the database and the local storage folder, so it is refused when `NODE_ENV=production` and needs either `CONFIRM_RESET` set to the database name or `--yes` when a reset script is run directly (`bun run src/scripts/database/DatabaseReset.ts --yes`).
 
 ### Development
 
@@ -242,7 +244,8 @@ docker-compose up -d
 | `bun run test` | Run isolated unit and integration tests via PGlite |
 | `bun run db:generate` | Generate Drizzle migrations |
 | `bun run db:migrate` | Apply migrations to the database |
-| `bun run dev:setup` | Full rebuild: Reset DB/Storage, Migrate, and Seed initial data |
+| `bun run db:reset` | Drop and re-create the database and delete `LOCAL_STORAGE_PATH` (refused in production; needs `CONFIRM_RESET=<DATABASE_NAME>`) |
+| `bun run dev:setup` | Full rebuild: reset (same confirmation), migrate, seed |
 
 ---
 
