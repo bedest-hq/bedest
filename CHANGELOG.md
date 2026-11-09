@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Notes
+
+* **Version metadata [OPS-10].** `bedest.json` no longer carries a `version`; the development update check reads it from `package.json`, the only file release-please bumps. The released sections below are left as they were published (the 1.1.0 → 1.2.0 history mixed the two values).
+
 ### Required one-off steps for existing deployments
 
 * **Redact plaintext secrets already stored in audit logs [SEC-06].** Older versions stored fields such as `currentPassword` unredacted in `system_audit_logs.payload`. After upgrading run `bun run src/scripts/audit/RedactAuditLogs.ts` (dry run, reports the number of affected rows) and then `bun run src/scripts/audit/RedactAuditLogs.ts --apply` (rewrites them in batches of 500). Rotate any password that may have been exposed.

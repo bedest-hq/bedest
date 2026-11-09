@@ -2,9 +2,32 @@ import { TEnv } from "@/common/types/TEnv";
 import { tmpdir } from "os";
 import { join } from "path";
 
-interface BedestConfig {
-  template?: string;
-  version?: string;
+const DEFAULT_TEMPLATE = "bedest";
+
+const readJson = async (path: string): Promise<Record<string, unknown>> => {
+  const file = Bun.file(path);
+  if (!(await file.exists())) {
+    return {};
+  }
+  const data: unknown = await file.json();
+  return typeof data === "object" && data !== null ? { ...data } : {};
+};
+
+/**
+ * The running template and its version. The version is read from
+ * package.json (bumped by release-please); bedest.json only names the
+ * template [OPS-10].
+ */
+export async function readTemplateInfo(
+  dir = ".",
+): Promise<{ template: string; version: string | null }> {
+  const pkg = await readJson(join(dir, "package.json"));
+  const config = await readJson(join(dir, "bedest.json"));
+  return {
+    template:
+      typeof config.template === "string" ? config.template : DEFAULT_TEMPLATE,
+    version: typeof pkg.version === "string" ? pkg.version : null,
+  };
 }
 
 interface UpdateCache {
@@ -66,9 +89,7 @@ export async function checkForUpdates(
   }
 
   try {
-    const config = (await Bun.file("./bedest.json").json()) as BedestConfig;
-    const currentVersion = config.version;
-    const template = config.template ?? "bedest";
+    const { template, version: currentVersion } = await readTemplateInfo();
 
     if (!currentVersion) {
       return;
@@ -139,8 +160,9 @@ export async function checkForUpdates(
     const targetUrl =
       releaseUrl ?? `https://github.com/bedest-hq/${template}/releases`;
 
-    // eslint-disable-next-line no-console
-    console.log(`\n${renderBanner(name, cleanCurrent, cleanLatest, targetUrl)}\n`);
+    process.stdout.write(
+      `\n${renderBanner(name, cleanCurrent, cleanLatest, targetUrl)}\n\n`,
+    );
   } catch {
     // Silent on any error or network failure
   }
