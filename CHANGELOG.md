@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+Remediation release: security, correctness, operations and the missing account features. IDs refer to the remediation ledger.
+
+### ⚠ Breaking changes
+
+* **Environment.** `NODE_ENV` is required (no default) [SEC-02]; values are type-checked and every problem is reported at once [SEC-16]; `SECRET_KEY`/`REFRESH_KEY` need ≥ 32 characters, must differ and cannot be the `.env.example` placeholders in production. `CORS_ORIGINS` replaces `CORS_ORIGIN` (still read with a warning) [SEC-18]; `DATABASE_SSL_MODE` replaces `DATABASE_SSL` and defaults to `verify-full` in production [SEC-15]. New required `MAIL_PROVIDER` and `APP_PUBLIC_URL` [FEAT-06].
+* **Database roles.** The API must connect as a member of `bedest_app` (`ProvisionRoles`); migrations run as the schema owner (`DATABASE_MIGRATION_*`) [SEC-04]; RLS is forced on every tenant table. Production refuses to start as a superuser or BYPASSRLS role.
+* **Auth.** No credential fallbacks [SEC-01]; `POST /auth/refresh` returns `{ success: true }` only [SEC-14]; the refresh cookie is `Path=/api/v1/auth; SameSite=Strict` and tokens carry `iss`/`aud`/`typ` — users sign in once after the deploy [SEC-24]. New passwords need 12–128 characters [SEC-23].
+* **Errors.** Every error body is `{ error, message?, details?, requestId? }` [BUG-14].
+* **Audit.** Routes configure `audit: { entity, action?, targetTenant? }` (no `audit: true`) [BUG-11]; audit rows are append-only [FEAT-13].
+* **Storage.** Only the uploader or an ADMIN deletes a file; 409 while it is in use [SEC-26]. Avatars and logos must be READY files of the same tenant [SEC-27]; uploads follow `STORAGE_ALLOWED_TYPES`/`STORAGE_MAX_BYTES` and presigned uploads stay PENDING until `POST /storage/:id/complete` [SEC-10][FEAT-12]; `IProvider` requires `head()` [FEAT-12].
+* **Tenants.** `POST /tenant` returns `{ id }` and invites the ADMIN by e-mail [SEC-23][FEAT-06]; `DELETE /tenant/:id` also soft-deletes the tenant's users [FEAT-09]; plan checks answer `403 PLAN_UPGRADE_REQUIRED` instead of `426` [CORE-07].
+* **Users.** `GET /user` items carry `status` (`ACTIVE`/`INVITED`) [FEAT-06].
+* **bedest-core 2.0** (unpublished at the time of writing; see its changelog).
+
+### Security
+
+* Login fallbacks to seeded credentials removed; seed requires `SEED_SYSTEM_EMAIL` and generates a password when none is given [SEC-01][SEC-03].
+* Row-level security enforced: non-privileged runtime role, forced RLS, every query scoped [SEC-04][BUG-01]; billing webhook verifies Stripe signatures and processes each event once [SEC-05][BUG-07]; presigned uploads cannot store active content and files are served with nosniff/CSP [SEC-10]; `x-tenant-id` removed [SEC-19]; users of deleted tenants lose access [SEC-22]; tenant resolution is rate limited [SEC-25]; cross-tenant file references refused [SEC-27].
+* Audit payloads scrubbed of secrets; `RedactAuditLogs` cleans existing rows [SEC-06].
+* Rate limits scoped to their routes, keyed on the real client IP (`TRUST_PROXY_HOPS`), configurable [SEC-07].
+* Revoked, deleted or demoted principals lose access at the next request; refresh rotation is atomic with reuse detection [SEC-08][SEC-09].
+* Role policy: ADMINs can no longer take over or delete peers or SYSTEM users; no self-lockout [SEC-11][SEC-12][SEC-13].
+* TLS verification for Postgres, API docs off in production, security headers, body limit, CORS list, WebSocket origin check and CSRF origin check [SEC-15][SEC-17][SEC-18].
+* Logger keeps errors and redacts secrets [SEC-20]; e-mails validated and normalized, unique case-insensitively [SEC-21].
+* Account lockout after 5 failures in 15 minutes and security-event auditing [FEAT-07].
+
+### Fixes
+
+* Empty updates → 400 [BUG-02]; storage write/delete ordering no longer loses data or leaks objects [BUG-03]; presign on the local provider answers 501 [BUG-04]; read receipts are unique [BUG-05].
+* Logout disconnects only the current device [BUG-06]; maintenance mode is shared through Redis and cached [BUG-08]; Redis reconnects forever with backoff [BUG-09].
+* WebSocket registry keyed per connection; sockets close when their token expires or session ends [BUG-10].
+* Seed and context fixes [BUG-12]; validations fixed and bounded to column sizes [BUG-13][QLT-11]; tenant authorization in one place and tenant creation atomic [BUG-15][BUG-16].
+* S3 downloads stream, report backend errors (502) and support path-style or virtual-hosted URLs [BUG-18].
+
+### Features
+
+* Health endpoints `/api/health/live` and `/api/health/ready` [FEAT-01]; migration runner `db:migrate:prod` [FEAT-02][OPS-01]; graceful shutdown [FEAT-03][OPS-08].
+* Request ids (`x-request-id`) and one access-log line per request [FEAT-04].
+* Session management: list, revoke one, log out everywhere [FEAT-05].
+* Password reset and invitations by e-mail (`MAIL_PROVIDER` console/smtp) [FEAT-06].
+* Background jobs with an advisory lock (`JOBS_ENABLED`) [FEAT-08].
+* Tenant restore (`POST /tenant/:id/restore`) [FEAT-09]; presigned upload finalization [FEAT-12].
+* Append-only audit logs (grants + trigger) [FEAT-13].
+* Cursor pagination for the audit log and notifications [PERF-02]; indexes for RLS predicates and list ordering [PERF-01].
+
+### Operations and quality
+
+* Dockerfile, compose (provision → migrate → api), CI (frozen lockfile, check, format, drift check, coverage) and CD fixed [OPS-02]–[OPS-06]; destructive scripts guarded [OPS-09]; version metadata from `package.json` [OPS-10].
+* No import-time side effects (`createApp(env)`) [QLT-01]; no `any`/`eslint-disable`/needless casts [QLT-03][QLT-04]; dead code removed [QLT-05]; type-only client in `client/` [QLT-06]; Prettier wired [QLT-09].
+* Tests: USER is the default test principal, unique fixtures per test, coverage gate ≥ 80 % lines on `src/features` and `src/infrastructure` [TST-01]–[TST-06].
+* README rewritten (environment table, security model, deployment, upgrading) [DOC-01].
+
 ### Notes
 
 * **Version metadata [OPS-10].** `bedest.json` no longer carries a `version`; the development update check reads it from `package.json`, the only file release-please bumps. The released sections below are left as they were published (the 1.1.0 → 1.2.0 history mixed the two values).
