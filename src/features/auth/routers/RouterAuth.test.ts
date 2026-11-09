@@ -32,9 +32,11 @@ describe("SEC-01: login never falls back to seeded credentials", () => {
       // process (as at server start), so this file's module graph and the
       // coverage of RouterAuth.ts stay untouched [TST-05].
       const proc = Bun.spawn(
-        ["bun", "src/common/tests/fixtures/Sec01Login.fixture.ts"],
+        [process.execPath, "src/common/tests/fixtures/Sec01Login.fixture.ts"],
         {
           env: {
+            PATH: process.env.PATH ?? "",
+            Path: process.env.Path ?? "",
             ...asProcessEnv(test_env),
             ...(nodeEnv === "production" ? PRODUCTION_MAIL : {}),
             NODE_ENV: nodeEnv,
