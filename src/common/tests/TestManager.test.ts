@@ -23,14 +23,13 @@ import RateLimitManager from "@/infrastructure/ratelimit/RateLimitManager";
 import ServiceSession from "@f/session/services/ServiceSession";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 
-interface CustomMatchers<R = unknown> {
-  toBeApiError(expected: string): R;
-  toBeApiOk(): R;
-}
-
+// Custom matchers, merged into bun:test (members declared directly, so no
+// empty interface is needed).
 declare module "bun:test" {
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  interface Matchers<T> extends CustomMatchers<T> {}
+  interface Matchers<T> {
+    toBeApiError(expected: string): T;
+    toBeApiOk(): T;
+  }
 }
 
 // The error envelope { error, message?, details? } [BUG-14].

@@ -28,8 +28,8 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   }
 
   /**
-   * Loads an active user the actor can see: any tenant for SYSTEM, the
-   * actor's own tenant otherwise (404 when not visible).
+   * Loads an active user the actor can see (any tenant for SYSTEM, the
+   * actor's own tenant otherwise); 404 when not visible.
    */
   private async loadTarget(c: ITenantUserApp, id: string) {
     const columns = {

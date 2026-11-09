@@ -104,7 +104,7 @@ const CASES: IRlsCase[] = [
     tenantColumn: STenant.id,
     insert: (tx) =>
       tx.insert(STenant).values({
-        // For tenants the row id is the tenant column: any new id is foreign.
+        // For tenants the row id is the tenant column, so any new id is foreign.
         id: crypto.randomUUID(),
         name: `t-${crypto.randomUUID()}`,
         domain: `${crypto.randomUUID()}.example.com`,
