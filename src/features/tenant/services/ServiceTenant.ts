@@ -124,7 +124,8 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
         .limit(1);
 
       if (!tenant) {
-        throw status("Not Found", "No publication found for this domain.");
+        // Neutral copy: the endpoint is public [SEC-25].
+        throw status(404, { error: "Not Found", message: "Tenant not found" });
       }
 
       return tenant;

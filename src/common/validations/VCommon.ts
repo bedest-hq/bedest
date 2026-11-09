@@ -102,4 +102,6 @@ export const VEnv = t.Object({
   RATE_LIMIT_LOGIN_IP_PER_MIN: Type.Integer({ minimum: 1, default: 20 }),
   // Token refreshes per minute per client IP.
   RATE_LIMIT_REFRESH_PER_MIN: Type.Integer({ minimum: 1, default: 30 }),
+  // Public tenant resolutions (GET /public/resolve) per minute per client IP [SEC-25].
+  RATE_LIMIT_TENANT_RESOLVE_PER_MIN: Type.Integer({ minimum: 1, default: 30 }),
 });

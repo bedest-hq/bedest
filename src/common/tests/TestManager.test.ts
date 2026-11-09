@@ -90,6 +90,7 @@ const test_env: TEnv = {
   RATE_LIMIT_LOGIN_PER_MIN: 5,
   RATE_LIMIT_LOGIN_IP_PER_MIN: 20,
   RATE_LIMIT_REFRESH_PER_MIN: 30,
+  RATE_LIMIT_TENANT_RESOLVE_PER_MIN: 30,
 
   LOCAL_STORAGE_PATH: "./test_uploads",
   STORAGE_ALLOWED_TYPES: "image/jpeg,image/png,image/webp,application/pdf",
