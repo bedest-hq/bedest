@@ -247,12 +247,13 @@ export class RedisManager {
     channel: string,
     callback: (channel: string, message: string) => void,
   ): Promise<void> {
-    let isFirst = false;
-    if (!this.channelCallbacks.has(channel)) {
-      this.channelCallbacks.set(channel, new Set());
-      isFirst = true;
+    let callbacks = this.channelCallbacks.get(channel);
+    const isFirst = callbacks === undefined;
+    if (!callbacks) {
+      callbacks = new Set();
+      this.channelCallbacks.set(channel, callbacks);
     }
-    this.channelCallbacks.get(channel)!.add(callback);
+    callbacks.add(callback);
 
     if (isFirst && this.subscriber && this.isSubscriberReady()) {
       try {
@@ -269,12 +270,13 @@ export class RedisManager {
     pattern: string,
     callback: (pattern: string, channel: string, message: string) => void,
   ): Promise<void> {
-    let isFirst = false;
-    if (!this.patternCallbacks.has(pattern)) {
-      this.patternCallbacks.set(pattern, new Set());
-      isFirst = true;
+    let callbacks = this.patternCallbacks.get(pattern);
+    const isFirst = callbacks === undefined;
+    if (!callbacks) {
+      callbacks = new Set();
+      this.patternCallbacks.set(pattern, callbacks);
     }
-    this.patternCallbacks.get(pattern)!.add(callback);
+    callbacks.add(callback);
 
     if (isFirst && this.subscriber && this.isSubscriberReady()) {
       try {
@@ -400,6 +402,10 @@ export class RedisManager {
     );
   }
 
+  /**
+   * Test hook: install fake clients. The fakes implement only what the
+   * tests exercise, hence the assertion from unknown (test-only path).
+   */
   setClientsForTesting(
     client: unknown,
     publisher: unknown,

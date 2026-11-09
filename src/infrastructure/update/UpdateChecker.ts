@@ -30,17 +30,6 @@ export async function readTemplateInfo(
   };
 }
 
-interface UpdateCache {
-  timestamp?: number;
-  latestVersion?: string;
-  releaseUrl?: string;
-}
-
-interface GitHubRelease {
-  tag_name?: string;
-  html_url?: string;
-}
-
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 function isNewerVersion(current: string, latest: string): boolean {
@@ -102,14 +91,15 @@ export async function checkForUpdates(
 
     if (await cacheFile.exists()) {
       try {
-        const cache = (await cacheFile.json()) as UpdateCache;
+        const cache = await readJson(cachePath);
         if (
-          cache.timestamp &&
+          typeof cache.timestamp === "number" &&
           Date.now() - cache.timestamp < ONE_DAY_MS &&
-          cache.latestVersion
+          typeof cache.latestVersion === "string"
         ) {
           latestVersion = cache.latestVersion;
-          releaseUrl = cache.releaseUrl ?? null;
+          releaseUrl =
+            typeof cache.releaseUrl === "string" ? cache.releaseUrl : null;
         }
       } catch {
         // Ignore corrupt cache
@@ -133,12 +123,21 @@ export async function checkForUpdates(
       );
 
       if (response.ok) {
-        const data = (await response.json()) as GitHubRelease;
-        if (data.tag_name) {
-          latestVersion = data.tag_name;
+        const data: unknown = await response.json();
+        const tag =
+          typeof data === "object" && data !== null && "tag_name" in data
+            ? data.tag_name
+            : undefined;
+        if (typeof tag === "string" && tag.length > 0) {
+          latestVersion = tag;
+          const htmlUrl =
+            typeof data === "object" && data !== null && "html_url" in data
+              ? data.html_url
+              : undefined;
           releaseUrl =
-            data.html_url ??
-            `https://github.com/${repo}/releases/tag/${data.tag_name}`;
+            typeof htmlUrl === "string"
+              ? htmlUrl
+              : `https://github.com/${repo}/releases/tag/${tag}`;
           await Bun.write(
             cachePath,
             JSON.stringify({
