@@ -198,6 +198,9 @@ describe("FEAT-09: tenant lifecycle", () => {
       (await call("POST", `/tenant/${tenant.id}/restore`, admin.headers.Cookie))
         .status,
     ).toBe(403);
+    expect((await call("POST", `/tenant/${tenant.id}/restore`)).status).toBe(
+      401,
+    );
     expect(await tenantDeleted(tenant.id)).toBe(true);
   });
 

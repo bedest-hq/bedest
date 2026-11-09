@@ -379,6 +379,15 @@ describe("FEAT-06: invitations", () => {
         )
       ).status,
     ).toBe(403);
+    // Unauthenticated → 401.
+    expect(
+      (
+        await call("POST", "/user/invite", {
+          email: email(),
+          role: EUserRole.USER,
+        })
+      ).status,
+    ).toBe(401);
   });
 
   it("[FEAT-06] an active e-mail in any tenant → 409; re-inviting an INVITED user sends a new link and only it works", async () => {

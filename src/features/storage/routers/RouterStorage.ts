@@ -127,7 +127,7 @@ export const createRouterStorage = (env: TStorageEnv) =>
           id: VId,
           status: t.Literal(EStorageStatus.READY),
         }),
-        audit: { entity: "storage" },
+        audit: { entity: "storage", action: "UPLOAD_COMPLETED" },
       },
     )
     .get(

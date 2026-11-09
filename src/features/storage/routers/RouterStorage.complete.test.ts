@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Elysia } from "elysia";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   createForeignTenant,
   createTestUser,
@@ -15,6 +15,7 @@ import type {
   IStoredObject,
 } from "@/infrastructure/storage/interfaces/IProvider";
 import { EUserRole } from "@f/user/enums/EUserRole";
+import { SSystemLog } from "@f/system/schemas/SSystemLog";
 import { SStorage } from "../schemas/SStorage";
 import { EStorageStatus } from "../enums/EStorageStatus";
 import { createRouterStorage } from "./RouterStorage";
@@ -190,6 +191,36 @@ describe("FEAT-12: presigned upload finalization", () => {
       (await call("POST", `/storage/${id}/complete`, admin.headers.Cookie))
         .status,
     ).toBe(200);
+  });
+
+  it("[FEAT-12] unauthenticated → 401; completion is audited as UPLOAD_COMPLETED", async () => {
+    const { headers, user } = await createTestUser(EUserRole.USER);
+    const { id, key } = await presign(headers.Cookie);
+    await put(key, 4);
+
+    expect((await call("POST", `/storage/${id}/complete`, "")).status).toBe(
+      401,
+    );
+    expect(
+      (await call("POST", `/storage/${id}/complete`, headers.Cookie)).status,
+    ).toBe(200);
+    // The audit row is written in afterResponse: poll briefly for it.
+    const auditRows = () =>
+      test_db
+        .select({ entityId: SSystemLog.entityId })
+        .from(SSystemLog)
+        .where(
+          and(
+            eq(SSystemLog.action, "UPLOAD_COMPLETED"),
+            eq(SSystemLog.userId, user.id),
+          ),
+        );
+    let audit = await auditRows();
+    for (let i = 0; i < 40 && audit.length === 0; i++) {
+      await Bun.sleep(5);
+      audit = await auditRows();
+    }
+    expect(audit).toEqual([{ entityId: id }]);
   });
 
   it("[FEAT-12] another tenant's upload or an unknown id → 404", async () => {
