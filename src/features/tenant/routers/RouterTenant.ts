@@ -5,7 +5,6 @@ import Context from "@/app/Context";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { VTenantPlan } from "../validations/VTenantPlan";
 import { RouterTenantPublic } from "./RouterTenantPublic";
-import ServiceUser from "@f/user/services/ServiceUser";
 import { UtilRouter, VEmail, VId, VQuery, VString } from "bedest-core";
 
 export const RouterTenant = new Elysia({
@@ -175,24 +174,8 @@ export const RouterTenant = new Elysia({
         .post(
           "/",
           async ({ body, userRuntime }) => {
-            const tenant = await ServiceTenant.create(userRuntime, body);
-
-            // 128-bit random password until the invitation flow (FEAT-06) [SEC-23].
-            const password = Buffer.from(
-              crypto.getRandomValues(new Uint8Array(16)),
-            ).toString("base64url");
-
-            await ServiceUser.create(
-              { ...userRuntime, tenantId: tenant.id },
-              {
-                email: body.email,
-                name: "Admin",
-                role: EUserRole.ADMIN,
-                password,
-              },
-            );
-
-            return { id: tenant.id, password };
+            // Tenant and ADMIN in one transaction [BUG-16].
+            return await ServiceTenant.createWithAdmin(userRuntime, body);
           },
           {
             body: t.Object({

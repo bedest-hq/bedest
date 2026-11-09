@@ -11,6 +11,8 @@ import { and, eq } from "drizzle-orm";
 import type { SelectedFields } from "drizzle-orm/pg-core";
 import ServiceSession from "@f/session/services/ServiceSession";
 import { UtilEmail } from "@f/user/utils/UtilEmail";
+import { SUser } from "@f/user/schemas/SUser";
+import { EUserRole } from "@f/user/enums/EUserRole";
 import ServiceStorage from "@f/storage/services/ServiceStorage";
 
 class ServiceTenant extends ServiceBase<
@@ -68,6 +70,60 @@ class ServiceTenant extends ServiceBase<
     return this.scoped(c, (sc) =>
       super.create(sc, { ...data, email: UtilEmail.normalize(data.email) }),
     );
+  }
+
+  /**
+   * Creates a tenant and its first ADMIN (same e-mail) in ONE system-scope
+   * transaction [BUG-16]: an e-mail already used by an active user in any
+   * tenant (users.email is globally unique) is a 409 before anything is
+   * written, and any later failure rolls the tenant back too.
+   */
+  async createWithAdmin(
+    c: ITenantUserApp,
+    data: Parameters<
+      ServiceBase<typeof STenant, string, ITenantUserApp>["create"]
+    >[1],
+  ): Promise<{ id: string; password: string }> {
+    if (!c.session.isSuperUser) {
+      throw UtilHttp.fail(403);
+    }
+    const email = UtilEmail.normalize(data.email);
+    // 128-bit random password until the invitation flow (FEAT-06) [SEC-23].
+    const password = Buffer.from(
+      crypto.getRandomValues(new Uint8Array(16)),
+    ).toString("base64url");
+    const passwordHash = await Bun.password.hash(password);
+
+    const id = await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const [taken] = await tx
+        .select({ id: SUser.id })
+        .from(SUser)
+        .where(and(eq(SUser.email, email), eq(SUser.isDeleted, false)))
+        .limit(1);
+      if (taken) {
+        throw UtilHttp.fail(409, "A user with this e-mail already exists");
+      }
+
+      const [tenant] = await tx
+        .insert(STenant)
+        .values({ ...data, email, createdAt: c.nowDatetime })
+        .returning({ id: STenant.id });
+      if (!tenant) {
+        throw UtilHttp.fail(500);
+      }
+
+      await tx.insert(SUser).values({
+        tenantId: tenant.id,
+        name: "Admin",
+        email,
+        password: passwordHash,
+        role: EUserRole.ADMIN,
+        createdAt: c.nowDatetime,
+      });
+      return tenant.id;
+    });
+
+    return { id, password };
   }
 
   override async update(
