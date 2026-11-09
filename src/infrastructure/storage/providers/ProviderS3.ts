@@ -34,6 +34,8 @@ const isNotFound = (error: unknown): boolean => {
 export class ProviderS3 implements IProvider {
   private client: S3Client;
   private bucket: string;
+  /** Addressing style of a client built from the env [BUG-18]. */
+  readonly pathStyle: boolean;
 
   /** `client` is injectable for tests (its network call is mocked). */
   constructor(deps: { client?: S3Client } = {}) {
@@ -49,6 +51,7 @@ export class ProviderS3 implements IProvider {
     }
 
     this.bucket = env.S3_BUCKET;
+    this.pathStyle = env.S3_FORCE_PATH_STYLE;
     this.client =
       deps.client ??
       new S3Client({
@@ -59,7 +62,7 @@ export class ProviderS3 implements IProvider {
           secretAccessKey: env.S3_SECRET_KEY,
         },
         // Configurable: path-style for MinIO, virtual-hosted for AWS [BUG-18].
-        forcePathStyle: env.S3_FORCE_PATH_STYLE,
+        forcePathStyle: this.pathStyle,
       });
   }
 
