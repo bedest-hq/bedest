@@ -187,7 +187,7 @@ export const RouterTenant = new Elysia({
         planStart: t.Optional(t.Date()),
         planEnd: t.Optional(t.Date()),
       }),
-      audit: true,
+      audit: { entity: "tenant", targetTenant: "entity" },
     },
   )
   .guard(
@@ -252,7 +252,7 @@ export const RouterTenant = new Elysia({
               password: t.String(),
             }),
 
-            audit: true,
+            audit: { entity: "tenant", targetTenant: "entity" },
           },
         )
         .delete(
@@ -264,7 +264,7 @@ export const RouterTenant = new Elysia({
             params: t.Object({
               id: VId,
             }),
-            audit: true,
+            audit: { entity: "tenant", targetTenant: "entity" },
           },
         )
         .get(

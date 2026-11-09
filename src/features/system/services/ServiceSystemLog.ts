@@ -17,8 +17,9 @@ class ServiceSystemLog {
     params: {
       action: string;
       entity: string;
-      entityId: string;
-      payload: unknown;
+      entityId: string | null;
+      targetTenantId?: string | null;
+      payload: Record<string, unknown>;
     },
   ) {
     try {
@@ -29,7 +30,8 @@ class ServiceSystemLog {
           action: params.action,
           entity: params.entity,
           entityId: params.entityId,
-          payload: params.payload as Record<string, unknown>,
+          targetTenantId: params.targetTenantId ?? null,
+          payload: params.payload,
         });
       });
     } catch (err) {
@@ -44,8 +46,8 @@ class ServiceSystemLog {
       userId?: string;
       action: string;
       entity: string;
-      entityId: string;
-      payload: unknown;
+      entityId: string | null;
+      payload: Record<string, unknown>;
     },
   ) {
     try {
@@ -57,7 +59,7 @@ class ServiceSystemLog {
           action: params.action,
           entity: params.entity,
           entityId: params.entityId,
-          payload: params.payload as Record<string, unknown>,
+          payload: params.payload,
         });
       });
     } catch (err) {
@@ -77,7 +79,7 @@ class ServiceSystemLog {
       userId?: string;
       action: string;
       entity: string;
-      entityId: string;
+      entityId: string | null;
       payload: Record<string, unknown>;
     },
   ) {
@@ -133,6 +135,7 @@ class ServiceSystemLog {
           action: SSystemLog.action,
           entity: SSystemLog.entity,
           entityId: SSystemLog.entityId,
+          targetTenantId: SSystemLog.targetTenantId,
           payload: SSystemLog.payload,
           createdAt: SSystemLog.createdAt,
         })

@@ -20,7 +20,10 @@ export const SSystemLog = pgTable(
 
     action: varchar({ length: 100 }).notNull(),
     entity: varchar({ length: 100 }).notNull(),
-    entityId: uuid().notNull(),
+    // Null when the request names no entity (never the actor) [BUG-11].
+    entityId: uuid(),
+    // Tenant a SYSTEM action changed, when it is not the actor's [BUG-11].
+    targetTenantId: uuid().references(() => STenant.id),
 
     payload: jsonb().$type<Record<string, unknown>>().notNull(),
 

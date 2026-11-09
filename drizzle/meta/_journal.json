@@ -113,6 +113,13 @@
       "when": 1794203531438,
       "tag": "0015_tenants_logo_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794204562321,
+      "tag": "0016_audit_entity_nullable_target_tenant",
+      "breakpoints": true
     }
   ]
 }
