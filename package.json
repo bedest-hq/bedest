@@ -36,6 +36,7 @@
     "build": "bun build src/index.ts --target bun --outdir ./dist && bun build src/scripts/database/Migrate.ts --target bun --outfile ./dist/migrate.js && bun build src/scripts/database/ProvisionRoles.ts --target bun --outfile ./dist/provision-roles.js",
     "start": "NODE_ENV=production bun dist/index.js",
     "test": "bun test",
+    "coverage": "bun test --coverage",
     "lint": "eslint 'src/**/*.{ts,js}' 'client/**/*.ts' drizzle.config.ts eslint.config.mjs --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "check": "bun run typecheck && bun run lint",

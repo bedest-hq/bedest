@@ -1,50 +1,59 @@
-import { describe, it, expect, spyOn } from "bun:test";
+import { describe, it, expect } from "bun:test";
 import { treaty } from "@elysiajs/eden";
-import { Elysia } from "elysia";
 import {
   testHeaders,
   test_env,
   test_user,
 } from "@/common/tests/TestManager.test";
-import EnvManager from "@/infrastructure/env/EnvManager";
-import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterAuth } from "./RouterAuth";
 
 const authApi = treaty(RouterAuth);
-
-const postLogin = (
-  app: { handle: (r: Request) => Promise<Response> },
-  body: unknown,
-) =>
-  app.handle(
-    new Request("http://localhost/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    }),
+const asProcessEnv = (env: Record<string, unknown>) =>
+  Object.fromEntries(
+    Object.entries(env)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, String(v)]),
   );
+
+/** A valid production mailer [FEAT-06]. */
+const PRODUCTION_MAIL = {
+  MAIL_PROVIDER: "smtp",
+  SMTP_HOST: "smtp.example.com",
+  SMTP_PORT: "587",
+  SMTP_USER: "mailer",
+  SMTP_PASSWORD: "mailer-password",
+  MAIL_FROM: "no-reply@example.com",
+};
 
 describe("SEC-01: login never falls back to seeded credentials", () => {
   for (const nodeEnv of ["development", "test", "production"] as const) {
     it(`[SEC-01] NODE_ENV=${nodeEnv}: {} and { email } only are rejected with 400`, async () => {
-      const envSpy = spyOn(EnvManager, "get").mockReturnValue({
-        ...test_env,
-        NODE_ENV: nodeEnv,
-      });
-      // A fresh module instance so the router is built under this NODE_ENV.
-      const modulePath = `./RouterAuth.ts?sec01=${nodeEnv}`;
-      const mod: typeof import("./RouterAuth") = await import(modulePath);
-      envSpy.mockReturnValue(test_env);
-
-      const app = new Elysia().use(ErrorHandler).use(mod.RouterAuth);
-
-      const empty = await postLogin(app, {});
-      expect(empty.status).toBe(400);
-      expect(empty.headers.getSetCookie()).toHaveLength(0);
-
-      const emailOnly = await postLogin(app, { email: test_user.email });
-      expect(emailOnly.status).toBe(400);
-      expect(emailOnly.headers.getSetCookie()).toHaveLength(0);
+      // The router is imported fresh under this NODE_ENV in a child
+      // process (as at server start), so this file's module graph and the
+      // coverage of RouterAuth.ts stay untouched [TST-05].
+      const proc = Bun.spawn(
+        ["bun", "src/common/tests/fixtures/Sec01Login.fixture.ts"],
+        {
+          env: {
+            ...asProcessEnv(test_env),
+            ...(nodeEnv === "production" ? PRODUCTION_MAIL : {}),
+            NODE_ENV: nodeEnv,
+            LOG_LEVEL: "silent",
+          },
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
+      const [code, stdout] = await Promise.all([
+        proc.exited,
+        new Response(proc.stdout).text(),
+      ]);
+      expect(code).toBe(0);
+      // {} and { email } only: both 400, no cookie.
+      expect(JSON.parse(stdout.trim())).toEqual([
+        { status: 400, cookies: 0 },
+        { status: 400, cookies: 0 },
+      ]);
     });
   }
 });

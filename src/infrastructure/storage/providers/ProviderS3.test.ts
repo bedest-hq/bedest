@@ -5,6 +5,9 @@ import {
   S3ServiceException,
   type GetObjectCommandOutput,
   HeadObjectCommand,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  HeadBucketCommand,
   type HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { test_env } from "@/common/tests/TestManager.test";
@@ -188,5 +191,64 @@ describe("FEAT-12: S3 HEAD for upload finalization", () => {
       (e: unknown) => e,
     );
     expect(codeOf(denied)).toBe(502);
+  });
+});
+
+describe("ProviderS3 writes", () => {
+  const sent = (client: S3Client) => {
+    const commands: unknown[] = [];
+    spyOn(client, "send").mockImplementation((command) => {
+      commands.push(command);
+      return Promise.resolve({ $metadata: {} });
+    });
+    return commands;
+  };
+
+  it("[BUG-18] upload puts the object with its content type; delete removes it; healthCheck heads the bucket", async () => {
+    const client = fakeClient();
+    const commands = sent(client);
+    const provider = withEnv(S3_ENV, () => new ProviderS3({ client }));
+
+    await provider.upload(
+      "t/a.png",
+      new Uint8Array([1, 2, 3]).buffer,
+      "image/png",
+    );
+    await provider.delete("t/a.png");
+    await provider.healthCheck();
+
+    const [put, del, head] = commands;
+    expect(put).toBeInstanceOf(PutObjectCommand);
+    expect(put instanceof PutObjectCommand ? put.input : null).toMatchObject({
+      Bucket: "bucket",
+      Key: "t/a.png",
+      ContentType: "image/png",
+    });
+    expect(
+      put instanceof PutObjectCommand && Buffer.isBuffer(put.input.Body),
+    ).toBe(true);
+    expect(del).toBeInstanceOf(DeleteObjectCommand);
+    expect(head).toBeInstanceOf(HeadBucketCommand);
+  });
+
+  it("[BUG-03] upload and delete failures propagate (the caller keeps or removes rows)", async () => {
+    const client = fakeClient();
+    spyOn(client, "send").mockImplementation(() =>
+      Promise.reject(s3Error("InternalError", 500)),
+    );
+    const provider = withEnv(S3_ENV, () => new ProviderS3({ client }));
+
+    const up = await provider
+      .upload("k", new Uint8Array([1]).buffer, "image/png")
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
+    expect(String(up)).toContain("S3 storage upload failed");
+    const del = await provider.delete("k").then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(String(del)).toContain("S3 storage delete failed");
   });
 });

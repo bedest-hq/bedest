@@ -1,2 +1,17 @@
 [test]
 preload = ["./src/common/tests/TestManager.test.ts"]
+
+# TST-05: `bun test --coverage` fails when a file of src/features or
+# src/infrastructure is below 80 % lines. Bun applies the threshold per
+# file, and an omitted `functions` defaults to the same bar; its function
+# count includes class bodies and schema callbacks, so functions are held
+# at 50 % and lines are the acceptance metric (as in bedest-core).
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = [
+  "src/app/**",
+  "src/common/**",
+  "src/scripts/**",
+  "src/index.ts",
+  "client/**",
+]
+coverageThreshold = { lines = 0.8, functions = 0.5 }

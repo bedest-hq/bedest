@@ -19,6 +19,7 @@ import { EUserTokenType } from "@f/auth/enums/EUserTokenType";
 import { tokenHashOf } from "@f/auth/services/ServiceUserToken";
 import { JobScheduler } from "./JobScheduler";
 import { createJobs } from "./jobs";
+import { SLoginAttempt } from "@f/auth/schemas/SLoginAttempt";
 
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 
@@ -234,6 +235,42 @@ describe("FEAT-08: jobs", () => {
         ),
       );
     expect(left).toEqual([{ id: rows[2]?.id }]);
+  });
+
+  it("[FEAT-07][FEAT-08] loginAttempts.cleanup drops expired counters and ended locks, keeping live ones", async () => {
+    const MIN = 60 * 1000;
+    const hash = () => crypto.randomUUID().replaceAll("-", "").padEnd(64, "0");
+    const [stale, endedLock, liveLock, recent] = [
+      hash(),
+      hash(),
+      hash(),
+      hash(),
+    ];
+    await test_db.insert(SLoginAttempt).values([
+      { emailHash: stale, failures: 2, firstFailureAt: ago(20 * MIN) },
+      {
+        emailHash: endedLock,
+        failures: 5,
+        firstFailureAt: ago(40 * MIN),
+        lockedUntil: ago(MIN),
+      },
+      {
+        emailHash: liveLock,
+        failures: 5,
+        firstFailureAt: ago(20 * MIN),
+        lockedUntil: new Date(NOW.getTime() + MIN),
+      },
+      { emailHash: recent, failures: 1, firstFailureAt: ago(MIN) },
+    ]);
+
+    await scheduler().runOnce("loginAttempts.cleanup");
+    const left = await test_db
+      .select({ hash: SLoginAttempt.emailHash })
+      .from(SLoginAttempt)
+      .where(
+        inArray(SLoginAttempt.emailHash, [stale, endedLock, liveLock, recent]),
+      );
+    expect(left.map((r) => r.hash).sort()).toEqual([liveLock, recent].sort());
   });
 
   it("[FEAT-08] notifications.retention soft-deletes notifications older than the retention", async () => {

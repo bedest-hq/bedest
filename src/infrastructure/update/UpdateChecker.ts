@@ -69,22 +69,41 @@ function renderBanner(
   return [top, ...middle, bottom].join("\n");
 }
 
+/** External effects of the update check, replaceable in tests [TST-05]. */
+export interface IUpdateCheckDeps {
+  /** Directory holding package.json and bedest.json. */
+  dir?: string;
+  /** Cache file of the last answer (one day). */
+  cachePath?: (template: string) => string;
+  fetch?: (url: string, init: RequestInit) => Promise<Response>;
+  now?: () => number;
+  write?: (text: string) => void;
+}
+
 export async function checkForUpdates(
   nodeEnv: TEnv["NODE_ENV"],
+  deps: IUpdateCheckDeps = {},
 ): Promise<void> {
   // Read through VEnv by the caller, never from process env [SEC-16].
   if (nodeEnv !== "development") {
     return;
   }
+  const doFetch = deps.fetch ?? ((url, init) => fetch(url, init));
+  const now = deps.now ?? Date.now;
+  const write = deps.write ?? ((text: string) => process.stdout.write(text));
 
   try {
-    const { template, version: currentVersion } = await readTemplateInfo();
+    const { template, version: currentVersion } = await readTemplateInfo(
+      deps.dir,
+    );
 
     if (!currentVersion) {
       return;
     }
 
-    const cachePath = join(tmpdir(), `bedest-update-check-${template}.json`);
+    const cachePath =
+      deps.cachePath?.(template) ??
+      join(tmpdir(), `bedest-update-check-${template}.json`);
     const cacheFile = Bun.file(cachePath);
     let latestVersion: string | null = null;
     let releaseUrl: string | null = null;
@@ -94,7 +113,7 @@ export async function checkForUpdates(
         const cache = await readJson(cachePath);
         if (
           typeof cache.timestamp === "number" &&
-          Date.now() - cache.timestamp < ONE_DAY_MS &&
+          now() - cache.timestamp < ONE_DAY_MS &&
           typeof cache.latestVersion === "string"
         ) {
           latestVersion = cache.latestVersion;
@@ -111,7 +130,7 @@ export async function checkForUpdates(
         template === "bedest-lite"
           ? "bedest-hq/bedest-lite"
           : "bedest-hq/bedest";
-      const response = await fetch(
+      const response = await doFetch(
         `https://api.github.com/repos/${repo}/releases/latest`,
         {
           headers: {
@@ -141,7 +160,7 @@ export async function checkForUpdates(
           await Bun.write(
             cachePath,
             JSON.stringify({
-              timestamp: Date.now(),
+              timestamp: now(),
               latestVersion,
               releaseUrl,
             }),
@@ -165,9 +184,7 @@ export async function checkForUpdates(
     const targetUrl =
       releaseUrl ?? `https://github.com/bedest-hq/${template}/releases`;
 
-    process.stdout.write(
-      `\n${renderBanner(name, cleanCurrent, cleanLatest, targetUrl)}\n\n`,
-    );
+    write(`\n${renderBanner(name, cleanCurrent, cleanLatest, targetUrl)}\n\n`);
   } catch {
     // Silent on any error or network failure
   }

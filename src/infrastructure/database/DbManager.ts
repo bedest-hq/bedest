@@ -4,7 +4,42 @@ import { TEnv } from "@/common/types/TEnv";
 import { sql } from "drizzle-orm";
 import { TDb } from "bedest-core";
 import { UtilDbSsl } from "./UtilDbSsl";
-import { tryAdvisoryLock, type TJobLock } from "../jobs/JobScheduler";
+import {
+  tryAdvisoryLock,
+  type TJobLock,
+  type TLockQuery,
+} from "../jobs/JobScheduler";
+
+/** The parts of a pooled connection the job lock uses. */
+export interface ILockClient {
+  query: TLockQuery;
+  release(): void;
+}
+
+/**
+ * Takes the advisory lock of a job on one pooled connection [FEAT-08]: the
+ * connection is held until the returned release unlocks it, and given back
+ * at once when the lock is taken elsewhere or the query fails.
+ */
+export const lockOnClient = async (client: ILockClient, name: string) => {
+  try {
+    const release = await tryAdvisoryLock(client.query, name);
+    if (!release) {
+      client.release();
+      return null;
+    }
+    return async () => {
+      try {
+        await release();
+      } finally {
+        client.release();
+      }
+    };
+  } catch (error) {
+    client.release();
+    throw error;
+  }
+};
 
 class DbManager {
   private db: NodePgDatabase | undefined;
@@ -96,26 +131,13 @@ class DbManager {
       throw new Error("Database is not inited yet.");
     }
     const client = await this.pool.connect();
-    try {
-      const release = await tryAdvisoryLock(
-        (text, params) => client.query(text, params),
-        name,
-      );
-      if (!release) {
-        client.release();
-        return null;
-      }
-      return async () => {
-        try {
-          await release();
-        } finally {
-          client.release();
-        }
-      };
-    } catch (error) {
-      client.release();
-      throw error;
-    }
+    return await lockOnClient(
+      {
+        query: (text, params) => client.query(text, params),
+        release: () => client.release(),
+      },
+      name,
+    );
   };
 
   async shutdown() {
