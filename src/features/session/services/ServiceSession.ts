@@ -249,6 +249,19 @@ class ServiceSession {
     });
   }
 
+  /**
+   * Job tokens.cleanup [FEAT-08]: rotated refresh-token ids are only needed
+   * for reuse detection while their refresh token could still be valid
+   * (7 days, SEC-09).
+   */
+  async cleanupRevokedTokens(c: IApp, olderThan: Date) {
+    const deleted = await c.db
+      .delete(SRevokedRefreshToken)
+      .where(lt(SRevokedRefreshToken.revokedAt, olderThan))
+      .returning({ id: SRevokedRefreshToken.sessionId });
+    return { count: deleted.length };
+  }
+
   async remove(c: ITenantUserApp, id: string) {
     const deleted = await UtilTenantScope.tenantScope(c, (tx) =>
       tx

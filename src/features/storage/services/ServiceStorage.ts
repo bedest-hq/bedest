@@ -1,7 +1,8 @@
 import { UtilHttp } from "@/common/utils/UtilHttp";
 import { SStorage } from "../schemas/SStorage";
 
-import { and, eq, type SQL } from "drizzle-orm";
+import { and, eq, lt, type SQL } from "drizzle-orm";
+import { logger } from "@/infrastructure/logger/logger";
 import StorageManager from "@/infrastructure/storage/StorageManager";
 import {
   IApp,
@@ -157,15 +158,25 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
   }
 
   /**
-   * Whether an active user (avatar) or tenant (logo) points at the file.
-   * System scope: references from any tenant count.
+   * Whether a user (avatar) or tenant (logo) points at the file: active
+   * ones only, or also soft-deleted ones (their foreign keys still block a
+   * hard delete). System scope: references from any tenant count.
    */
-  private async isReferenced(c: IApp, id: string): Promise<boolean> {
+  private async isReferenced(
+    c: IApp,
+    id: string,
+    includeDeleted = false,
+  ): Promise<boolean> {
     return await UtilTenantScope.systemScope(c.db, async (tx) => {
       const [avatar] = await tx
         .select({ id: SUser.id })
         .from(SUser)
-        .where(and(eq(SUser.avatarId, id), eq(SUser.isDeleted, false)))
+        .where(
+          and(
+            eq(SUser.avatarId, id),
+            includeDeleted ? undefined : eq(SUser.isDeleted, false),
+          ),
+        )
         .limit(1);
       if (avatar) {
         return true;
@@ -173,7 +184,12 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
       const [logo] = await tx
         .select({ id: STenant.id })
         .from(STenant)
-        .where(and(eq(STenant.logoId, id), eq(STenant.isDeleted, false)))
+        .where(
+          and(
+            eq(STenant.logoId, id),
+            includeDeleted ? undefined : eq(STenant.isDeleted, false),
+          ),
+        )
         .limit(1);
       return logo !== undefined;
     });
@@ -229,6 +245,78 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
 
     const downloadUrl = await StorageManager.getDownloadUrl(fileRecord.key);
     return { downloadUrl };
+  }
+
+  /**
+   * Job storage.purgeDeleted [FEAT-08]: for files soft-deleted before
+   * `olderThan`, delete the object, then hard-delete the row unless a user
+   * (avatar) or tenant (logo) still references it. A failed object delete
+   * keeps the row for the next run.
+   */
+  async purgeDeleted(c: IApp, olderThan: Date) {
+    const rows = await UtilTenantScope.systemScope(c.db, (tx) =>
+      tx
+        .select({ id: SStorage.id, key: SStorage.key })
+        .from(SStorage)
+        .where(
+          and(eq(SStorage.isDeleted, true), lt(SStorage.deletedAt, olderThan)),
+        ),
+    );
+    let purged = 0;
+    for (const row of rows) {
+      if (await this.isReferenced(c, row.id, true)) {
+        continue;
+      }
+      try {
+        await StorageManager.delete(row.key);
+      } catch (err) {
+        logger.warn(
+          { err, id: row.id },
+          "storage.purgeDeleted: object delete failed",
+        );
+        continue;
+      }
+      await UtilTenantScope.systemScope(c.db, (tx) =>
+        tx.delete(SStorage).where(eq(SStorage.id, row.id)),
+      );
+      purged++;
+    }
+    return { purged };
+  }
+
+  /**
+   * Job storage.cleanupPending [FEAT-08]: uploads still PENDING after
+   * `olderThan` never completed; remove their object (if any) and row.
+   */
+  async cleanupPending(c: IApp, olderThan: Date) {
+    const rows = await UtilTenantScope.systemScope(c.db, (tx) =>
+      tx
+        .select({ id: SStorage.id, key: SStorage.key })
+        .from(SStorage)
+        .where(
+          and(
+            eq(SStorage.status, EStorageStatus.PENDING),
+            lt(SStorage.createdAt, olderThan),
+          ),
+        ),
+    );
+    let removed = 0;
+    for (const row of rows) {
+      try {
+        await StorageManager.delete(row.key);
+      } catch (err) {
+        logger.warn(
+          { err, id: row.id },
+          "storage.cleanupPending: object delete failed",
+        );
+        continue;
+      }
+      await UtilTenantScope.systemScope(c.db, (tx) =>
+        tx.delete(SStorage).where(eq(SStorage.id, row.id)),
+      );
+      removed++;
+    }
+    return { removed };
   }
 }
 

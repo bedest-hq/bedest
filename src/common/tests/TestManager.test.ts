@@ -88,6 +88,10 @@ const test_env: TEnv = {
   PORT: 3000,
   MAX_REQUEST_BODY_BYTES: 10 * 1024 * 1024,
   SHUTDOWN_TIMEOUT_MS: 15000,
+  // Tests construct the JobScheduler explicitly [FEAT-08].
+  JOBS_ENABLED: false,
+  STORAGE_PURGE_AFTER_DAYS: 30,
+  NOTIFICATION_RETENTION_DAYS: 180,
 
   BILLING_WEBHOOK_SECRET: "whsec_test_secret_123",
 

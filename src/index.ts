@@ -8,6 +8,8 @@ import ServiceSystem from "./features/system/services/ServiceSystem";
 import ServiceHealth from "./features/health/services/ServiceHealth";
 import { createShutdown } from "./app/Shutdown";
 import { createApp } from "./app/App";
+import { JobScheduler } from "./infrastructure/jobs/JobScheduler";
+import { createJobs } from "./infrastructure/jobs/jobs";
 
 // Startup order [QLT-01]: environment → infrastructure → app → listen →
 // shutdown hooks. No module reads the environment when it is imported.
@@ -48,6 +50,19 @@ logger.info(
   `📖 For API Documentation http://${app.server?.hostname}:${app.server?.port}/api/docs`,
 );
 
+// Background jobs [FEAT-08]; one node per job at a time (advisory lock).
+const jobs = new JobScheduler({
+  db: () => DbManager.get(),
+  lock: DbManager.jobLock,
+  onError: (job, err) => logger.error({ err, job }, "Background job failed"),
+});
+for (const job of createJobs(env)) {
+  jobs.register(job);
+}
+if (env.JOBS_ENABLED) {
+  jobs.start();
+}
+
 void checkForUpdates(env.NODE_ENV);
 
 // Graceful shutdown [FEAT-03][OPS-08].
@@ -60,6 +75,8 @@ const shutdown = createShutdown({
     { name: "markNotReady", run: () => ServiceHealth.markNotReady() },
     { name: "stopServer", run: () => app.stop() },
     { name: "closeWebSockets", run: () => WsManager.closeAll(1001) },
+    // Waits for running jobs, at most 10 s [FEAT-03].
+    { name: "stopJobs", run: () => jobs.stop() },
     { name: "closeRedis", run: () => RedisManager.close() },
     { name: "closeDb", run: () => DbManager.shutdown() },
     {

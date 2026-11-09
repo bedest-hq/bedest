@@ -4,6 +4,7 @@ import { TEnv } from "@/common/types/TEnv";
 import { sql } from "drizzle-orm";
 import { TDb } from "bedest-core";
 import { UtilDbSsl } from "./UtilDbSsl";
+import { tryAdvisoryLock, type TJobLock } from "../jobs/JobScheduler";
 
 class DbManager {
   private db: NodePgDatabase | undefined;
@@ -84,6 +85,38 @@ class DbManager {
     }
     return this.db;
   }
+
+  /**
+   * Job lock [FEAT-08]: pg_try_advisory_lock on a connection taken from the
+   * pool for the duration of the job (session locks belong to one
+   * connection), unlocked and returned to the pool by the release.
+   */
+  jobLock: TJobLock = async (name) => {
+    if (!this.pool) {
+      throw new Error("Database is not inited yet.");
+    }
+    const client = await this.pool.connect();
+    try {
+      const release = await tryAdvisoryLock(
+        (text, params) => client.query(text, params),
+        name,
+      );
+      if (!release) {
+        client.release();
+        return null;
+      }
+      return async () => {
+        try {
+          await release();
+        } finally {
+          client.release();
+        }
+      };
+    } catch (error) {
+      client.release();
+      throw error;
+    }
+  };
 
   async shutdown() {
     await this.pool?.end();
