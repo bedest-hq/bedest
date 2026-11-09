@@ -108,7 +108,12 @@ class Context {
             session,
           };
 
-          return { userRuntime };
+          // WebSockets are closed when the token they were opened with
+          // expires [BUG-10]; "exp" is always set (15 min tokens).
+          const accessTokenExpiresAt =
+            (payload.exp ?? Math.floor(Date.now() / 1000) + 15 * 60) * 1000;
+
+          return { userRuntime, accessTokenExpiresAt };
         })
         .macro("RoleGuard", MacroRoleGuard)
         .macro("PlanGuard", (plans: ETenantPlan[]) =>

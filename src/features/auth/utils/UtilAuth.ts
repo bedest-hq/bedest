@@ -61,10 +61,10 @@ export class UtilAuth {
       verify: (
         token: string,
         options: { issuer: string; audience: string },
-      ) => Promise<TJwtPayload | false>;
+      ) => Promise<(TJwtPayload & { exp?: number }) | false>;
     },
     token: string | undefined,
-  ): Promise<TJwtPayload> {
+  ): Promise<TJwtPayload & { exp?: number }> {
     if (!token) {
       throw status("Unauthorized");
     }

@@ -79,12 +79,14 @@ export const RouterNotification = new Elysia({
       event: t.Literal("ping"),
     }),
     open(ws) {
-      const { userRuntime } = ws.data;
-      WsManager.registerClient(
-        userRuntime.session.userId,
-        ws,
-        userRuntime.session.sessionId,
-      );
+      const { userRuntime, accessTokenExpiresAt } = ws.data;
+      // Keyed by the connection id; closed on revocation or token expiry
+      // [BUG-10].
+      WsManager.registerClient(ws, {
+        userId: userRuntime.session.userId,
+        sessionId: userRuntime.session.sessionId,
+        expiresAt: accessTokenExpiresAt,
+      });
       ws.subscribe(`tenant:${userRuntime.tenantId}`);
       ws.subscribe(`user:${userRuntime.session.userId}`);
       ws.send({ event: "connected" });
@@ -96,11 +98,7 @@ export const RouterNotification = new Elysia({
     },
     close(ws) {
       const { userRuntime } = ws.data;
-      WsManager.unregisterClient(
-        userRuntime.session.userId,
-        ws,
-        userRuntime.session.sessionId,
-      );
+      WsManager.unregisterClient(ws);
       ws.unsubscribe(`tenant:${userRuntime.tenantId}`);
       ws.unsubscribe(`user:${userRuntime.session.userId}`);
     },

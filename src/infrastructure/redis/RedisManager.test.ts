@@ -173,7 +173,9 @@ describe("RedisManager & Distributed WebSocket State", () => {
     let closedReason: string | undefined;
     const sentMessages: unknown[] = [];
 
+    // The registry keys sockets by connection id [BUG-10].
     const mockClientWs: IWsClient = {
+      id: crypto.randomUUID(),
       send: (msg) => {
         sentMessages.push(msg);
       },
@@ -184,7 +186,11 @@ describe("RedisManager & Distributed WebSocket State", () => {
     };
 
     // Client connects to Node B
-    WsManager.registerClient("user-456", mockClientWs, "session-789");
+    WsManager.registerClient(mockClientWs, {
+      userId: "user-456",
+      sessionId: "session-789",
+      expiresAt: Date.now() + 60_000,
+    });
 
     // Another node calls disconnectUser
     WsManager.disconnectUser("user-456");

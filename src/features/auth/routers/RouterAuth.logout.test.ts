@@ -33,7 +33,9 @@ const login = async (email: string) => {
 
 const socket = () => {
   const state = { closed: false };
+  // The registry keys sockets by connection id [BUG-10].
   const ws: IWsClient = {
+    id: crypto.randomUUID(),
     send: () => {},
     close: () => {
       state.closed = true;
@@ -49,8 +51,16 @@ describe("BUG-06: logout only disconnects its own session", () => {
     const phone = await login(user.email);
     const laptopSocket = socket();
     const phoneSocket = socket();
-    WsManager.registerClient(user.id, laptopSocket.ws, laptop.sessionId);
-    WsManager.registerClient(user.id, phoneSocket.ws, phone.sessionId);
+    WsManager.registerClient(laptopSocket.ws, {
+      userId: user.id,
+      sessionId: laptop.sessionId,
+      expiresAt: Date.now() + 60 * 60 * 1000,
+    });
+    WsManager.registerClient(phoneSocket.ws, {
+      userId: user.id,
+      sessionId: phone.sessionId,
+      expiresAt: Date.now() + 60 * 60 * 1000,
+    });
 
     const res = await app.handle(
       new Request("http://localhost/auth/logout", {
@@ -62,6 +72,6 @@ describe("BUG-06: logout only disconnects its own session", () => {
 
     expect(laptopSocket.state.closed).toBe(true);
     expect(phoneSocket.state.closed).toBe(false);
-    WsManager.unregisterClient(user.id, phoneSocket.ws, phone.sessionId);
+    WsManager.unregisterClient(phoneSocket.ws);
   });
 });

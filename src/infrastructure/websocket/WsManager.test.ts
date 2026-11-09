@@ -3,7 +3,9 @@ import { WsManager, IWsClient } from "./WsManager";
 
 const fakeSocket = () => {
   const closed: Array<[number | undefined, string | undefined]> = [];
+  // The registry keys sockets by connection id [BUG-10].
   const ws: IWsClient = {
+    id: crypto.randomUUID(),
     send: () => {},
     close: (code, reason) => {
       closed.push([code, reason]);
@@ -17,8 +19,8 @@ describe("WsManager", () => {
     const manager = new WsManager();
     const a = fakeSocket();
     const b = fakeSocket();
-    manager.registerClient("u1", a.ws, "s1");
-    manager.registerClient("u2", b.ws, "s2");
+    manager.registerClient(a.ws, { userId: "u1", sessionId: "s1", expiresAt: Date.now() + 60_000 });
+    manager.registerClient(b.ws, { userId: "u2", sessionId: "s2", expiresAt: Date.now() + 60_000 });
 
     manager.closeAll();
 
