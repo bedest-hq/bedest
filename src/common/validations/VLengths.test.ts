@@ -10,7 +10,11 @@ import { EUserRole } from "@f/user/enums/EUserRole";
 import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 import { RouterTenant } from "@f/tenant/routers/RouterTenant";
 import { RouterUser } from "@f/user/routers/RouterUser";
-import { RouterStorage } from "@f/storage/routers/RouterStorage";
+import { createRouterStorage } from "@f/storage/routers/RouterStorage";
+import { test_env as routerTestEnv } from "@/common/tests/TestManager.test";
+
+// Routers are built from an explicit environment [QLT-01].
+const RouterStorage = createRouterStorage(routerTestEnv);
 
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 

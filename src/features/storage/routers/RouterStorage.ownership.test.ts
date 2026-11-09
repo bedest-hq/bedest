@@ -12,7 +12,11 @@ import { SUser } from "@f/user/schemas/SUser";
 import { STenant } from "@f/tenant/schemas/STenant";
 import { SStorage } from "../schemas/SStorage";
 import { EStorageStatus } from "../enums/EStorageStatus";
-import { RouterStorage } from "./RouterStorage";
+import { createRouterStorage } from "./RouterStorage";
+import { test_env as routerTestEnv } from "@/common/tests/TestManager.test";
+
+// Routers are built from an explicit environment [QLT-01].
+const RouterStorage = createRouterStorage(routerTestEnv);
 
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 

@@ -5,6 +5,7 @@ import { t } from "elysia";
 import { EUserRole } from "@/features/user/enums/EUserRole";
 import DbManager from "@/infrastructure/database/DbManager";
 import EnvManager from "@/infrastructure/env/EnvManager";
+import { TEnv } from "@/common/types/TEnv";
 import { UtilClientIp } from "@/infrastructure/ratelimit/UtilClientIp";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import ServiceSession from "@f/session/services/ServiceSession";
@@ -17,44 +18,54 @@ import {
 import { PluginAudit } from "@f/system/plugins/PluginAudit";
 import { ISession, ITenantUserApp, MacroRoleGuard } from "bedest-core";
 
-class Context {
-  private env = EnvManager.get();
-
-  private refreshPlugin = jwt({
+/** The access and refresh token signers for `env` (SEC-24 claims). */
+const createSigners = (env: TEnv) => ({
+  refreshJwt: jwt({
     name: "refreshJwt",
-    secret: this.env.REFRESH_KEY,
+    secret: env.REFRESH_KEY,
     exp: "7d",
     iat: true,
-    iss: this.env.JWT_ISSUER,
+    iss: env.JWT_ISSUER,
     aud: JWT_AUDIENCE,
     schema: VRefreshJwtPayload,
-  });
-
-  private accessPlugin = jwt({
+  }).decorator.refreshJwt,
+  accessJwt: jwt({
     name: "accessJwt",
-    secret: this.env.SECRET_KEY,
+    secret: env.SECRET_KEY,
     exp: "15m",
     iat: true,
-    iss: this.env.JWT_ISSUER,
+    iss: env.JWT_ISSUER,
     aud: JWT_AUDIENCE,
     schema: VAccessJwtPayload,
-  });
+  }).decorator.accessJwt,
+});
+
+class Context {
+  private signers: ReturnType<typeof createSigners> | undefined;
+
+  /**
+   * Routers are built when their module is imported, so nothing here may
+   * read the environment or the database at that point [QLT-01]: the
+   * signers are created on first use and the database handle is resolved
+   * per request.
+   */
+  private jwt() {
+    this.signers ??= createSigners(EnvManager.get());
+    return this.signers;
+  }
 
   App() {
-    const db = DbManager.get();
     return (app: Elysia) =>
-      app
-        .decorate("db", db)
-        .derive(({ request, server }) => ({
-          nowDatetime: new Date(),
-          clientIp: UtilClientIp.resolve(
-            request,
-            server,
-            EnvManager.get().TRUST_PROXY_HOPS,
-          ),
-        }))
-        .use(this.refreshPlugin)
-        .use(this.accessPlugin);
+      app.derive(({ request, server }) => ({
+        db: DbManager.get(),
+        nowDatetime: new Date(),
+        clientIp: UtilClientIp.resolve(
+          request,
+          server,
+          EnvManager.get().TRUST_PROXY_HOPS,
+        ),
+        ...this.jwt(),
+      }));
   }
 
   User() {

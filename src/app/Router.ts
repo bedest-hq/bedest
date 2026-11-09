@@ -4,22 +4,28 @@ import { createDocs, shouldServeDocs } from "./Swagger";
 import { RouterTenant } from "@f/tenant/routers/RouterTenant";
 import { RouterAuth } from "@f/auth/routers/RouterAuth";
 import { RouterSystem } from "@f/system/routers/RouterSystem";
-import { RouterStorage } from "@f/storage/routers/RouterStorage";
+import { createRouterStorage } from "@f/storage/routers/RouterStorage";
 import { RouterNotification } from "@f/notification/routers/RouterNotification";
 import { RouterBilling } from "@f/billing/routers/RouterBilling";
 import { RouterHealth } from "@f/health/routers/RouterHealth";
 import { TEnv } from "@/common/types/TEnv";
-import EnvManager from "@/infrastructure/env/EnvManager";
 import { logger } from "@/infrastructure/logger/logger";
 
 export const createRouter = (
-  env: Pick<TEnv, "BILLING_WEBHOOK_SECRET" | "NODE_ENV" | "ENABLE_API_DOCS">,
+  env: Pick<
+    TEnv,
+    | "BILLING_WEBHOOK_SECRET"
+    | "NODE_ENV"
+    | "ENABLE_API_DOCS"
+    | "STORAGE_ALLOWED_TYPES"
+    | "STORAGE_MAX_BYTES"
+  >,
 ) => {
   const v1 = new Elysia({ prefix: "/v1" })
     .use(RouterAuth)
     .use(RouterUser)
     .use(RouterTenant)
-    .use(RouterStorage)
+    .use(createRouterStorage(env))
     .use(RouterSystem)
     .use(RouterNotification);
 
@@ -42,5 +48,3 @@ export const createRouter = (
 
   return api;
 };
-
-export const Router = createRouter(EnvManager.get());

@@ -1,4 +1,9 @@
-import pino, { type DestinationStream, type LoggerOptions } from "pino";
+import pino, {
+  type DestinationStream,
+  type LogFn,
+  type Logger,
+  type LoggerOptions,
+} from "pino";
 import { TEnv } from "@/common/types/TEnv";
 import EnvManager from "../env/EnvManager";
 
@@ -57,4 +62,29 @@ export const createLogger = (
   return pino(options);
 };
 
-export const logger = createLogger(EnvManager.get());
+let instance: Logger | undefined;
+
+/** The process logger, created from the environment on first use [QLT-01]. */
+const current = (): Logger => {
+  instance ??= createLogger(EnvManager.get());
+  return instance;
+};
+
+const forward =
+  (level: "info" | "warn" | "error"): LogFn =>
+  (obj: unknown, msg?: string, ...args: unknown[]) => {
+    current()[level](obj, msg, ...args);
+  };
+
+/**
+ * Application logger. A facade instead of a pino instance built at import
+ * time: importing a module never reads the environment [QLT-01].
+ */
+export const logger = {
+  info: forward("info"),
+  warn: forward("warn"),
+  error: forward("error"),
+  flush: (cb?: (err?: Error) => void) => {
+    current().flush(cb);
+  },
+};

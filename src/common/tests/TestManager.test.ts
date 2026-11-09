@@ -2,14 +2,7 @@ import { PGlite, type Transaction } from "@electric-sql/pglite";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { sql } from "drizzle-orm";
-import {
-  afterAll,
-  afterEach,
-  beforeEach,
-  spyOn,
-  expect,
-  beforeAll,
-} from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, beforeAll } from "bun:test";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { TEnv } from "../types/TEnv";
@@ -23,8 +16,11 @@ import { password } from "bun";
 import { SSession } from "@f/session/schemas/SSession";
 import { JWT_AUDIENCE } from "@f/auth/validations/VJwtPayload";
 
-const EnvManager = await import("@/infrastructure/env/EnvManager");
-const DbManager = await import("@/infrastructure/database/DbManager");
+import EnvManager from "@/infrastructure/env/EnvManager";
+import DbManager from "@/infrastructure/database/DbManager";
+import RateLimitManager from "@/infrastructure/ratelimit/RateLimitManager";
+import ServiceSession from "@f/session/services/ServiceSession";
+import ServiceSystem from "@f/system/services/ServiceSystem";
 
 interface CustomMatchers<R = unknown> {
   toBeApiError(expected: string): R;
@@ -151,14 +147,18 @@ const asNodePg = (db: PgliteDatabase): NodePgDatabase =>
 /** Superuser handle typed like the app's database (for script functions). */
 export const test_owner_db = asNodePg(test_db);
 
-spyOn(EnvManager.default, "get").mockReturnValue(test_env);
-spyOn(DbManager.default, "get").mockReturnValue(asNodePg(test_app_db));
-
-// Imported after the spies: they pull in modules that read the env on import.
-const RateLimitManager =
-  await import("@/infrastructure/ratelimit/RateLimitManager");
-const ServiceSession = await import("@f/session/services/ServiceSession");
-const ServiceSystem = await import("@f/system/services/ServiceSystem");
+// Real initialization with test dependencies instead of spies: no module
+// reads the environment or the database at import time [QLT-01].
+EnvManager.init(
+  Object.fromEntries(
+    Object.entries(test_env)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, String(value)]),
+  ),
+);
+/** The application handle (runs as bedest_app, RLS enforced). */
+export const test_runtime_db = asNodePg(test_app_db);
+DbManager.use(test_runtime_db);
 
 const test_signer = new Elysia().use(
   jwt({
@@ -309,9 +309,9 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await RateLimitManager.default.resetAll();
-  ServiceSession.default.clearCache();
-  ServiceSystem.default.invalidate();
+  await RateLimitManager.resetAll();
+  ServiceSession.clearCache();
+  ServiceSystem.invalidate();
   await test_db.execute(sql`
     DO $$ DECLARE
       r RECORD;

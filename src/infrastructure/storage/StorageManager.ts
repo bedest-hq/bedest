@@ -7,9 +7,21 @@ import { ProviderLocal } from "./providers/ProviderLocal";
 import { ProviderS3 } from "./providers/ProviderS3";
 
 class StorageManager {
-  private activeProvider: IProvider | null = null;
+  private resolved: IProvider | null | undefined;
 
-  constructor() {
+  /** Chosen from the environment on first use, never at import [QLT-01]. */
+  private get activeProvider(): IProvider | null {
+    if (this.resolved === undefined) {
+      this.resolved = StorageManager.fromEnv();
+    }
+    return this.resolved;
+  }
+
+  private set activeProvider(provider: IProvider | null) {
+    this.resolved = provider;
+  }
+
+  private static fromEnv(): IProvider | null {
     const env = EnvManager.get();
 
     if (
@@ -18,14 +30,15 @@ class StorageManager {
       env.S3_ACCESS_KEY &&
       env.S3_SECRET_KEY
     ) {
-      this.activeProvider = new ProviderS3();
       logger.info("S3 Storage Provider enabled.");
-    } else if (env.LOCAL_STORAGE_PATH) {
-      this.activeProvider = new ProviderLocal(env.LOCAL_STORAGE_PATH);
-      logger.info("Local Storage Provider enabled.");
-    } else {
-      logger.warn("No storage providers configured! File uploads will fail.");
+      return new ProviderS3();
     }
+    if (env.LOCAL_STORAGE_PATH) {
+      logger.info("Local Storage Provider enabled.");
+      return new ProviderLocal(env.LOCAL_STORAGE_PATH);
+    }
+    logger.warn("No storage providers configured! File uploads will fail.");
+    return null;
   }
 
   /** Whether the active provider can issue presigned URLs [BUG-04]. */

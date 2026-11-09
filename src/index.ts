@@ -1,20 +1,16 @@
-import { Elysia } from "elysia";
 import EnvManager from "./infrastructure/env/EnvManager";
-import { UtilEnv } from "./infrastructure/env/UtilEnv";
 import DbManager from "./infrastructure/database/DbManager";
 import RedisManager from "./infrastructure/redis/RedisManager";
-import { ErrorHandler } from "./infrastructure/error/ErrorHandler";
-import cors from "@elysiajs/cors";
 import { logger } from "./infrastructure/logger/logger";
 import WsManager from "./infrastructure/websocket/WsManager";
 import { checkForUpdates } from "./infrastructure/update/UpdateChecker";
 import ServiceSystem from "./features/system/services/ServiceSystem";
-import { createShutdown } from "./app/Shutdown";
-import { PluginSecurityHeaders } from "./app/plugins/PluginSecurityHeaders";
-import { PluginBodyLimit } from "./app/plugins/PluginBodyLimit";
-import { PluginCsrf } from "./app/plugins/PluginCsrf";
 import ServiceHealth from "./features/health/services/ServiceHealth";
+import { createShutdown } from "./app/Shutdown";
+import { createApp } from "./app/App";
 
+// Startup order [QLT-01]: environment → infrastructure → app → listen →
+// shutdown hooks. No module reads the environment when it is imported.
 const env = EnvManager.init();
 
 DbManager.init(env);
@@ -28,23 +24,10 @@ RedisManager.init(env.REDIS_URL);
 // Maintenance-mode invalidations from other nodes [BUG-08].
 await ServiceSystem.listen();
 
-const { Router } = await import("./app/Router");
-
-export const app = new Elysia()
-  .use(
-    cors({
-      origin: env.NODE_ENV === "production" ? UtilEnv.corsOrigins(env) : true,
-      credentials: true,
-    }),
-  )
-  // HTTP hardening [SEC-18]: headers, body limit and CSRF run first.
-  .use(PluginSecurityHeaders)
-  .use(PluginBodyLimit)
-  .use(PluginCsrf)
-  .use(ErrorHandler)
-  .get("/favicon.ico", () => Bun.file("public/favicon.ico"))
-  .use(Router)
-  .listen({ port: env.PORT, maxRequestBodySize: env.MAX_REQUEST_BODY_BYTES });
+const app = createApp(env).listen({
+  port: env.PORT,
+  maxRequestBodySize: env.MAX_REQUEST_BODY_BYTES,
+});
 
 if (app.server) {
   WsManager.init(app.server);
@@ -88,4 +71,4 @@ const shutdown = createShutdown({
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
-export type App = typeof app;
+export type { App } from "./app/App";

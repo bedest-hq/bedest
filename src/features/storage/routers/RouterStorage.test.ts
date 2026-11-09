@@ -4,7 +4,11 @@ import { eq } from "drizzle-orm";
 import { test_db, testHeaders } from "@/common/tests/TestManager.test";
 import { SStorage } from "../schemas/SStorage";
 import { EStorageStatus } from "../enums/EStorageStatus";
-import { RouterStorage } from "./RouterStorage";
+import { createRouterStorage } from "./RouterStorage";
+import { test_env as routerTestEnv } from "@/common/tests/TestManager.test";
+
+// Routers are built from an explicit environment [QLT-01].
+const RouterStorage = createRouterStorage(routerTestEnv);
 
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 

@@ -1,5 +1,5 @@
 import { treaty } from "@elysiajs/eden";
-import type { App } from "../src/index";
+import type { App } from "../src/app/App";
 
 export type { App };
 

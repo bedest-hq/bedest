@@ -14,7 +14,10 @@ export const STORAGE_INLINE_TYPES: readonly string[] = [
 export const STORAGE_DEFAULT_ALLOWED_TYPES = STORAGE_INLINE_TYPES.join(",");
 export const STORAGE_DEFAULT_MAX_BYTES = 5 * 1024 * 1024;
 
-type TStorageEnv = Pick<TEnv, "STORAGE_ALLOWED_TYPES" | "STORAGE_MAX_BYTES">;
+export type TStorageEnv = Pick<
+  TEnv,
+  "STORAGE_ALLOWED_TYPES" | "STORAGE_MAX_BYTES"
+>;
 
 export class UtilStorage {
   /** The one allowlist used by direct uploads and presigned uploads. */

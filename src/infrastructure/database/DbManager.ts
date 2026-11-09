@@ -70,6 +70,14 @@ class DbManager {
     return message;
   }
 
+  /**
+   * Use an existing handle (tests, embedding) instead of opening a pool
+   * with init() [QLT-01].
+   */
+  use(db: TDb) {
+    this.db = db;
+  }
+
   get() {
     if (!this.db) {
       throw new Error("Database is not inited yet.");
