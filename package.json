@@ -8,7 +8,7 @@
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/jwt": "^1.4.2",
     "@elysiajs/openapi": "1.4.16",
-    "bedest-core": "^1.1.0",
+    "bedest-core": "^2.0.0",
     "drizzle-orm": "^0.45.2",
     "elysia": "^1.4.29",
     "elysia-rate-limit": "^4.6.2",
