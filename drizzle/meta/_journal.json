@@ -120,6 +120,13 @@
       "when": 1794204562321,
       "tag": "0016_audit_entity_nullable_target_tenant",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794207813305,
+      "tag": "0017_perf_indexes",
+      "breakpoints": true
     }
   ]
 }

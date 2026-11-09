@@ -1,6 +1,7 @@
 import { STenant } from "@f/tenant/schemas/STenant";
 import { baseColumns, UtilDbSchema } from "bedest-core";
-import { uuid, pgTable, varchar, integer } from "drizzle-orm/pg-core";
+import { uuid, pgTable, varchar, integer, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { EStorageStatus, EStorageStatusPg } from "../enums/EStorageStatus";
 
 export const SStorage = pgTable(
@@ -21,6 +22,10 @@ export const SStorage = pgTable(
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_storage_active", t.id),
+    // Tenant file list, newest first [PERF-01].
+    index("idx_storage_tenant_created")
+      .on(t.tenantId, t.createdAt.desc().nullsFirst())
+      .where(sql`${t.isDeleted} = false`),
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();

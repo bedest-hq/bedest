@@ -20,6 +20,8 @@ export const SSession = pgTable(
     index().on(t.userId),
     index("idx_sessions_expires_at").on(t.expiresAt),
     index("idx_sessions_family").on(t.familyId),
+    // RLS predicate [PERF-01].
+    index("idx_sessions_tenant").on(t.tenantId),
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();

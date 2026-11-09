@@ -31,6 +31,11 @@ export const SSystemLog = pgTable(
   },
   (t) => [
     index("idx_audit_logs_entity").on(t.entity, t.entityId),
+    // Tenant audit log, newest first [PERF-01].
+    index("idx_audit_logs_tenant_created").on(
+      t.tenantId,
+      t.createdAt.desc().nullsFirst(),
+    ),
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();

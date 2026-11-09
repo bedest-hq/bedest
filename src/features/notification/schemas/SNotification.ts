@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { STenant } from "@f/tenant/schemas/STenant";
 import { baseColumns, UtilDbSchema } from "bedest-core";
 import {
@@ -27,6 +28,10 @@ export const SNotification = pgTable(
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_notifications_user", t.userId, t.tenantId),
+    // Tenant broadcasts, newest first [PERF-01].
+    index("idx_notifications_tenant_broadcast_created")
+      .on(t.tenantId, t.isBroadcast, t.createdAt.desc().nullsFirst())
+      .where(sql`${t.isDeleted} = false`),
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();

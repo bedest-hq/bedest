@@ -20,6 +20,8 @@ export const SUser = pgTable(
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_users_active", t.id),
+    // RLS predicate on active users [PERF-01].
+    UtilDbSchema.activeIndex("idx_users_tenant", t.tenantId),
     // Case-insensitive uniqueness among active users [SEC-21].
     uniqueIndex("idx_users_email_lower")
       .on(sql`lower(${t.email})`)
