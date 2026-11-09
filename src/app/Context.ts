@@ -8,8 +8,6 @@ import EnvManager from "@/infrastructure/env/EnvManager";
 import { UtilClientIp } from "@/infrastructure/ratelimit/UtilClientIp";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import ServiceSession from "@f/session/services/ServiceSession";
-import ServiceTenant from "@f/tenant/services/ServiceTenant";
-import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 import { UtilAuth } from "@f/auth/utils/UtilAuth";
 import {
   JWT_AUDIENCE,
@@ -17,13 +15,7 @@ import {
   VRefreshJwtPayload,
 } from "@f/auth/validations/VJwtPayload";
 import { PluginAudit } from "@f/system/plugins/PluginAudit";
-import {
-  ISession,
-  ITenantUserApp,
-  MacroPlanGuard,
-  MacroRoleGuard,
-  PlanChecker,
-} from "bedest-core";
+import { ISession, ITenantUserApp, MacroRoleGuard } from "bedest-core";
 
 class Context {
   private env = EnvManager.get();
@@ -66,11 +58,6 @@ class Context {
   }
 
   User() {
-    const planChecker: PlanChecker = (tenantId, nowDatetime) => {
-      const db = DbManager.get();
-      return ServiceTenant.checkPlan({ db, nowDatetime }, tenantId);
-    };
-
     return (app: Elysia) =>
       app
         .use(this.App())
@@ -122,9 +109,8 @@ class Context {
           return { userRuntime, accessTokenExpiresAt };
         })
         .macro("RoleGuard", MacroRoleGuard)
-        .macro("PlanGuard", (plans: ETenantPlan[]) =>
-          MacroPlanGuard(plans, planChecker),
-        )
+        // PlanGuard is opt-in per router (UtilPlanGuard.macro); no route
+        // of the template is plan-gated [QLT-05].
         .use(PluginAudit);
   }
 }

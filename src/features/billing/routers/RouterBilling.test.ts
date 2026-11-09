@@ -4,6 +4,7 @@ import { treaty } from "@elysiajs/eden";
 import { Elysia } from "elysia";
 import { and, eq, sql } from "drizzle-orm";
 import Context from "@/app/Context";
+import { UtilPlanGuard } from "@f/tenant/utils/UtilPlanGuard";
 import { createRouter } from "@/app/Router";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterBilling } from "./RouterBilling";
@@ -174,6 +175,8 @@ describe("SEC-05: billing webhook processing", () => {
 
     const protectedApp = new Elysia()
       .use(Context.User())
+      // PlanGuard is opt-in per router [QLT-05].
+      .macro("PlanGuard", UtilPlanGuard.macro)
       .get("/pro-feature", () => ({ feature: "unlocked" }), {
         PlanGuard: [ETenantPlan.PROFESSIONAL],
       });
@@ -336,6 +339,8 @@ describe("SEC-05: billing webhook processing", () => {
 
     const protectedApp = new Elysia()
       .use(Context.User())
+      // PlanGuard is opt-in per router [QLT-05].
+      .macro("PlanGuard", UtilPlanGuard.macro)
       .get("/pro-feature", () => ({ feature: "unlocked" }), {
         PlanGuard: [ETenantPlan.PROFESSIONAL],
       });

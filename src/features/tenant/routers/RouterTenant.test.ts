@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { treaty } from "@elysiajs/eden";
 import { Elysia } from "elysia";
 import Context from "@/app/Context";
+import { UtilPlanGuard } from "@f/tenant/utils/UtilPlanGuard";
 import { RouterTenant } from "./RouterTenant";
 import {
   testHeaders,
@@ -400,6 +401,8 @@ describe("RouterTenant", () => {
 
     const testApp = new Elysia()
       .use(Context.User())
+      // PlanGuard is opt-in per router [QLT-05].
+      .macro("PlanGuard", UtilPlanGuard.macro)
       .get("/protected-plan", () => ({ status: "ok" }), {
         PlanGuard: [ETenantPlan.PROFESSIONAL],
       });

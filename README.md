@@ -75,7 +75,7 @@ src/
 └── scripts/           # DB Reset, Seed execution, Storage teardown
 ```
 
-> Base services, guards, utilities, and interfaces are provided by [`bedest-core`](https://github.com/bedesthq/bedest-core) and imported directly. See `src/app/Context.ts` for how `MacroRoleGuard`, `MacroPlanGuard`, and `ISession` are wired up.
+> Base services, guards, utilities, and interfaces are provided by [`bedest-core`](https://github.com/bedesthq/bedest-core) and imported directly. See `src/app/Context.ts` for how `MacroRoleGuard` and `ISession` are wired up, and `src/features/tenant/utils/UtilPlanGuard.ts` for the opt-in `PlanGuard`.
 
 ---
 
@@ -94,7 +94,7 @@ The shared foundation is extracted into [`bedest-core`](https://github.com/bedes
 | `UtilRouter` | `defPaginatedSchema` — typed paginated response wrapper |
 | `UtilAudit` | `scrub()` — redacts sensitive keys before audit log persistence |
 | `MacroRoleGuard` | Elysia macro for role-based access control |
-| `MacroPlanGuard` | Elysia macro for plan-based feature gating (`checkPlan` injected from `Context.ts`) |
+| `MacroPlanGuard` | Elysia macro for plan-based feature gating; opt-in per router via `.macro("PlanGuard", UtilPlanGuard.macro)` (no template route is plan-gated) |
 | `baseColumns` | Standard `id`, `isDeleted`, `createdAt`, `deletedAt` Drizzle columns |
 | `IApp`, `ITenantApp`, `IUserApp` | Context interfaces used by every service method |
 | `ISession` | `userId`, `sessionId`, `role: string`, `isSuperUser: boolean` |

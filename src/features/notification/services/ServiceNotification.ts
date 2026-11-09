@@ -1,76 +1,10 @@
 import { UtilHttp } from "@/common/utils/UtilHttp";
-import WsManager from "@/infrastructure/websocket/WsManager";
 import { SNotification, SNotificationRead } from "../schemas/SNotification";
 import { and, count, desc, eq, or, sql } from "drizzle-orm";
 
-import { logger } from "@/infrastructure/logger/logger";
 import { ITenantUserApp, UtilTenantScope } from "bedest-core";
 
 class ServiceNotification {
-  /**
-   * Persist a notification for a specific user and push it over WebSocket.
-   * Failures in either step are logged and swallowed — notifications are
-   * best-effort and must never break the calling flow.
-   */
-  async sendToUser(
-    c: ITenantUserApp,
-    targetUserId: string,
-    event: string,
-    payload?: Record<string, unknown>,
-  ) {
-    try {
-      await UtilTenantScope.tenantScope(c, async (tx) => {
-        await tx.insert(SNotification).values({
-          tenantId: c.tenantId,
-          userId: targetUserId,
-          isBroadcast: false,
-          event,
-          payload: payload ?? {},
-          createdAt: c.nowDatetime,
-        });
-      });
-    } catch (err) {
-      logger.error(
-        { err, targetUserId, event },
-        "Failed to persist notification",
-      );
-    }
-
-    WsManager.publishToUser(targetUserId, event, payload);
-  }
-
-  /**
-   * Persist a broadcast notification for every connected user in the tenant
-   * and push over the tenant WebSocket topic.
-   * Per-user persistence is intentionally skipped for broadcasts — store only
-   * a single tenant-scoped record with userId null and isBroadcast true.
-   */
-  async sendToTenant(
-    c: ITenantUserApp,
-    event: string,
-    payload?: Record<string, unknown>,
-  ) {
-    try {
-      await UtilTenantScope.tenantScope(c, async (tx) => {
-        await tx.insert(SNotification).values({
-          tenantId: c.tenantId,
-          userId: null,
-          isBroadcast: true,
-          event,
-          payload: payload ?? {},
-          createdAt: c.nowDatetime,
-        });
-      });
-    } catch (err) {
-      logger.error(
-        { err, tenantId: c.tenantId, event },
-        "Failed to persist tenant notification",
-      );
-    }
-
-    WsManager.publishToTenant(c.tenantId, event, payload);
-  }
-
   async getAll(
     c: ITenantUserApp,
     query: { limit: number; page: number; unreadOnly?: boolean },

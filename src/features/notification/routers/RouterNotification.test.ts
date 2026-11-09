@@ -8,14 +8,11 @@ import {
   test_user,
   test_tenant,
   test_db,
-  test_owner_db,
 } from "@/common/tests/TestManager.test";
 import { RouterNotification } from "./RouterNotification";
 import { RouterAuth } from "@f/auth/routers/RouterAuth";
 import { SNotification } from "../schemas/SNotification";
-import ServiceNotification from "../services/ServiceNotification";
 import { EUserRole } from "@f/user/enums/EUserRole";
-import { ITenantUserApp } from "bedest-core";
 
 const api = treaty(RouterNotification);
 
@@ -248,21 +245,14 @@ describe("RouterNotification", () => {
     const userB = await createTestUser(EUserRole.USER, test_tenant);
     const foreign = await createForeignTenant(EUserRole.USER);
 
-    // 2. Admin sends broadcast to test_tenant
-    const adminContext: ITenantUserApp = {
-      db: test_owner_db,
-      nowDatetime: new Date(),
+    // 2. A broadcast to test_tenant (fixture: there is no send API, QLT-05)
+    await test_db.insert(SNotification).values({
       tenantId: test_tenant.id,
-      session: {
-        userId: test_user.id,
-        sessionId: "admin-session",
-        role: EUserRole.ADMIN,
-        isSuperUser: false,
-      },
-    };
-
-    await ServiceNotification.sendToTenant(adminContext, "maintenance_alert", {
-      text: "System maintenance tonight",
+      userId: null,
+      isBroadcast: true,
+      event: "maintenance_alert",
+      payload: { text: "System maintenance tonight" },
+      createdAt: new Date(),
     });
 
     // 3. User A and User B see the broadcast notification
