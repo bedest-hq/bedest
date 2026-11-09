@@ -1,4 +1,4 @@
-import { describe, it, expect, spyOn, mock } from "bun:test";
+import { describe, it, expect, spyOn, mock, afterAll } from "bun:test";
 import { treaty } from "@elysiajs/eden";
 import { eq } from "drizzle-orm";
 import { test_db, testHeaders } from "@/common/tests/TestManager.test";
@@ -12,21 +12,27 @@ const RouterStorage = createRouterStorage(routerTestEnv);
 
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 
-spyOn(StorageManager.default, "upload").mockImplementation(
+const uploadSpy = spyOn(StorageManager.default, "upload").mockImplementation(
   mock(() => Promise.resolve()),
 );
 
-spyOn(StorageManager.default, "delete").mockImplementation(
+const deleteSpy = spyOn(StorageManager.default, "delete").mockImplementation(
   mock(() => Promise.resolve()),
 );
 
-spyOn(StorageManager.default, "download").mockImplementation(
+const downloadSpy = spyOn(StorageManager.default, "download").mockImplementation(
   // Providers stream objects [BUG-18].
   mock(() => {
     const blob = new Blob(["mock file data"]);
     return Promise.resolve({ stream: blob.stream(), contentLength: blob.size });
   }),
 );
+
+afterAll(() => {
+  uploadSpy.mockRestore();
+  deleteSpy.mockRestore();
+  downloadSpy.mockRestore();
+});
 
 const bytes = new Uint8Array([
   137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0,

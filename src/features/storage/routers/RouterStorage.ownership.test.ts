@@ -1,4 +1,4 @@
-import { describe, it, expect, spyOn, mock } from "bun:test";
+import { describe, it, expect, spyOn, mock, afterAll } from "bun:test";
 import { Elysia } from "elysia";
 import { eq } from "drizzle-orm";
 import {
@@ -21,9 +21,13 @@ const RouterStorage = createRouterStorage(routerTestEnv);
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 
 // External I/O only: the object store.
-spyOn(StorageManager.default, "upload").mockImplementation(
+const uploadSpy = spyOn(StorageManager.default, "upload").mockImplementation(
   mock(() => Promise.resolve()),
 );
+
+afterAll(() => {
+  uploadSpy.mockRestore();
+});
 
 const app = new Elysia().use(ErrorHandler).use(RouterStorage);
 

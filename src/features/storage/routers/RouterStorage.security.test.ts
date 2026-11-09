@@ -1,4 +1,4 @@
-import { describe, it, expect, spyOn, mock } from "bun:test";
+import { describe, it, expect, spyOn, mock, afterAll } from "bun:test";
 import { treaty } from "@elysiajs/eden";
 import { Elysia } from "elysia";
 import {
@@ -19,13 +19,17 @@ const RouterStorage = createRouterStorage(routerTestEnv);
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 
 // External I/O only: the object store.
-spyOn(StorageManager.default, "download").mockImplementation(
+const downloadSpy = spyOn(StorageManager.default, "download").mockImplementation(
   // Providers stream objects [BUG-18].
   mock(() => {
     const blob = new Blob(["<script>alert(1)</script>"]);
     return Promise.resolve({ stream: blob.stream(), contentLength: blob.size });
   }),
 );
+
+afterAll(() => {
+  downloadSpy.mockRestore();
+});
 
 const api = treaty(RouterStorage);
 const app = new Elysia().use(ErrorHandler).use(RouterStorage);
