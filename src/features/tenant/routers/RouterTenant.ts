@@ -1,4 +1,3 @@
-import { UtilHttp } from "@/common/utils/UtilHttp";
 import { Elysia, t } from "elysia";
 import { STenant } from "../schemas/STenant";
 import ServiceTenant from "../services/ServiceTenant";
@@ -77,16 +76,8 @@ export const RouterTenant = new Elysia({
   .get(
     "/:id",
     async ({ params, userRuntime }) => {
-      const id = params.id;
-
-      if (
-        userRuntime.session.role !== EUserRole.SYSTEM &&
-        id !== userRuntime.tenantId
-      ) {
-        throw UtilHttp.fail(403);
-      }
-
-      const res = await ServiceTenant.getById(userRuntime, id, {
+      // Own tenant only unless SYSTEM: enforced by the service [BUG-15].
+      const res = await ServiceTenant.getById(userRuntime, params.id, {
         name: STenant.name,
         domain: STenant.domain,
         email: STenant.email,
@@ -140,18 +131,9 @@ export const RouterTenant = new Elysia({
   .put(
     "/:id",
     async ({ body, params, userRuntime }) => {
-      const id = params.id;
-
-      if (userRuntime.session.role !== EUserRole.SYSTEM) {
-        if (id !== userRuntime.tenantId) {
-          throw UtilHttp.fail(403);
-        }
-        delete body.plan;
-        delete body.planStart;
-        delete body.planEnd;
-      }
-
-      return await ServiceTenant.update(userRuntime, id, body);
+      // Authorization (own tenant, plan fields SYSTEM-only) is enforced by
+      // the service; the body is passed unchanged [BUG-15].
+      return await ServiceTenant.update(userRuntime, params.id, body);
     },
     {
       RoleGuard: [EUserRole.ADMIN, EUserRole.SYSTEM],

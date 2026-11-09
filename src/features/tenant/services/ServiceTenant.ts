@@ -41,6 +41,10 @@ class ServiceTenant extends ServiceBase<
     id: string,
     columns: TSelection,
   ) {
+    // Only SYSTEM reads other tenants [BUG-15].
+    if (!c.session.isSuperUser && id !== c.tenantId) {
+      throw UtilHttp.fail(403);
+    }
     return this.scoped(c, (sc) => super.getById(sc, id, columns));
   }
 
@@ -85,17 +89,19 @@ class ServiceTenant extends ServiceBase<
     }
     if (!c.session?.isSuperUser) {
       const allowedData = { ...data };
-      delete (allowedData as Record<string, unknown>).plan;
-      delete (allowedData as Record<string, unknown>).planStart;
-      delete (allowedData as Record<string, unknown>).planEnd;
+      // A copy: the caller's object (the request body) is never mutated.
+      delete allowedData.plan;
+      delete allowedData.planStart;
+      delete allowedData.planEnd;
       return this.scoped(c, (sc) => super.update(sc, id, allowedData));
     }
     return this.scoped(c, (sc) => super.update(sc, id, data));
   }
 
   override async remove(c: ITenantUserApp, id: string) {
-    if (!c.session?.isSuperUser && id !== c.tenantId) {
-      throw UtilHttp.fail(403);
+    // Deleting a tenant is a SYSTEM operation, like its route [BUG-15].
+    if (!c.session.isSuperUser) {
+      throw UtilHttp.fail(403, "Only SYSTEM can delete tenants");
     }
     // Never orphan the platform or lock the actor out [SEC-13].
     if (id === c.tenantId) {
