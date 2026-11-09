@@ -1,0 +1,1 @@
+ALTER TABLE "tenants" ADD CONSTRAINT "tenants_logoId_storage_files_id_fk" FOREIGN KEY ("logoId") REFERENCES "public"."storage_files"("id") ON DELETE no action ON UPDATE no action;

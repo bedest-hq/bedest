@@ -237,7 +237,8 @@ export const RouterTenant = new Elysia({
               workingHours: t.Optional(t.Nullable(VString)),
               copyright: t.Optional(t.Nullable(VString)),
               email: VEmail,
-              logoId: t.Optional(VId),
+              // No logoId: a new tenant owns no file yet; set it with PUT
+              // after uploading [SEC-27].
               plan: t.Union([
                 t.Literal(ETenantPlan.BASIC),
                 t.Literal(ETenantPlan.STANDARD),

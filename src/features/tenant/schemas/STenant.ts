@@ -4,9 +4,11 @@ import {
   timestamp,
   uuid,
   boolean,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { ETenantPlanPg } from "../enums/ETenantPlan";
 import { baseColumns, UtilDbSchema } from "bedest-core";
+import { SStorage } from "@f/storage/schemas/SStorage";
 
 export const STenant = pgTable(
   "tenants",
@@ -29,7 +31,10 @@ export const STenant = pgTable(
     tagline: varchar({ length: 255 }),
     workingHours: varchar({ length: 255 }),
     copyright: varchar({ length: 255 }),
-    logoId: uuid(),
+    // A READY file of this tenant (checked by ServiceStorage.assertAttachable)
+    // [SEC-27].
+    // AnyPgColumn: storage_files references tenants too (circular types).
+    logoId: uuid().references((): AnyPgColumn => SStorage.id),
     plan: ETenantPlanPg().notNull(),
     planStart: timestamp({ withTimezone: true }).notNull(),
     planEnd: timestamp({ withTimezone: true }).notNull(),

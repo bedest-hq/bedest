@@ -5,6 +5,7 @@ import { status } from "elysia";
 import type { SelectedFields } from "drizzle-orm/pg-core";
 import ServiceSession from "@f/session/services/ServiceSession";
 import { UtilEmail } from "@f/user/utils/UtilEmail";
+import ServiceStorage from "@f/storage/services/ServiceStorage";
 
 class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> {
   constructor() {
@@ -61,10 +62,14 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
     if (typeof data.email === "string") {
       data = { ...data, email: UtilEmail.normalize(data.email) };
     }
+    if (!c.session?.isSuperUser && id !== c.tenantId) {
+      throw status("Forbidden");
+    }
+    // The logo must be a READY file of this very tenant [SEC-27].
+    if (typeof data.logoId === "string") {
+      await ServiceStorage.assertAttachable(c, id, data.logoId);
+    }
     if (!c.session?.isSuperUser) {
-      if (id !== c.tenantId) {
-        throw status("Forbidden");
-      }
       const allowedData = { ...data };
       delete (allowedData as Record<string, unknown>).plan;
       delete (allowedData as Record<string, unknown>).planStart;

@@ -122,3 +122,58 @@ describe("migrations", () => {
     }
   });
 });
+
+describe("migrations (SEC-27)", () => {
+  it("[SEC-27] 0014 clears foreign and dangling logo/avatar references, 0015 adds the tenants.logoId foreign key", async () => {
+    const db = new PGlite();
+    const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    const FILE_B = "f0000000-0000-4000-8000-00000000000b";
+    try {
+      await migrateThrough(db, tagStartingWith("0013_"));
+      await db.exec(`
+        INSERT INTO tenants (id, name, domain, country, email, plan, "planStart", "planEnd") VALUES
+          ('${A}', 'A', 'a.example', 'X', 'a@example.com', 'BASIC', now(), now()),
+          ('${B}', 'B', 'b.example', 'X', 'b@example.com', 'BASIC', now(), now()),
+          ('${C}', 'C', 'c.example', 'X', 'c@example.com', 'BASIC', now(), now());
+        INSERT INTO storage_files (id, "tenantId", name, key, "mimeType", size)
+        VALUES ('${FILE_B}', '${B}', 'logo.png', 'b/logo.png', 'image/png', 1);
+        UPDATE tenants SET "logoId" = '${FILE_B}' WHERE id IN ('${A}', '${B}');
+        UPDATE tenants SET "logoId" = gen_random_uuid() WHERE id = '${C}';
+        INSERT INTO users (id, "tenantId", name, email, password, role, "avatarId") VALUES
+          ('a1111111-1111-4111-8111-111111111111', '${A}', 'ua', 'ua@example.com', 'x', 'USER', '${FILE_B}'),
+          ('b1111111-1111-4111-8111-111111111111', '${B}', 'ub', 'ub@example.com', 'x', 'USER', '${FILE_B}');
+      `);
+
+      await apply(db, tagStartingWith("0014_"));
+      await apply(db, tagStartingWith("0015_"));
+
+      const logos = await db.query<{ id: string; logoId: string | null }>(
+        'SELECT id, "logoId" FROM tenants ORDER BY name',
+      );
+      expect(logos.rows).toEqual([
+        { id: A, logoId: null },
+        { id: B, logoId: FILE_B },
+        { id: C, logoId: null },
+      ]);
+      const avatars = await db.query<{ name: string; avatarId: string | null }>(
+        'SELECT name, "avatarId" FROM users ORDER BY name',
+      );
+      expect(avatars.rows).toEqual([
+        { name: "ua", avatarId: null },
+        { name: "ub", avatarId: FILE_B },
+      ]);
+
+      let failure: unknown = null;
+      try {
+        await db.exec(`UPDATE tenants SET "logoId" = gen_random_uuid() WHERE id = '${A}'`);
+      } catch (err) {
+        failure = err;
+      }
+      expect(failure).toMatchObject({ code: "23503" });
+    } finally {
+      await db.close();
+    }
+  });
+});

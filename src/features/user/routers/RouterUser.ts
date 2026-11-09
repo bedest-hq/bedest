@@ -60,6 +60,8 @@ export const RouterUser = new Elysia({
         name: t.Optional(VString),
         currentPassword: t.Optional(VPasswordCheck),
         password: t.Optional(VPassword),
+        // A READY file of the user's tenant, or null to clear [SEC-27].
+        avatarId: t.Optional(t.Nullable(VId)),
         // Assigning a role goes through UtilUserPolicy [SEC-12].
         role: t.Optional(VUserRole),
       }),

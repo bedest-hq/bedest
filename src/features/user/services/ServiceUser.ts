@@ -6,6 +6,7 @@ import { ITenantUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core"
 import { IPolicyActor, UtilUserPolicy } from "../utils/UtilUserPolicy";
 import { UtilEmail } from "../utils/UtilEmail";
 import ServiceSession from "@f/session/services/ServiceSession";
+import ServiceStorage from "@f/storage/services/ServiceStorage";
 
 class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   constructor() {
@@ -104,7 +105,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       name?: string;
       password?: string;
       currentPassword?: string;
-      avatarId?: string;
+      avatarId?: string | null;
       role?: EUserRole;
     },
   ) {
@@ -149,7 +150,12 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     if (data.password) {
       payload.password = await Bun.password.hash(data.password);
     }
-    if (data.avatarId) {
+    // null clears the avatar; a new one must be a READY file of the
+    // target user's tenant [SEC-27].
+    if (data.avatarId !== undefined) {
+      if (data.avatarId !== null) {
+        await ServiceStorage.assertAttachable(c, target.tenantId, data.avatarId);
+      }
       payload.avatarId = data.avatarId;
     }
     if (data.role !== undefined) {

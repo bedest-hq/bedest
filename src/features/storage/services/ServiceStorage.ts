@@ -122,6 +122,37 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
   }
 
   /**
+   * A file may be referenced (avatar, logo) only by its own tenant and only
+   * once it is READY [SEC-27]. Foreign keys are not subject to RLS, so the
+   * lookup runs in a tenant scope bound to `tenantId` (never a bypass):
+   * another tenant's file is 404, a pending one 400. Call it with the
+   * top-level database handle, not inside another scope.
+   */
+  async assertAttachable(c: IApp, tenantId: string, fileId: string) {
+    const [file] = await UtilTenantScope.tenantScope(
+      { db: c.db, nowDatetime: c.nowDatetime, tenantId },
+      (tx) =>
+        tx
+          .select({ status: SStorage.status })
+          .from(SStorage)
+          .where(
+            and(
+              eq(SStorage.id, fileId),
+              eq(SStorage.tenantId, tenantId),
+              eq(SStorage.isDeleted, false),
+            ),
+          )
+          .limit(1),
+    );
+    if (!file) {
+      throw status(404, { error: "Not Found", message: "File not found" });
+    }
+    if (file.status !== EStorageStatus.READY) {
+      throw status(400, { error: "Bad Request", message: "File is not ready" });
+    }
+  }
+
+  /**
    * Whether an active user (avatar) or tenant (logo) points at the file.
    * System scope: references from any tenant count.
    */
