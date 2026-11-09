@@ -52,7 +52,8 @@ describe("RouterStorage", () => {
     expect(res.data).toHaveProperty("key");
   });
 
-  it("Rejects files larger than limit or invalid type", async () => {
+  // [TST-04] One test per rule (the old test only checked the type).
+  it("[TST-04] rejects a file type outside the allowlist → 422", async () => {
     const headers = await testHeaders();
 
     const dummyFile = new File(["fake content"], "malicious.exe", {
@@ -62,6 +63,24 @@ describe("RouterStorage", () => {
     const res = await api.storage.upload.post({ file: dummyFile }, { headers });
 
     expect(res.status).toBe(422);
+  });
+
+  it("[TST-04] rejects a file larger than STORAGE_MAX_BYTES → 422 and stores nothing", async () => {
+    const headers = await testHeaders();
+    const tooBig = new Uint8Array(routerTestEnv.STORAGE_MAX_BYTES + 1);
+    tooBig.set(bytes);
+
+    const dummyFile = new File([tooBig], "too-big.png", { type: "image/png" });
+
+    const res = await api.storage.upload.post({ file: dummyFile }, { headers });
+
+    expect(res.status).toBe(422);
+    expect(
+      await test_db
+        .select({ id: SStorage.id })
+        .from(SStorage)
+        .where(eq(SStorage.name, "too-big.png")),
+    ).toEqual([]);
   });
 
   it("List Files", async () => {
