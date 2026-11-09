@@ -1,16 +1,7 @@
-import { VId } from "bedest-core";
 import { t } from "elysia";
 // TypeBox Integer, not Elysia's t.Integer (a string|integer union that
 // Value.Convert leaves as a string) [SEC-16][NEW-03].
 import { Type } from "@sinclair/typebox";
-
-export const VDefault = {
-  id: VId,
-  createdBy: VId,
-  isDeleted: t.Boolean(),
-  createdAt: t.Date(),
-  deletedAt: t.Date(),
-};
 
 export const VEnv = t.Object({
   // Required: no default, so a forgotten NODE_ENV can never mean "development".

@@ -1,11 +1,11 @@
-import { EUserRole } from "@f/user/enums/EUserRole";
+import { VUserRole } from "@f/user/validations/VUserRole";
 import { Static, t } from "elysia";
 
 export const VJwtPayload = t.Object({
   tenantId: t.String(),
   userId: t.String(),
   sessionId: t.String(),
-  role: t.Enum(EUserRole),
+  role: VUserRole,
 });
 
 export type TJwtPayload = Static<typeof VJwtPayload>;

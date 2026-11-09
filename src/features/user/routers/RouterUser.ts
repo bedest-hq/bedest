@@ -23,7 +23,7 @@ export const RouterUser = new Elysia({
     {
       response: t.Object({
         name: VString,
-        role: t.Enum(EUserRole),
+        role: VUserRole,
         avatarId: t.Nullable(VId),
         email: VEmail,
         createdAt: t.Date(),
@@ -42,7 +42,7 @@ export const RouterUser = new Elysia({
       }),
       response: t.Object({
         name: VString,
-        role: t.Enum(EUserRole),
+        role: VUserRole,
         avatarId: t.Nullable(VId),
         createdAt: t.Date(),
       }),
@@ -87,7 +87,7 @@ export const RouterUser = new Elysia({
                 id: VId,
                 tenantId: VId,
                 name: VString,
-                role: t.Enum(EUserRole),
+                role: VUserRole,
                 avatarId: t.Nullable(VId),
                 createdAt: t.Date(),
               }),
@@ -104,7 +104,7 @@ export const RouterUser = new Elysia({
             body: t.Object({
               name: VString,
               email: VEmail,
-              role: t.Enum(EUserRole),
+              role: VUserRole,
               password: VPassword,
             }),
             audit: { entity: "user", targetTenant: "user" },

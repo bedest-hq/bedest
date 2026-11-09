@@ -1,6 +1,5 @@
 import { Elysia, status, t } from "elysia";
 import { STenant } from "../schemas/STenant";
-import { ETenantPlan } from "../enums/ETenantPlan";
 import ServiceTenant from "../services/ServiceTenant";
 import Context from "@/app/Context";
 import { EUserRole } from "@f/user/enums/EUserRole";
@@ -177,13 +176,7 @@ export const RouterTenant = new Elysia({
         copyright: t.Optional(t.Nullable(VString)),
         email: t.Optional(VEmail),
         logoId: t.Optional(VId),
-        plan: t.Optional(
-          t.Union([
-            t.Literal(ETenantPlan.BASIC),
-            t.Literal(ETenantPlan.STANDARD),
-            t.Literal(ETenantPlan.PROFESSIONAL),
-          ]),
-        ),
+        plan: t.Optional(VTenantPlan),
         planStart: t.Optional(t.Date()),
         planEnd: t.Optional(t.Date()),
       }),
@@ -239,11 +232,7 @@ export const RouterTenant = new Elysia({
               email: VEmail,
               // No logoId: a new tenant owns no file yet; set it with PUT
               // after uploading [SEC-27].
-              plan: t.Union([
-                t.Literal(ETenantPlan.BASIC),
-                t.Literal(ETenantPlan.STANDARD),
-                t.Literal(ETenantPlan.PROFESSIONAL),
-              ]),
+              plan: VTenantPlan,
               planStart: t.Date(),
               planEnd: t.Date(),
             }),
