@@ -12,6 +12,7 @@ import { IPolicyActor, UtilUserPolicy } from "../utils/UtilUserPolicy";
 import { UtilEmail } from "../utils/UtilEmail";
 import ServiceSession from "@f/session/services/ServiceSession";
 import ServiceStorage from "@f/storage/services/ServiceStorage";
+import ServiceSystemLog from "@f/system/services/ServiceSystemLog";
 
 class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   constructor() {
@@ -183,6 +184,24 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
           UtilUserPolicy.isSelf(actor, target) && !roleChanged
             ? c.session.sessionId
             : undefined,
+      });
+    }
+
+    // Security events [FEAT-07]: never the password itself.
+    if (data.password) {
+      await ServiceSystemLog.log(c, {
+        action: "PASSWORD_CHANGED",
+        entity: "user",
+        entityId: id,
+        payload: { self: UtilUserPolicy.isSelf(actor, target) },
+      });
+    }
+    if (roleChanged) {
+      await ServiceSystemLog.log(c, {
+        action: "ROLE_CHANGED",
+        entity: "user",
+        entityId: id,
+        payload: { from: target.role, to: data.role },
       });
     }
 

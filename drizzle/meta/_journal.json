@@ -134,6 +134,13 @@
       "when": 1794220853010,
       "tag": "0018_audit_logs_immutable",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794221396436,
+      "tag": "0019_login_attempts",
+      "breakpoints": true
     }
   ]
 }

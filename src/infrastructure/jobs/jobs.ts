@@ -2,6 +2,7 @@ import { TEnv } from "@/common/types/TEnv";
 import ServiceSession from "@f/session/services/ServiceSession";
 import ServiceStorage from "@f/storage/services/ServiceStorage";
 import ServiceNotification from "@f/notification/services/ServiceNotification";
+import ServiceLoginLockout from "@f/auth/services/ServiceLoginLockout";
 import type { IJob } from "./JobScheduler";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -59,5 +60,11 @@ export const createJobs = (
         c,
         daysBefore(c.nowDatetime, env.NOTIFICATION_RETENTION_DAYS),
       ),
+  },
+  {
+    // Expired counters of the DB-backed account lockout [FEAT-07].
+    name: "loginAttempts.cleanup",
+    intervalMs: HOUR_MS,
+    run: (c) => ServiceLoginLockout.cleanup(c),
   },
 ];

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { treaty } from "@elysiajs/eden";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { createTestUser, test_db } from "@/common/tests/TestManager.test";
 import { RouterUser } from "@f/user/routers/RouterUser";
 import { EUserRole } from "@f/user/enums/EUserRole";
@@ -9,12 +9,13 @@ import { SSystemLog } from "../schemas/SSystemLog";
 const api = treaty(RouterUser);
 
 // The audit row is written after the response is sent; poll briefly for it.
+// Only the plugin's PUT row: FEAT-07 also writes a PASSWORD_CHANGED event.
 const newestAuditRow = async (userId: string) => {
   for (let attempt = 0; attempt < 50; attempt++) {
     const [row] = await test_db
       .select({ payload: SSystemLog.payload })
       .from(SSystemLog)
-      .where(eq(SSystemLog.userId, userId))
+      .where(and(eq(SSystemLog.userId, userId), eq(SSystemLog.action, "PUT")))
       .orderBy(desc(SSystemLog.createdAt))
       .limit(1);
     if (row) {

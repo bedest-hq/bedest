@@ -77,6 +77,7 @@ describe("FEAT-08: jobs", () => {
       "storage.cleanupPending",
       "tokens.cleanup",
       "notifications.retention",
+      "loginAttempts.cleanup",
     ]);
   });
 

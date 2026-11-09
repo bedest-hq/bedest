@@ -33,10 +33,24 @@ const RouterLogin = new Elysia({ tags: ["Auth"] })
   )
   .post(
     "/login",
-    async ({ body, nowDatetime, db, refreshJwt, accessJwt, cookie }) => {
+    async ({
+      body,
+      nowDatetime,
+      db,
+      refreshJwt,
+      accessJwt,
+      cookie,
+      clientIp,
+      request,
+    }) => {
       const payload = await ServiceAuth.login(
         { nowDatetime, db },
         { email: body.email, password: body.password },
+        // For the failed-login audit [FEAT-07].
+        {
+          ip: clientIp,
+          userAgent: request.headers.get("user-agent") ?? "",
+        },
       );
 
       const refreshToken = await refreshJwt.sign({
