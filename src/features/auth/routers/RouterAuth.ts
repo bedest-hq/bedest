@@ -38,8 +38,8 @@ const RouterLogin = new Elysia({ tags: ["Auth"] })
         { email: body.email, password: body.password },
       );
 
-      const refreshToken = await refreshJwt.sign(payload);
-      const accessToken = await accessJwt.sign(payload);
+      const refreshToken = await refreshJwt.sign({ ...payload, typ: "refresh" });
+      const accessToken = await accessJwt.sign({ ...payload, typ: "access" });
 
       cookie.refreshToken.set({
         value: refreshToken,
@@ -81,7 +81,10 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
         throw status("Unauthorized");
       }
 
-      const payload = await refreshJwt.verify(refreshToken);
+      const payload = await refreshJwt.verify(
+        refreshToken,
+        UtilAuth.jwtVerifyOptions(),
+      );
       if (!payload) {
         throw status("Unauthorized");
       }
@@ -93,8 +96,8 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
         payload.sessionId,
       );
 
-      const newAccessToken = await accessJwt.sign(newPayload);
-      const newRefreshToken = await refreshJwt.sign(newPayload);
+      const newAccessToken = await accessJwt.sign({ ...newPayload, typ: "access" });
+      const newRefreshToken = await refreshJwt.sign({ ...newPayload, typ: "refresh" });
 
       cookie.accessToken.set({
         value: newAccessToken,
@@ -124,8 +127,9 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
       async ({ userRuntime, cookie }) => {
         await ServiceAuth.logout(userRuntime);
 
-        cookie.accessToken.remove();
-        cookie.refreshToken.remove();
+        // Same path as when set, or the browser keeps the cookie [SEC-24].
+        cookie.accessToken.set(UtilAuth.clearedCookie("access"));
+        cookie.refreshToken.set(UtilAuth.clearedCookie("refresh"));
 
         return { success: true };
       },

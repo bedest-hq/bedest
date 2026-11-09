@@ -45,6 +45,8 @@ export const VEnv = t.Object({
   // At least 32 characters; must differ from REFRESH_KEY [SEC-16].
   SECRET_KEY: t.String({ minLength: 32 }),
   REFRESH_KEY: t.String({ minLength: 32 }),
+  // JWT "iss" claim, set on sign and checked on verify [SEC-24].
+  JWT_ISSUER: t.String({ minLength: 1, maxLength: 100, default: "bedest" }),
 
   PORT: t.Number(),
   // Largest accepted request body (default 10 MiB) [SEC-18]; must exceed
