@@ -1,4 +1,4 @@
-import { describe, it, expect, spyOn } from "bun:test";
+import { describe, it, expect, spyOn, beforeEach } from "bun:test";
 import { Elysia } from "elysia";
 import {
   test_env,
@@ -19,9 +19,15 @@ const app = createApp(test_env, { db: test_runtime_db });
 const get = (path: string, headers: Record<string, string> = {}) =>
   app.handle(new Request(`http://localhost${path}`, { headers }));
 
+beforeEach(async () => {
+  // Let any queued afterResponse from a previous request flush.
+  await Bun.sleep(10);
+});
+
 /** The access-log entries written while `fn` ran. */
 const accessLogs = async (fn: () => Promise<unknown>) => {
   const spy = spyOn(logger, "info");
+  spy.mockClear();
   try {
     await fn();
     // afterResponse runs after the response is handed back.

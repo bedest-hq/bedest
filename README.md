@@ -164,7 +164,7 @@ Frontends resolve their host name to a tenant with `GET /api/v1/public/resolve` 
 
 ## Quick Start
 
-Requirements: Bun **1.2.20** or newer (1.2.20 is pinned in the Dockerfile and CI and matches `bedest-core`'s `engines.bun`) and PostgreSQL 16. When you upgrade Bun, re-pin the Dockerfile and CI together.
+Requirements: Bun **1.3.14** or newer (1.3.14 is pinned in the Dockerfile and CI and matches `bedest-core`'s `engines.bun`) and PostgreSQL 16. When you upgrade Bun, re-pin the Dockerfile and CI together.
 
 ```bash
 bun install

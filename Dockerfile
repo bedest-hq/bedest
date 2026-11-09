@@ -1,5 +1,5 @@
 # Bun version pinned to the one this project is verified with (see README).
-FROM oven/bun:1.2.20 AS builder
+FROM oven/bun:1.3.14 AS builder
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -10,7 +10,7 @@ COPY . .
 # Migrations are committed in drizzle/ and never generated at build time.
 RUN bun run build
 
-FROM oven/bun:1.2.20 AS runner
+FROM oven/bun:1.3.14 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
