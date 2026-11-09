@@ -4,12 +4,13 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { UtilHttp } from "@/common/utils/UtilHttp";
 import EnvManager from "../../env/EnvManager";
 import { logger } from "../../logger/logger";
-import { IProvider, IStoredObject } from "../interfaces/IProvider";
+import { IObjectHead, IProvider, IStoredObject } from "../interfaces/IProvider";
 
 /** "No such object": NoSuchKey / NotFound or any HTTP 404 [BUG-18]. */
 const isNotFound = (error: unknown): boolean => {
@@ -141,6 +142,28 @@ export class ProviderS3 implements IProvider {
         return null;
       }
       logger.error({ err: error, key }, "Failed to download file from S3");
+      throw UtilHttp.fail(502, "Storage backend error");
+    }
+  }
+
+  /**
+   * HEAD the object: size and type without the content [FEAT-12]. A
+   * missing object is null; any other failure is a 502.
+   */
+  async head(key: string): Promise<IObjectHead | null> {
+    try {
+      const res = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      return {
+        contentLength: res.ContentLength ?? 0,
+        contentType: res.ContentType,
+      };
+    } catch (error) {
+      if (isNotFound(error)) {
+        return null;
+      }
+      logger.error({ err: error, key }, "Failed to read S3 object metadata");
       throw UtilHttp.fail(502, "Storage backend error");
     }
   }

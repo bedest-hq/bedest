@@ -18,6 +18,10 @@ import { EStorageStatus } from "../enums/EStorageStatus";
 import { STORAGE_NAME_MAX } from "../validations/VStorageInput";
 import { storageExtensionFor, UtilStorage } from "../utils/UtilStorage";
 
+/** type/subtype without parameters, lower case (Image/PNG; x=y is image/png). */
+const mediaTypeOf = (contentType: string | undefined) =>
+  (contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+
 class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
   constructor() {
     super(SStorage);
@@ -236,6 +240,87 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     );
 
     return { uploadUrl, key, id: res.id };
+  }
+
+  /**
+   * Finalizes a presigned upload [FEAT-12] (uploader or ADMIN/SYSTEM):
+   * the object must exist with the declared size and type, then the row
+   * becomes READY. A mismatch deletes the object and the row (400). No
+   * object yet is a 400 that keeps the row, so the client can still PUT
+   * while the URL is valid (storage.cleanupPending removes it later).
+   * Completing a READY file again is a no-op.
+   */
+  async complete(
+    c: ITenantUserApp,
+    id: string,
+  ): Promise<{ id: string; status: EStorageStatus.READY }> {
+    const [file] = await UtilTenantScope.tenantScope(c, (tx) =>
+      tx
+        .select({
+          key: SStorage.key,
+          mimeType: SStorage.mimeType,
+          size: SStorage.size,
+          status: SStorage.status,
+          uploadedBy: SStorage.uploadedBy,
+        })
+        .from(SStorage)
+        .where(
+          and(
+            eq(SStorage.id, id),
+            eq(SStorage.tenantId, c.tenantId),
+            eq(SStorage.isDeleted, false),
+          ),
+        )
+        .limit(1),
+    );
+    if (!file) {
+      throw UtilHttp.fail(404, "File not found");
+    }
+
+    const privileged =
+      c.session.isSuperUser || c.session.role === EUserRole.ADMIN;
+    if (!privileged && file.uploadedBy !== c.session.userId) {
+      throw UtilHttp.fail(
+        403,
+        "Only the uploader or an admin can complete this upload",
+      );
+    }
+
+    if (file.status === EStorageStatus.READY) {
+      return { id, status: EStorageStatus.READY };
+    }
+
+    const head = await StorageManager.head(file.key);
+    if (!head) {
+      throw UtilHttp.fail(400, "The file has not been uploaded yet");
+    }
+
+    if (
+      head.contentLength !== file.size ||
+      mediaTypeOf(head.contentType) !== mediaTypeOf(file.mimeType)
+    ) {
+      try {
+        await StorageManager.delete(file.key);
+        await this.discardPending(c, id);
+      } catch (err) {
+        // The row stays PENDING; storage.cleanupPending retries [FEAT-08].
+        logger.warn({ err, id }, "storage.complete: object delete failed");
+      }
+      throw UtilHttp.fail(
+        400,
+        "The uploaded file does not match the declared size or type",
+      );
+    }
+
+    await UtilTenantScope.tenantScope(c, (tx) =>
+      tx
+        .update(SStorage)
+        .set({ status: EStorageStatus.READY })
+        .where(
+          and(eq(SStorage.id, id), eq(SStorage.status, EStorageStatus.PENDING)),
+        ),
+    );
+    return { id, status: EStorageStatus.READY };
   }
 
   async presignDownload(c: ITenantApp, id: string) {

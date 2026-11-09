@@ -2,7 +2,7 @@ import { UtilHttp } from "@/common/utils/UtilHttp";
 import EnvManager from "../env/EnvManager";
 import { logger } from "../logger/logger";
 
-import { IProvider, IStoredObject } from "./interfaces/IProvider";
+import { IObjectHead, IProvider, IStoredObject } from "./interfaces/IProvider";
 import { ProviderLocal } from "./providers/ProviderLocal";
 import { ProviderS3 } from "./providers/ProviderS3";
 
@@ -96,6 +96,14 @@ class StorageManager {
       throw UtilHttp.fail(503);
     }
     return await this.activeProvider.download(key);
+  }
+
+  /** Size and type of an object; null when it does not exist [FEAT-12]. */
+  async head(key: string): Promise<IObjectHead | null> {
+    if (!this.activeProvider) {
+      throw UtilHttp.fail(503);
+    }
+    return await this.activeProvider.head(key);
   }
 
   async getUploadUrl(

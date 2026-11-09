@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import Context from "@/app/Context";
 import ServiceStorage from "../services/ServiceStorage";
 import { SStorage } from "../schemas/SStorage";
+import { EStorageStatus } from "../enums/EStorageStatus";
 import { UtilStorage, type TStorageEnv } from "../utils/UtilStorage";
 import { VStorageInput } from "../validations/VStorageInput";
 import { UtilRouter, VId, VQuery, VString } from "bedest-core";
@@ -112,6 +113,19 @@ export const createRouterStorage = (env: TStorageEnv) =>
           uploadUrl: VString,
           key: VString,
           id: VId,
+        }),
+        audit: { entity: "storage" },
+      },
+    )
+    .post(
+      "/:id/complete",
+      async ({ params, userRuntime }) =>
+        await ServiceStorage.complete(userRuntime, params.id),
+      {
+        params: t.Object({ id: VId }),
+        response: t.Object({
+          id: VId,
+          status: t.Literal(EStorageStatus.READY),
         }),
         audit: { entity: "storage" },
       },

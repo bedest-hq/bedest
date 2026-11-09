@@ -4,6 +4,8 @@ import {
   NoSuchKey,
   S3ServiceException,
   type GetObjectCommandOutput,
+  HeadObjectCommand,
+  type HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { test_env } from "@/common/tests/TestManager.test";
 import EnvManager from "../../env/EnvManager";
@@ -144,5 +146,47 @@ describe("BUG-18: S3 downloads stream and report errors", () => {
     expect(virtualUrl.pathname).toBe("/a/b.png");
     expect(pathUrl.hostname).toBe("s3.eu-central-1.amazonaws.com");
     expect(pathUrl.pathname).toBe("/bucket/a/b.png");
+  });
+});
+
+describe("FEAT-12: S3 HEAD for upload finalization", () => {
+  it("[FEAT-12] head sends HeadObject and returns size and type", async () => {
+    const client = fakeClient();
+    const output: HeadObjectCommandOutput = {
+      $metadata: {},
+      ContentLength: 4,
+      ContentType: "image/png",
+    };
+    const send = spyOn(client, "send").mockImplementation(() =>
+      Promise.resolve(output),
+    );
+    const provider = withEnv(S3_ENV, () => new ProviderS3({ client }));
+
+    expect(await provider.head("t/a.png")).toEqual({
+      contentLength: 4,
+      contentType: "image/png",
+    });
+    const command = send.mock.calls[0]?.[0];
+    expect(command).toBeInstanceOf(HeadObjectCommand);
+    expect(command?.input).toEqual({ Bucket: "bucket", Key: "t/a.png" });
+  });
+
+  it("[FEAT-12] a missing object is null; other errors are 502", async () => {
+    const client = fakeClient();
+    const provider = withEnv(S3_ENV, () => new ProviderS3({ client }));
+
+    spyOn(client, "send").mockImplementation(() =>
+      Promise.reject(s3Error("NotFound", 404)),
+    );
+    expect(await provider.head("missing")).toBeNull();
+
+    spyOn(client, "send").mockImplementation(() =>
+      Promise.reject(s3Error("AccessDenied", 403)),
+    );
+    const denied = await provider.head("k").then(
+      () => "no-throw",
+      (e: unknown) => e,
+    );
+    expect(codeOf(denied)).toBe(502);
   });
 });

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { access, constants, mkdir } from "node:fs/promises";
 import { logger } from "../../logger/logger";
-import { IProvider, IStoredObject } from "../interfaces/IProvider";
+import { IObjectHead, IProvider, IStoredObject } from "../interfaces/IProvider";
 
 export class ProviderLocal implements IProvider {
   private basePath: string;
@@ -62,5 +62,14 @@ export class ProviderLocal implements IProvider {
       contentLength: file.size,
       contentType: file.type || undefined,
     };
+  }
+
+  /** Size and type (from the key extension); null when missing [FEAT-12]. */
+  async head(key: string): Promise<IObjectHead | null> {
+    const file = Bun.file(path.join(this.basePath, key));
+    if (!(await file.exists())) {
+      return null;
+    }
+    return { contentLength: file.size, contentType: file.type || undefined };
   }
 }

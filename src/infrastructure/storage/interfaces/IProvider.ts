@@ -7,6 +7,12 @@ export interface IStoredObject {
   etag?: string;
 }
 
+/** Size and type of a stored object, without its content [FEAT-12]. */
+export interface IObjectHead {
+  contentLength: number;
+  contentType?: string;
+}
+
 export interface IProvider {
   /** Throws when the backend is not usable (readiness probe). */
   healthCheck(): Promise<void>;
@@ -18,6 +24,8 @@ export interface IProvider {
   delete(key: string): Promise<void>;
   /** null when the object does not exist; other failures throw [BUG-18]. */
   download(key: string): Promise<IStoredObject | null>;
+  /** Size and type only; null when the object does not exist [FEAT-12]. */
+  head(key: string): Promise<IObjectHead | null>;
   getUploadUrl?(
     key: string,
     contentType: string,
