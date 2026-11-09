@@ -4,11 +4,15 @@ import { status } from "elysia";
 import { and, eq, type SQL } from "drizzle-orm";
 import StorageManager from "@/infrastructure/storage/StorageManager";
 import {
+  IApp,
   ITenantApp,
   ITenantUserApp,
   ServiceBaseTenant,
   UtilTenantScope,
 } from "bedest-core";
+import { EUserRole } from "@f/user/enums/EUserRole";
+import { SUser } from "@f/user/schemas/SUser";
+import { STenant } from "@f/tenant/schemas/STenant";
 import { EStorageStatus } from "../enums/EStorageStatus";
 import { storageExtensionFor, UtilStorage } from "../utils/UtilStorage";
 
@@ -50,6 +54,7 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
       mimeType: file.type,
       size: file.size,
       status: EStorageStatus.PENDING,
+      uploadedBy: c.session.userId,
     });
 
     try {
@@ -89,17 +94,54 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     return { fileBlob, metadata: fileRecord };
   }
 
+  /**
+   * Only the uploader or an ADMIN/SYSTEM user may delete a file, and never
+   * while it is used as an avatar or logo [SEC-26]. Files from before
+   * SEC-26 have no uploader: only ADMIN/SYSTEM can delete those.
+   */
   async remove(c: ITenantUserApp, id: string) {
-    const fileRecord = await super.getById(c, id, {
-      key: SStorage.key,
+    const file = await super.getById(c, id, {
+      uploadedBy: SStorage.uploadedBy,
     });
 
-    if (!fileRecord) {
-      throw status("Not Found");
+    const privileged =
+      c.session.isSuperUser || c.session.role === EUserRole.ADMIN;
+    if (!privileged && file.uploadedBy !== c.session.userId) {
+      throw status(403, {
+        error: "Forbidden",
+        message: "Only the uploader or an admin can delete this file",
+      });
+    }
+
+    if (await this.isReferenced(c, id)) {
+      throw status(409, { error: "Conflict", message: "File is in use" });
     }
 
     // Soft delete only; the object is removed by the purge job [BUG-03].
     return await super.remove(c, id);
+  }
+
+  /**
+   * Whether an active user (avatar) or tenant (logo) points at the file.
+   * System scope: references from any tenant count.
+   */
+  private async isReferenced(c: IApp, id: string): Promise<boolean> {
+    return await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const [avatar] = await tx
+        .select({ id: SUser.id })
+        .from(SUser)
+        .where(and(eq(SUser.avatarId, id), eq(SUser.isDeleted, false)))
+        .limit(1);
+      if (avatar) {
+        return true;
+      }
+      const [logo] = await tx
+        .select({ id: STenant.id })
+        .from(STenant)
+        .where(and(eq(STenant.logoId, id), eq(STenant.isDeleted, false)))
+        .limit(1);
+      return logo !== undefined;
+    });
   }
 
   async presignUpload(
@@ -134,6 +176,7 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
       mimeType: data.mimeType,
       size: data.size,
       status: EStorageStatus.PENDING,
+      uploadedBy: c.session.userId,
     });
 
     const uploadUrl = await StorageManager.getUploadUrl(

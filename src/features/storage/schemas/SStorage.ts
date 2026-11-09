@@ -15,6 +15,9 @@ export const SStorage = pgTable(
     mimeType: varchar({ length: 100 }).notNull(),
     size: integer().notNull(),
     status: EStorageStatusPg().notNull().default(EStorageStatus.READY),
+    // Uploader (users.id); null for files uploaded before SEC-26. No FK:
+    // users already reference storage_files (avatarId).
+    uploadedBy: uuid(),
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_storage_active", t.id),

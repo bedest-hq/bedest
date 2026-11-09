@@ -1,0 +1,1 @@
+ALTER TABLE "storage_files" ADD COLUMN "uploadedBy" uuid;
