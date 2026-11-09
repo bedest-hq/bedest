@@ -1,7 +1,12 @@
 import { describe, it, expect, mock } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { test_runtime_db } from "@/common/tests/TestManager.test";
-import { JobScheduler, tryAdvisoryLock, type IJob } from "./JobScheduler";
+import {
+  JobScheduler,
+  tryAdvisoryLock,
+  type IJob,
+  type TJobLock,
+} from "./JobScheduler";
 
 const NOW = new Date("2026-06-01T00:00:00Z");
 
@@ -18,7 +23,7 @@ const freeLock = () => {
   return { lock, events };
 };
 
-const scheduler = (lock = freeLock().lock, extra = {}) =>
+const scheduler = (lock: TJobLock = freeLock().lock, extra = {}) =>
   new JobScheduler({
     db: () => test_runtime_db,
     lock,
