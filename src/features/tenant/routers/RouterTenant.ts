@@ -201,9 +201,10 @@ export const RouterTenant = new Elysia({
           async ({ body, userRuntime }) => {
             const tenant = await ServiceTenant.create(userRuntime, body);
 
-            const randomBuffer = new Uint8Array(6);
-            crypto.getRandomValues(randomBuffer);
-            const password = Buffer.from(randomBuffer).toString("hex");
+            // 128-bit random password until the invitation flow (FEAT-06) [SEC-23].
+            const password = Buffer.from(
+              crypto.getRandomValues(new Uint8Array(16)),
+            ).toString("base64url");
 
             await ServiceUser.create(
               { ...userRuntime, tenantId: tenant.id },

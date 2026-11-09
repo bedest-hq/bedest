@@ -3,6 +3,7 @@ import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
 import { VUserRole } from "../validations/VUserRole";
 import Context from "@/app/Context";
+import { VPassword, VPasswordCheck } from "@f/auth/validations/VPassword";
 import { UtilRouter, VEmail, VId, VQuery, VString } from "bedest-core";
 
 export const RouterUser = new Elysia({
@@ -57,8 +58,8 @@ export const RouterUser = new Elysia({
       params: t.Object({ id: VId }),
       body: t.Object({
         name: t.Optional(VString),
-        currentPassword: t.Optional(t.String({ minLength: 6, maxLength: 100 })),
-        password: t.Optional(t.String({ minLength: 6, maxLength: 100 })),
+        currentPassword: t.Optional(VPasswordCheck),
+        password: t.Optional(VPassword),
         // Assigning a role goes through UtilUserPolicy [SEC-12].
         role: t.Optional(VUserRole),
       }),
@@ -102,7 +103,7 @@ export const RouterUser = new Elysia({
               name: VString,
               email: VEmail,
               role: t.Enum(EUserRole),
-              password: t.String({ minLength: 6, maxLength: 100 }),
+              password: VPassword,
             }),
             audit: true,
             response: t.Object({ id: VId }),

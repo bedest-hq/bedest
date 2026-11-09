@@ -4,6 +4,7 @@ import EnvManager from "@/infrastructure/env/EnvManager";
 import RateLimitManager from "@/infrastructure/ratelimit/RateLimitManager";
 import ServiceAuth from "../services/ServiceAuth";
 import { UtilAuth } from "../utils/UtilAuth";
+import { VPasswordCheck } from "../validations/VPassword";
 import { VEmail, VId } from "bedest-core";
 
 const MINUTE_MS = 60 * 1000;
@@ -55,7 +56,7 @@ const RouterLogin = new Elysia({ tags: ["Auth"] })
     {
       body: t.Object({
         email: VEmail,
-        password: t.String({ minLength: 6, maxLength: 100 }),
+        password: VPasswordCheck,
       }),
       response: t.Object({ success: t.Boolean(), id: VId }),
     },
