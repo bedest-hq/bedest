@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
 import { VUserRole } from "../validations/VUserRole";
+import { VUserInput } from "../validations/VUserInput";
 import Context from "@/app/Context";
 import { VPassword, VPasswordCheck } from "@f/auth/validations/VPassword";
 import { UtilRouter, VEmail, VId, VQuery, VString } from "bedest-core";
@@ -57,7 +58,7 @@ export const RouterUser = new Elysia({
     {
       params: t.Object({ id: VId }),
       body: t.Object({
-        name: t.Optional(VString),
+        name: t.Optional(VUserInput.name),
         currentPassword: t.Optional(VPasswordCheck),
         password: t.Optional(VPassword),
         // A READY file of the user's tenant, or null to clear [SEC-27].
@@ -102,7 +103,7 @@ export const RouterUser = new Elysia({
           },
           {
             body: t.Object({
-              name: VString,
+              name: VUserInput.name,
               email: VEmail,
               role: VUserRole,
               password: VPassword,

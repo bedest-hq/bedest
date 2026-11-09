@@ -3,6 +3,7 @@ import Context from "@/app/Context";
 import ServiceStorage from "../services/ServiceStorage";
 import { SStorage } from "../schemas/SStorage";
 import { UtilStorage } from "../utils/UtilStorage";
+import { VStorageInput } from "../validations/VStorageInput";
 import { UtilRouter, VId, VQuery, VString } from "bedest-core";
 
 export const RouterStorage = new Elysia({
@@ -97,8 +98,8 @@ export const RouterStorage = new Elysia({
     },
     {
       body: t.Object({
-        name: VString,
-        mimeType: VString,
+        name: VStorageInput.name,
+        mimeType: VStorageInput.mimeType,
         size: t.Integer({ minimum: 1 }),
       }),
       response: t.Object({

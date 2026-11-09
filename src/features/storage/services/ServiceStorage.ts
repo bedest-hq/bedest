@@ -14,6 +14,7 @@ import { EUserRole } from "@f/user/enums/EUserRole";
 import { SUser } from "@f/user/schemas/SUser";
 import { STenant } from "@f/tenant/schemas/STenant";
 import { EStorageStatus } from "../enums/EStorageStatus";
+import { STORAGE_NAME_MAX } from "../validations/VStorageInput";
 import { storageExtensionFor, UtilStorage } from "../utils/UtilStorage";
 
 class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
@@ -46,6 +47,13 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
    * object. The key extension comes from the MIME type, not the file name.
    */
   async upload(c: ITenantUserApp, file: File) {
+    // storage_files.name is varchar(255): refuse before writing anything [QLT-11].
+    if (file.name.length > STORAGE_NAME_MAX) {
+      throw UtilHttp.fail(
+        400,
+        `File name is longer than ${STORAGE_NAME_MAX} characters`,
+      );
+    }
     const key = `${c.tenantId}/${crypto.randomUUID()}.${storageExtensionFor(file.type)}`;
 
     const res = await super.create(c, {
