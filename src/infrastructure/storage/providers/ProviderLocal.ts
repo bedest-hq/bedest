@@ -1,7 +1,7 @@
 import path from "node:path";
 import { access, constants, mkdir } from "node:fs/promises";
 import { logger } from "../../logger/logger";
-import { IProvider } from "../interfaces/IProvider";
+import { IProvider, IStoredObject } from "../interfaces/IProvider";
 
 export class ProviderLocal implements IProvider {
   private basePath: string;
@@ -51,23 +51,16 @@ export class ProviderLocal implements IProvider {
     }
   }
 
-  async download(key: string): Promise<Blob | null> {
-    const fullPath = path.join(this.basePath, key);
-    const file = Bun.file(fullPath);
-
-    try {
-      const exists = await file.exists();
-      if (!exists) {
-        return null;
-      }
-
-      return file;
-    } catch (err) {
-      logger.error(
-        { err, key, path: fullPath },
-        "Failed to download file locally",
-      );
+  /** Streams the file; null when it does not exist, other errors throw [BUG-18]. */
+  async download(key: string): Promise<IStoredObject | null> {
+    const file = Bun.file(path.join(this.basePath, key));
+    if (!(await file.exists())) {
       return null;
     }
+    return {
+      stream: file.stream(),
+      contentLength: file.size,
+      contentType: file.type || undefined,
+    };
   }
 }

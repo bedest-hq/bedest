@@ -68,33 +68,24 @@ export const RouterStorage = new Elysia({
   )
   .get(
     "/:id/download",
-    async ({ params, userRuntime, set }) => {
-      const { fileBlob, metadata } = await ServiceStorage.get(
+    async ({ params, userRuntime }) => {
+      const { object, metadata } = await ServiceStorage.get(
         userRuntime,
         params.id,
       );
-
-      Object.assign(
-        set.headers,
-        UtilStorage.fileHeaders(metadata, "attachment"),
-      );
-
-      return fileBlob;
+      return UtilStorage.fileResponse(object, metadata, "attachment");
     },
     { params: t.Object({ id: VId }) },
   )
   .get(
     "/:id/view",
-    async ({ params, userRuntime, set }) => {
-      const { fileBlob, metadata } = await ServiceStorage.get(
+    async ({ params, userRuntime }) => {
+      const { object, metadata } = await ServiceStorage.get(
         userRuntime,
         params.id,
       );
-
       // Inline only for inline-safe types; always nosniff + sandbox [SEC-10].
-      Object.assign(set.headers, UtilStorage.fileHeaders(metadata, "inline"));
-
-      return fileBlob;
+      return UtilStorage.fileResponse(object, metadata, "inline");
     },
     { params: t.Object({ id: VId }) },
   )

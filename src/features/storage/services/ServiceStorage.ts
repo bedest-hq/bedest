@@ -81,17 +81,13 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
       name: SStorage.name,
     });
 
-    if (!fileRecord) {
-      throw UtilHttp.fail(404);
+    // Streamed from the provider; a missing object is a 404 [BUG-18].
+    const object = await StorageManager.download(fileRecord.key);
+    if (!object) {
+      throw UtilHttp.fail(404, "File content not found");
     }
 
-    const fileBlob = await StorageManager.download(fileRecord.key);
-
-    if (!fileBlob) {
-      throw UtilHttp.fail(404);
-    }
-
-    return { fileBlob, metadata: fileRecord };
+    return { object, metadata: fileRecord };
   }
 
   /**
@@ -222,10 +218,6 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     const fileRecord = await super.getById(c, id, {
       key: SStorage.key,
     });
-
-    if (!fileRecord) {
-      throw UtilHttp.fail(404);
-    }
 
     const downloadUrl = await StorageManager.getDownloadUrl(fileRecord.key);
     return { downloadUrl };

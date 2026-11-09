@@ -17,7 +17,11 @@ spyOn(StorageManager.default, "delete").mockImplementation(
 );
 
 spyOn(StorageManager.default, "download").mockImplementation(
-  mock(() => Promise.resolve(new Blob(["mock file data"]))),
+  // Providers stream objects [BUG-18].
+  mock(() => {
+    const blob = new Blob(["mock file data"]);
+    return Promise.resolve({ stream: blob.stream(), contentLength: blob.size });
+  }),
 );
 
 const bytes = new Uint8Array([

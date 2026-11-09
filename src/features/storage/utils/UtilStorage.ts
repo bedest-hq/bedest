@@ -1,3 +1,4 @@
+import type { IStoredObject } from "@/infrastructure/storage/interfaces/IProvider";
 import { TEnv } from "@/common/types/TEnv";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import { UtilEnv } from "@/infrastructure/env/UtilEnv";
@@ -34,6 +35,25 @@ export class UtilStorage {
    * place; the sandbox CSP and nosniff stop any served content from running
    * script on the API origin.
    */
+  /**
+   * A streaming response for a stored object: the hardened file headers
+   * plus Content-Length and ETag when known; nothing is buffered [BUG-18].
+   */
+  static fileResponse(
+    object: IStoredObject,
+    metadata: { mimeType: string; name: string },
+    requested: "inline" | "attachment",
+  ): Response {
+    const headers = new Headers(UtilStorage.fileHeaders(metadata, requested));
+    if (object.contentLength !== undefined) {
+      headers.set("Content-Length", String(object.contentLength));
+    }
+    if (object.etag) {
+      headers.set("ETag", object.etag);
+    }
+    return new Response(object.stream, { headers });
+  }
+
   static fileHeaders(
     metadata: { mimeType: string; name: string },
     requested: "inline" | "attachment",

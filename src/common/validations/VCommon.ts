@@ -77,6 +77,9 @@ export const VEnv = t.Object({
   S3_ACCESS_KEY: t.Optional(t.String()),
   S3_SECRET_KEY: t.Optional(t.String()),
   S3_BUCKET: t.Optional(t.String()),
+  // Path-style URLs (endpoint/bucket/key); true for MinIO and most
+  // S3-compatible stores, false (virtual-hosted) for AWS [BUG-18].
+  S3_FORCE_PATH_STYLE: t.Boolean({ default: false }),
 
   REDIS_URL: t.Optional(t.String()),
 

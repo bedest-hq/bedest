@@ -16,7 +16,11 @@ const StorageManager = await import("@/infrastructure/storage/StorageManager");
 
 // External I/O only: the object store.
 spyOn(StorageManager.default, "download").mockImplementation(
-  mock(() => Promise.resolve(new Blob(["<script>alert(1)</script>"]))),
+  // Providers stream objects [BUG-18].
+  mock(() => {
+    const blob = new Blob(["<script>alert(1)</script>"]);
+    return Promise.resolve({ stream: blob.stream(), contentLength: blob.size });
+  }),
 );
 
 const api = treaty(RouterStorage);

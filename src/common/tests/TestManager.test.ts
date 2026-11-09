@@ -109,6 +109,7 @@ const test_env: TEnv = {
   S3_ACCESS_KEY: "testkey",
   S3_SECRET_KEY: "testsecret",
   S3_BUCKET: "test-bucket",
+  S3_FORCE_PATH_STYLE: true,
 };
 
 const test_client = new PGlite();

@@ -2,7 +2,7 @@ import { UtilHttp } from "@/common/utils/UtilHttp";
 import EnvManager from "../env/EnvManager";
 import { logger } from "../logger/logger";
 
-import { IProvider } from "./interfaces/IProvider";
+import { IProvider, IStoredObject } from "./interfaces/IProvider";
 import { ProviderLocal } from "./providers/ProviderLocal";
 import { ProviderS3 } from "./providers/ProviderS3";
 
@@ -78,7 +78,7 @@ class StorageManager {
     await this.activeProvider.delete(key);
   }
 
-  async download(key: string): Promise<Blob | null> {
+  async download(key: string): Promise<IStoredObject | null> {
     if (!this.activeProvider) {
       throw UtilHttp.fail(503);
     }
