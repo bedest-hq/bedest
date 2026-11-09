@@ -1,12 +1,15 @@
 import { STenant } from "@f/tenant/schemas/STenant";
 import { UtilDbSchema } from "bedest-core";
-import { uuid, pgTable, timestamp, index } from "drizzle-orm/pg-core";
+import { uuid, pgTable, timestamp, index, varchar } from "drizzle-orm/pg-core";
+import { SUser } from "@f/user/schemas/SUser";
 
 export const SSession = pgTable(
   "sessions",
   {
     id: uuid().defaultRandom().primaryKey(),
-    userId: uuid().notNull(),
+    userId: uuid()
+      .references(() => SUser.id)
+      .notNull(),
     tenantId: uuid()
       .references(() => STenant.id)
       .notNull(),
@@ -14,6 +17,10 @@ export const SSession = pgTable(
     familyId: uuid().defaultRandom().notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull(),
     expiresAt: timestamp({ withTimezone: true }).notNull(),
+    // Session management [FEAT-05]: written at most every 5 minutes.
+    lastUsedAt: timestamp({ withTimezone: true }),
+    ipAddress: varchar({ length: 45 }),
+    userAgent: varchar({ length: 512 }),
   },
 
   (t) => [

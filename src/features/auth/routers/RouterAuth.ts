@@ -4,6 +4,7 @@ import Context from "@/app/Context";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import RateLimitManager from "@/infrastructure/ratelimit/RateLimitManager";
 import ServiceAuth from "../services/ServiceAuth";
+import ServiceSession from "@f/session/services/ServiceSession";
 import { UtilAuth } from "../utils/UtilAuth";
 import { VPasswordCheck } from "../validations/VPassword";
 import { VEmail, VId } from "bedest-core";
@@ -92,7 +93,15 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
   )
   .post(
     "/refresh",
-    async ({ accessJwt, refreshJwt, cookie, nowDatetime, db }) => {
+    async ({
+      accessJwt,
+      refreshJwt,
+      cookie,
+      nowDatetime,
+      db,
+      clientIp,
+      request,
+    }) => {
       const refreshToken = cookie.refreshToken.value;
 
       if (!refreshToken) {
@@ -112,6 +121,8 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
       const newPayload = await ServiceAuth.refresh(
         { db, nowDatetime },
         payload.sessionId,
+        // The session shows the device that last refreshed it [FEAT-05].
+        { ip: clientIp, userAgent: request.headers.get("user-agent") ?? "" },
       );
 
       const newAccessToken = await accessJwt.sign({
@@ -146,19 +157,82 @@ export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
   .use(RouterLogin)
   .use(RouterRefresh)
   .guard({}, (app) =>
-    app.use(Context.User()).post(
-      "/logout",
-      async ({ userRuntime, cookie }) => {
-        await ServiceAuth.logout(userRuntime);
+    app
+      .use(Context.User())
+      .post(
+        "/logout",
+        async ({ userRuntime, cookie }) => {
+          await ServiceAuth.logout(userRuntime);
 
-        // Same path as when set, or the browser keeps the cookie [SEC-24].
-        cookie.accessToken.set(UtilAuth.clearedCookie("access"));
-        cookie.refreshToken.set(UtilAuth.clearedCookie("refresh"));
+          // Same path as when set, or the browser keeps the cookie [SEC-24].
+          cookie.accessToken.set(UtilAuth.clearedCookie("access"));
+          cookie.refreshToken.set(UtilAuth.clearedCookie("refresh"));
 
-        return { success: true };
-      },
-      {
-        response: t.Object({ success: t.Boolean() }),
-      },
-    ),
+          return { success: true };
+        },
+        {
+          response: t.Object({ success: t.Boolean() }),
+        },
+      )
+      // Session management [FEAT-05].
+      .get(
+        "/sessions",
+        async ({ userRuntime }) =>
+          await ServiceSession.listForUser(userRuntime),
+        {
+          response: t.Array(
+            t.Object({
+              id: VId,
+              createdAt: t.Date(),
+              lastUsedAt: t.Nullable(t.Date()),
+              ipAddress: t.Nullable(t.String()),
+              userAgent: t.Nullable(t.String()),
+              current: t.Boolean(),
+            }),
+          ),
+        },
+      )
+      .delete(
+        "/sessions/:id",
+        async ({ params, userRuntime, cookie }) => {
+          if (!(await ServiceSession.revokeOwn(userRuntime, params.id))) {
+            throw UtilHttp.fail(404, "Session not found");
+          }
+          // Revoking the current session signs this device out too.
+          if (params.id === userRuntime.session.sessionId) {
+            cookie.accessToken.set(UtilAuth.clearedCookie("access"));
+            cookie.refreshToken.set(UtilAuth.clearedCookie("refresh"));
+          }
+          return { success: true };
+        },
+        {
+          params: t.Object({ id: VId }),
+          response: t.Object({ success: t.Boolean() }),
+          audit: { entity: "session", action: "SESSION_REVOKED" },
+        },
+      )
+      .post(
+        "/logout-all",
+        async ({ body, userRuntime, cookie }) => {
+          const revoked = await ServiceSession.revokeUserSessions(
+            userRuntime,
+            userRuntime.session.userId,
+            {
+              exceptSessionId: body.includeCurrent
+                ? undefined
+                : userRuntime.session.sessionId,
+            },
+          );
+          if (body.includeCurrent) {
+            cookie.accessToken.set(UtilAuth.clearedCookie("access"));
+            cookie.refreshToken.set(UtilAuth.clearedCookie("refresh"));
+          }
+          return { success: true, revoked };
+        },
+        {
+          body: t.Object({ includeCurrent: t.Boolean() }),
+          response: t.Object({ success: t.Boolean(), revoked: t.Number() }),
+          audit: { entity: "session", action: "SESSION_REVOKED" },
+        },
+      ),
   );

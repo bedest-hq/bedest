@@ -141,6 +141,20 @@
       "when": 1794221396436,
       "tag": "0019_login_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794221848231,
+      "tag": "0020_sessions_drop_orphans",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794221849015,
+      "tag": "0021_sessions_metadata",
+      "breakpoints": true
     }
   ]
 }
