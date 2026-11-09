@@ -1,4 +1,5 @@
-import { Elysia, status, t } from "elysia";
+import { UtilHttp } from "@/common/utils/UtilHttp";
+import { Elysia, t } from "elysia";
 import { Value } from "@sinclair/typebox/value";
 import Context from "@/app/Context";
 import EnvManager from "@/infrastructure/env/EnvManager";
@@ -28,18 +29,18 @@ export const RouterBilling = new Elysia({
       );
 
       if (!isValid) {
-        throw status("Unauthorized", { message: "Invalid webhook signature" });
+        throw UtilHttp.fail(401, "Invalid webhook signature");
       }
 
       let parsed: unknown;
       try {
         parsed = JSON.parse(body);
       } catch {
-        throw status("Bad Request", { message: "Invalid JSON payload" });
+        throw UtilHttp.fail(400, "Invalid JSON payload");
       }
 
       if (!Value.Check(VStripeEvent, parsed)) {
-        throw status("Bad Request", { message: "Invalid event payload" });
+        throw UtilHttp.fail(400, "Invalid event payload");
       }
 
       return await ServiceBilling.handleEvent({ db, nowDatetime }, parsed);

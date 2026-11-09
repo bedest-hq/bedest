@@ -1,3 +1,4 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import { SSystemLog } from "../schemas/SSystemLog";
 import { logger } from "@/infrastructure/logger/logger";
 import {
@@ -7,7 +8,7 @@ import {
   UtilTenantScope,
 } from "bedest-core";
 import { and, count, desc, eq, SQL } from "drizzle-orm";
-import { status } from "elysia";
+
 
 export const SYSTEM_AUDIT_USER_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -166,7 +167,7 @@ class ServiceSystemLog {
         .limit(1);
 
       if (!res) {
-        throw status("Not Found");
+        throw UtilHttp.fail(404);
       }
 
       return res;

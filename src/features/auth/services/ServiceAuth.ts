@@ -1,3 +1,4 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import { and, eq, sql } from "drizzle-orm";
 import { SUser } from "../../user/schemas/SUser";
 import { STenant } from "@f/tenant/schemas/STenant";
@@ -5,7 +6,7 @@ import { UtilEmail } from "@f/user/utils/UtilEmail";
 import ServiceSession from "@/features/session/services/ServiceSession";
 import ServiceSystem from "@f/system/services/ServiceSystem";
 import { EUserRole } from "@f/user/enums/EUserRole";
-import { status } from "elysia";
+
 import ServiceSystemLog from "@f/system/services/ServiceSystemLog";
 import {
   IApp,
@@ -18,7 +19,7 @@ import WsManager from "@/infrastructure/websocket/WsManager";
 const DUMMY_HASH = await Bun.password.hash("invalid_dummy_password");
 
 const invalidCredentials = () =>
-  status("Unauthorized", { message: "Invalid email or password" });
+  UtilHttp.fail(401, "Invalid email or password");
 
 class ServiceAuth {
   /** Active user of an active tenant, straight from the database. */
@@ -78,7 +79,7 @@ class ServiceAuth {
     }
 
     if ((await ServiceSystem.getMaintenance(c)) && user.role !== "SYSTEM") {
-      throw status("Service Unavailable");
+      throw UtilHttp.fail(503);
     }
 
     const session = await ServiceSession.create(c, {
@@ -133,7 +134,7 @@ class ServiceAuth {
     );
 
     if (!rotated) {
-      throw status("Unauthorized");
+      throw UtilHttp.fail(401);
     }
 
     const { principal } = rotated;

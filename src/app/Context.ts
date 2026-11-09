@@ -1,5 +1,6 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import { jwt } from "@elysiajs/jwt";
-import Elysia, { status } from "elysia";
+import Elysia from "elysia";
 import { t } from "elysia";
 import { EUserRole } from "@/features/user/enums/EUserRole";
 import DbManager from "@/infrastructure/database/DbManager";
@@ -84,14 +85,14 @@ class Context {
           // A valid signature is not enough: the session must still exist
           // (logout, revocation, deleted user/tenant) [SEC-08].
           if (!(await ServiceSession.isActive({ db, nowDatetime }, payload.sessionId))) {
-            throw status("Unauthorized");
+            throw UtilHttp.fail(401);
           }
 
           if (
             (await ServiceSystem.getMaintenance({ db, nowDatetime })) &&
             payload.role !== EUserRole.SYSTEM
           ) {
-            throw status("Service Unavailable");
+            throw UtilHttp.fail(503);
           }
 
           const session: ISession = {

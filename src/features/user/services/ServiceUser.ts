@@ -1,6 +1,7 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import { EUserRole } from "../enums/EUserRole";
 import { SUser } from "../schemas/SUser";
-import { status } from "elysia";
+
 import { and, count, eq, ne } from "drizzle-orm";
 import { ITenantUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core";
 import { IPolicyActor, UtilUserPolicy } from "../utils/UtilUserPolicy";
@@ -47,7 +48,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
         );
 
     if (!row) {
-      throw status("Not Found");
+      throw UtilHttp.fail(404);
     }
     return row;
   }
@@ -63,7 +64,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     },
   ) {
     if (!UtilUserPolicy.canGrantRole(c.session.role, data.role)) {
-      throw status("Forbidden");
+      throw UtilHttp.fail(403);
     }
 
     const hash = await Bun.password.hash(data.password);
@@ -114,31 +115,29 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
 
     if (UtilUserPolicy.isSelf(actor, target)) {
       if (data.role !== undefined) {
-        throw status("Forbidden", { message: "You cannot change your own role" });
+        throw UtilHttp.fail(403, "You cannot change your own role");
       }
       if (data.password) {
         if (!data.currentPassword) {
-          throw status("Bad Request", {
-            message: "currentPassword is required to change your password",
-          });
+          throw UtilHttp.fail(400, "currentPassword is required to change your password");
         }
         const valid = await Bun.password.verify(
           data.currentPassword,
           target.password,
         );
         if (!valid) {
-          throw status("Unauthorized", { message: "Wrong current password" });
+          throw UtilHttp.fail(401, "Wrong current password");
         }
       }
     } else {
       if (!UtilUserPolicy.canManage(actor, target)) {
-        throw status("Forbidden");
+        throw UtilHttp.fail(403);
       }
       if (
         data.role !== undefined &&
         !UtilUserPolicy.canGrantRole(actor.role, data.role)
       ) {
-        throw status("Forbidden");
+        throw UtilHttp.fail(403);
       }
     }
 
@@ -200,12 +199,9 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       tx.select({ n: count() }).from(SUser).where(sameRole),
     );
     if (Number(others?.n ?? 0) === 0) {
-      throw status("Conflict", {
-        message:
-          target.role === EUserRole.ADMIN
+      throw UtilHttp.fail(409, target.role === EUserRole.ADMIN
             ? "Cannot delete the last active ADMIN of the tenant"
-            : "Cannot delete the last active SYSTEM user",
-      });
+            : "Cannot delete the last active SYSTEM user");
     }
   }
 
@@ -213,7 +209,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     const target = await this.loadTarget(c, id);
 
     if (!UtilUserPolicy.canManage(this.actor(c), target)) {
-      throw status("Forbidden");
+      throw UtilHttp.fail(403);
     }
 
     await this.assertNotLastPrivileged(c, target);

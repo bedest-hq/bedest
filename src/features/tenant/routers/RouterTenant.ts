@@ -1,4 +1,5 @@
-import { Elysia, status, t } from "elysia";
+import { UtilHttp } from "@/common/utils/UtilHttp";
+import { Elysia, t } from "elysia";
 import { STenant } from "../schemas/STenant";
 import ServiceTenant from "../services/ServiceTenant";
 import Context from "@/app/Context";
@@ -82,7 +83,7 @@ export const RouterTenant = new Elysia({
         userRuntime.session.role !== EUserRole.SYSTEM &&
         id !== userRuntime.tenantId
       ) {
-        throw status("Forbidden");
+        throw UtilHttp.fail(403);
       }
 
       const res = await ServiceTenant.getById(userRuntime, id, {
@@ -143,7 +144,7 @@ export const RouterTenant = new Elysia({
 
       if (userRuntime.session.role !== EUserRole.SYSTEM) {
         if (id !== userRuntime.tenantId) {
-          throw status("Forbidden");
+          throw UtilHttp.fail(403);
         }
         delete body.plan;
         delete body.planStart;

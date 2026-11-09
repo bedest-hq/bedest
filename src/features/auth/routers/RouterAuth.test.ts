@@ -91,7 +91,9 @@ describe("RouterAuth", () => {
     expect(wrongPasswordRes.error?.value).toStrictEqual(
       nonExistentEmailRes.error?.value,
     );
+    // The shared error envelope [BUG-14]; identical for both cases.
     expect(nonExistentEmailRes.error?.value as unknown).toStrictEqual({
+      error: "Unauthorized",
       message: "Invalid email or password",
     });
   });

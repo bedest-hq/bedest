@@ -1,6 +1,7 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import { SStorage } from "../schemas/SStorage";
 
-import { status } from "elysia";
+
 import { and, eq, type SQL } from "drizzle-orm";
 import StorageManager from "@/infrastructure/storage/StorageManager";
 import {
@@ -82,13 +83,13 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     });
 
     if (!fileRecord) {
-      throw status("Not Found");
+      throw UtilHttp.fail(404);
     }
 
     const fileBlob = await StorageManager.download(fileRecord.key);
 
     if (!fileBlob) {
-      throw status("Not Found");
+      throw UtilHttp.fail(404);
     }
 
     return { fileBlob, metadata: fileRecord };
@@ -107,14 +108,11 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     const privileged =
       c.session.isSuperUser || c.session.role === EUserRole.ADMIN;
     if (!privileged && file.uploadedBy !== c.session.userId) {
-      throw status(403, {
-        error: "Forbidden",
-        message: "Only the uploader or an admin can delete this file",
-      });
+      throw UtilHttp.fail(403, "Only the uploader or an admin can delete this file");
     }
 
     if (await this.isReferenced(c, id)) {
-      throw status(409, { error: "Conflict", message: "File is in use" });
+      throw UtilHttp.fail(409, "File is in use");
     }
 
     // Soft delete only; the object is removed by the purge job [BUG-03].
@@ -145,10 +143,10 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
           .limit(1),
     );
     if (!file) {
-      throw status(404, { error: "Not Found", message: "File not found" });
+      throw UtilHttp.fail(404, "File not found");
     }
     if (file.status !== EStorageStatus.READY) {
-      throw status(400, { error: "Bad Request", message: "File is not ready" });
+      throw UtilHttp.fail(400, "File is not ready");
     }
   }
 
@@ -181,21 +179,14 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
   ) {
     // Fail before creating any row when presigning is unsupported [BUG-04].
     if (!StorageManager.supportsPresign()) {
-      throw status(501, {
-        error: "Not Implemented",
-        message: "The active storage provider does not support presigned URLs",
-      });
+      throw UtilHttp.fail(501, "The active storage provider does not support presigned URLs");
     }
     // Same allowlist and size limit as direct uploads [SEC-10].
     if (!UtilStorage.allowedTypes().includes(data.mimeType)) {
-      throw status("Bad Request", {
-        message: `File type ${data.mimeType} is not allowed`,
-      });
+      throw UtilHttp.fail(400, `File type ${data.mimeType} is not allowed`);
     }
     if (data.size > UtilStorage.maxBytes()) {
-      throw status("Bad Request", {
-        message: `File exceeds the maximum size of ${UtilStorage.maxBytes()} bytes`,
-      });
+      throw UtilHttp.fail(400, `File exceeds the maximum size of ${UtilStorage.maxBytes()} bytes`);
     }
 
     const key = `${c.tenantId}/${crypto.randomUUID()}.${storageExtensionFor(data.mimeType)}`;
@@ -225,7 +216,7 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     });
 
     if (!fileRecord) {
-      throw status("Not Found");
+      throw UtilHttp.fail(404);
     }
 
     const downloadUrl = await StorageManager.getDownloadUrl(fileRecord.key);

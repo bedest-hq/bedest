@@ -1,7 +1,8 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import WsManager from "@/infrastructure/websocket/WsManager";
 import { SNotification, SNotificationRead } from "../schemas/SNotification";
 import { and, count, desc, eq, or, sql } from "drizzle-orm";
-import { status } from "elysia";
+
 import { logger } from "@/infrastructure/logger/logger";
 import { ITenantUserApp, UtilTenantScope } from "bedest-core";
 
@@ -154,12 +155,12 @@ class ServiceNotification {
         .limit(1);
 
       if (!existing) {
-        throw status("Not Found");
+        throw UtilHttp.fail(404);
       }
 
       if (existing.isBroadcast) {
         if (existing.tenantId !== c.tenantId) {
-          throw status("Forbidden");
+          throw UtilHttp.fail(403);
         }
 
         // Idempotent under concurrency: the unique (user, notification)
@@ -178,7 +179,7 @@ class ServiceNotification {
       }
 
       if (existing.userId !== c.session.userId) {
-        throw status("Forbidden");
+        throw UtilHttp.fail(403);
       }
 
       await tx

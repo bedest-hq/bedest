@@ -1,4 +1,5 @@
-import { Elysia, status, t } from "elysia";
+import { UtilHttp } from "@/common/utils/UtilHttp";
+import { Elysia, t } from "elysia";
 import Context from "@/app/Context";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import RateLimitManager from "@/infrastructure/ratelimit/RateLimitManager";
@@ -78,7 +79,7 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
       const refreshToken = cookie.refreshToken.value;
 
       if (!refreshToken) {
-        throw status("Unauthorized");
+        throw UtilHttp.fail(401);
       }
 
       const payload = await refreshJwt.verify(
@@ -86,7 +87,7 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
         UtilAuth.jwtVerifyOptions(),
       );
       if (!payload) {
-        throw status("Unauthorized");
+        throw UtilHttp.fail(401);
       }
 
       // Only the session id is taken from the token; identity and role are

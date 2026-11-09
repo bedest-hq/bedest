@@ -1,6 +1,7 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import { JWT_AUDIENCE, TJwtPayload } from "../validations/VJwtPayload";
-import { status } from "elysia";
+
 
 /**
  * The refresh cookie is only sent to the auth routes (refresh, logout),
@@ -66,13 +67,13 @@ export class UtilAuth {
     token: string | undefined,
   ): Promise<TJwtPayload & { exp?: number }> {
     if (!token) {
-      throw status("Unauthorized");
+      throw UtilHttp.fail(401);
     }
 
     const payload = await accessJwt.verify(token, UtilAuth.jwtVerifyOptions());
 
     if (!payload) {
-      throw status("Unauthorized");
+      throw UtilHttp.fail(401);
     }
 
     return payload;

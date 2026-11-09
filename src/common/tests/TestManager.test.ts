@@ -36,10 +36,19 @@ declare module "bun:test" {
   interface Matchers<T> extends CustomMatchers<T> {}
 }
 
+// The error envelope { error, message?, details? } [BUG-14].
+const envelopeError = (received: unknown): string | undefined =>
+  typeof received === "object" &&
+  received !== null &&
+  "error" in received &&
+  typeof received.error === "string"
+    ? received.error
+    : undefined;
+
 expect.extend({
   toBeApiOk(received: unknown) {
     const isNot = this.isNot;
-    const res = received as { error?: string };
+    const res = { error: envelopeError(received) };
 
     return {
       pass: res.error === undefined,
@@ -51,7 +60,7 @@ expect.extend({
 
   toBeApiError(received: unknown, expected: string) {
     const isNot = this.isNot;
-    const res = received as { error?: string };
+    const res = { error: envelopeError(received) };
 
     return {
       pass: res.error !== undefined && res.error === expected,

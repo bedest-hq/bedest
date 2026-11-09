@@ -1,6 +1,7 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import EnvManager from "../env/EnvManager";
 import { logger } from "../logger/logger";
-import { status } from "elysia";
+
 import { IProvider } from "./interfaces/IProvider";
 import { ProviderLocal } from "./providers/ProviderLocal";
 import { ProviderS3 } from "./providers/ProviderS3";
@@ -35,10 +36,7 @@ class StorageManager {
   }
 
   private static notImplemented() {
-    return status(501, {
-      error: "Not Implemented",
-      message: "The active storage provider does not support presigned URLs",
-    });
+    return UtilHttp.fail(501, "The active storage provider does not support presigned URLs");
   }
 
   /** Test hook: swap the provider; returns a function restoring the old one. */
@@ -65,7 +63,7 @@ class StorageManager {
     contentType: string,
   ): Promise<void> {
     if (!this.activeProvider) {
-      throw status("Service Unavailable");
+      throw UtilHttp.fail(503);
     }
     await this.activeProvider.upload(key, body, contentType);
   }
@@ -79,7 +77,7 @@ class StorageManager {
 
   async download(key: string): Promise<Blob | null> {
     if (!this.activeProvider) {
-      throw status("Service Unavailable");
+      throw UtilHttp.fail(503);
     }
     return await this.activeProvider.download(key);
   }
@@ -91,7 +89,7 @@ class StorageManager {
     expiresIn = 300,
   ): Promise<string> {
     if (!this.activeProvider) {
-      throw status("Service Unavailable");
+      throw UtilHttp.fail(503);
     }
     // No fake URLs pointing at routes that do not exist [BUG-04].
     if (!this.activeProvider.getUploadUrl) {
@@ -107,7 +105,7 @@ class StorageManager {
 
   async getDownloadUrl(key: string, expiresIn = 300): Promise<string> {
     if (!this.activeProvider) {
-      throw status("Service Unavailable");
+      throw UtilHttp.fail(503);
     }
     if (!this.activeProvider.getDownloadUrl) {
       throw StorageManager.notImplemented();

@@ -1,7 +1,8 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import { IApp, ITenantUserApp, ServiceBase, UtilTenantScope } from "bedest-core";
 import { STenant } from "../schemas/STenant";
 import { and, eq } from "drizzle-orm";
-import { status } from "elysia";
+
 import type { SelectedFields } from "drizzle-orm/pg-core";
 import ServiceSession from "@f/session/services/ServiceSession";
 import { UtilEmail } from "@f/user/utils/UtilEmail";
@@ -47,7 +48,7 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
     data: Parameters<ServiceBase<typeof STenant, string, ITenantUserApp>["create"]>[1],
   ) {
     if (!c.session?.isSuperUser) {
-      throw status("Forbidden");
+      throw UtilHttp.fail(403);
     }
     return this.scoped(c, (sc) =>
       super.create(sc, { ...data, email: UtilEmail.normalize(data.email) }),
@@ -63,7 +64,7 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
       data = { ...data, email: UtilEmail.normalize(data.email) };
     }
     if (!c.session?.isSuperUser && id !== c.tenantId) {
-      throw status("Forbidden");
+      throw UtilHttp.fail(403);
     }
     // The logo must be a READY file of this very tenant [SEC-27].
     if (typeof data.logoId === "string") {
@@ -81,13 +82,11 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
 
   override async remove(c: ITenantUserApp, id: string) {
     if (!c.session?.isSuperUser && id !== c.tenantId) {
-      throw status("Forbidden");
+      throw UtilHttp.fail(403);
     }
     // Never orphan the platform or lock the actor out [SEC-13].
     if (id === c.tenantId) {
-      throw status("Conflict", {
-        message: "Cannot delete the tenant of the acting user",
-      });
+      throw UtilHttp.fail(409, "Cannot delete the tenant of the acting user");
     }
     const [target] = await UtilTenantScope.systemScope(c.db, (tx) =>
       tx
@@ -97,7 +96,7 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
         .limit(1),
     );
     if (target?.isSystem) {
-      throw status("Conflict", { message: "Cannot delete the system tenant" });
+      throw UtilHttp.fail(409, "Cannot delete the system tenant");
     }
     const res = await this.scoped(c, (sc) => super.remove(sc, id));
     // Users of a deleted tenant must lose access immediately [SEC-08].
@@ -130,7 +129,7 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
 
       if (!tenant) {
         // Neutral copy: the endpoint is public [SEC-25].
-        throw status(404, { error: "Not Found", message: "Tenant not found" });
+        throw UtilHttp.fail(404, "Tenant not found");
       }
 
       return tenant;

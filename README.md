@@ -104,6 +104,16 @@ The shared foundation is extracted into [`bedest-core`](https://github.com/bedes
 
 The ErrorHandler implementation utilizes a type-safe recursive strategy to traverse error layers. It effectively unmasks internal driver errors (from `pg` or Drizzle) to extract specific database codes (e.g., `23505` for Conflicts) without exposing sensitive stack traces to the client.
 
+### Error responses
+
+Every error has the same JSON body [BUG-14]:
+
+```json
+{ "error": "Bad Request", "message": "Validation failed", "details": [{ "field": "email", "message": "Expected string to match 'email' format" }] }
+```
+
+`error` is the HTTP reason phrase, `message` an optional explanation and `details` the invalid fields of a validation error. Throw HTTP errors with `UtilHttp.fail(status, message?, details?)`; the global `ErrorHandler` turns everything else (unknown routes, malformed bodies, invalid cookie signatures, wrong file types, bare `status()` calls, Postgres errors such as `23505` → 409 or `22001` → 400) into the same shape and answers unexpected errors with `{ "error": "Internal Server Error" }` only. The type is exported for clients as `IApiError`.
+
 ### Semantic Status Codes & Guards
 
 The API follows strict REST standards enforced by Elysia macros:
