@@ -1,4 +1,5 @@
 import { UtilHttp } from "@/common/utils/UtilHttp";
+import { UtilCursor } from "@/common/utils/UtilCursor";
 import { SNotification, SNotificationRead } from "../schemas/SNotification";
 import { and, count, desc, eq, or, sql } from "drizzle-orm";
 
@@ -7,8 +8,17 @@ import { ITenantUserApp, UtilTenantScope } from "bedest-core";
 class ServiceNotification {
   async getAll(
     c: ITenantUserApp,
-    query: { limit: number; page: number; unreadOnly?: boolean },
+    query: {
+      limit: number;
+      page: number;
+      unreadOnly?: boolean;
+      cursor?: string;
+    },
   ) {
+    // Decode before opening the transaction: a bad cursor is a 400.
+    const cursor =
+      query.cursor === undefined ? undefined : UtilCursor.decode(query.cursor);
+
     return await UtilTenantScope.tenantScope(c, async (tx) => {
       const readJoinCondition = and(
         eq(SNotificationRead.notificationId, SNotification.id),
@@ -37,6 +47,42 @@ class ServiceNotification {
         ? and(baseVisibility, unreadFilter)
         : baseVisibility;
 
+      const select = () =>
+        tx
+          .select({
+            row: {
+              id: SNotification.id,
+              event: SNotification.event,
+              payload: SNotification.payload,
+              isRead: isReadExpr,
+              readAt: readAtExpr,
+              createdAt: SNotification.createdAt,
+            },
+            cursorKey: UtilCursor.key(SNotification.createdAt),
+          })
+          .from(SNotification)
+          .leftJoin(SNotificationRead, readJoinCondition)
+          .orderBy(desc(SNotification.createdAt), desc(SNotification.id))
+          .$dynamic();
+
+      // Keyset mode: no COUNT, no OFFSET [PERF-02].
+      if (cursor) {
+        const rows = await select()
+          .where(
+            and(
+              whereClause,
+              UtilCursor.after(
+                SNotification.createdAt,
+                SNotification.id,
+                cursor,
+              ),
+            ),
+          )
+          .limit(query.limit + 1);
+        const { data, nextCursor } = UtilCursor.page(rows, query.limit);
+        return { data, meta: { limit: query.limit, nextCursor } };
+      }
+
       const [totalRes] = await tx
         .select({ count: count() })
         .from(SNotification)
@@ -44,23 +90,11 @@ class ServiceNotification {
         .where(whereClause);
 
       const total = Number(totalRes.count);
-      const offset = (query.page - 1) * query.limit;
-
-      const data = await tx
-        .select({
-          id: SNotification.id,
-          event: SNotification.event,
-          payload: SNotification.payload,
-          isRead: isReadExpr,
-          readAt: readAtExpr,
-          createdAt: SNotification.createdAt,
-        })
-        .from(SNotification)
-        .leftJoin(SNotificationRead, readJoinCondition)
+      const rows = await select()
         .where(whereClause)
-        .orderBy(desc(SNotification.createdAt))
-        .limit(query.limit)
-        .offset(offset);
+        .limit(query.limit + 1)
+        .offset((query.page - 1) * query.limit);
+      const { data, nextCursor } = UtilCursor.page(rows, query.limit);
 
       return {
         data,
@@ -69,6 +103,7 @@ class ServiceNotification {
           page: query.page,
           limit: query.limit,
           totalPages: Math.ceil(total / query.limit),
+          nextCursor,
         },
       };
     });

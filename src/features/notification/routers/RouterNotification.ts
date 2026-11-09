@@ -1,7 +1,8 @@
 import Context from "@/app/Context";
 import { Elysia, t } from "elysia";
 import ServiceNotification from "../services/ServiceNotification";
-import { UtilRouter, VId, VQuery } from "bedest-core";
+import { VId, VQuery } from "bedest-core";
+import { VCursor, VCursorPage } from "@/common/validations/VPagination";
 import WsManager from "@/infrastructure/websocket/WsManager";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import { UtilOrigin } from "@/app/plugins/UtilOrigin";
@@ -24,9 +25,11 @@ export const RouterNotification = new Elysia({
         VQuery,
         t.Object({
           unreadOnly: t.Optional(t.BooleanString()),
+          // Keyset pagination; page is ignored when set [PERF-02].
+          cursor: VCursor,
         }),
       ]),
-      response: UtilRouter.defPaginatedSchema(
+      response: VCursorPage(
         t.Object({
           id: VId,
           event: t.String(),

@@ -1,4 +1,5 @@
 import { UtilHttp } from "@/common/utils/UtilHttp";
+import { UtilCursor } from "@/common/utils/UtilCursor";
 import { SSystemLog } from "../schemas/SSystemLog";
 import { logger } from "@/infrastructure/logger/logger";
 import { ITenantUserApp, TDb, TDbOrTx, UtilTenantScope } from "bedest-core";
@@ -97,8 +98,13 @@ class ServiceSystemLog {
       entity?: string;
       entityId?: string;
       userId?: string;
+      cursor?: string;
     },
   ) {
+    // Decode before opening the transaction: a bad cursor is a 400.
+    const cursor =
+      query.cursor === undefined ? undefined : UtilCursor.decode(query.cursor);
+
     return await UtilTenantScope.tenantScope(c, async (tx) => {
       const filters: SQL<unknown>[] = [];
 
@@ -115,30 +121,50 @@ class ServiceSystemLog {
         filters.push(eq(SSystemLog.userId, query.userId));
       }
 
+      const select = () =>
+        tx
+          .select({
+            row: {
+              id: SSystemLog.id,
+              userId: SSystemLog.userId,
+              action: SSystemLog.action,
+              entity: SSystemLog.entity,
+              entityId: SSystemLog.entityId,
+              targetTenantId: SSystemLog.targetTenantId,
+              payload: SSystemLog.payload,
+              createdAt: SSystemLog.createdAt,
+            },
+            cursorKey: UtilCursor.key(SSystemLog.createdAt),
+          })
+          .from(SSystemLog)
+          .orderBy(desc(SSystemLog.createdAt), desc(SSystemLog.id))
+          .$dynamic();
+
+      // Keyset mode: no COUNT, no OFFSET [PERF-02].
+      if (cursor) {
+        const rows = await select()
+          .where(
+            and(
+              ...filters,
+              UtilCursor.after(SSystemLog.createdAt, SSystemLog.id, cursor),
+            ),
+          )
+          .limit(query.limit + 1);
+        const { data, nextCursor } = UtilCursor.page(rows, query.limit);
+        return { data, meta: { limit: query.limit, nextCursor } };
+      }
+
       const [totalRes] = await tx
         .select({ count: count() })
         .from(SSystemLog)
         .where(and(...filters));
 
       const total = Number(totalRes.count);
-      const offset = (query.page - 1) * query.limit;
-
-      const data = await tx
-        .select({
-          id: SSystemLog.id,
-          userId: SSystemLog.userId,
-          action: SSystemLog.action,
-          entity: SSystemLog.entity,
-          entityId: SSystemLog.entityId,
-          targetTenantId: SSystemLog.targetTenantId,
-          payload: SSystemLog.payload,
-          createdAt: SSystemLog.createdAt,
-        })
-        .from(SSystemLog)
+      const rows = await select()
         .where(and(...filters))
-        .orderBy(desc(SSystemLog.createdAt))
-        .limit(query.limit)
-        .offset(offset);
+        .limit(query.limit + 1)
+        .offset((query.page - 1) * query.limit);
+      const { data, nextCursor } = UtilCursor.page(rows, query.limit);
 
       return {
         data,
@@ -147,6 +173,7 @@ class ServiceSystemLog {
           page: query.page,
           limit: query.limit,
           totalPages: Math.ceil(total / query.limit),
+          nextCursor,
         },
       };
     });
