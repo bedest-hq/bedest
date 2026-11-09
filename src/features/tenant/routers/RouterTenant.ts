@@ -203,10 +203,8 @@ export const RouterTenant = new Elysia({
               planStart: t.Date(),
               planEnd: t.Date(),
             }),
-            response: t.Object({
-              id: VId,
-              password: t.String(),
-            }),
+            // The ADMIN is invited by e-mail; no password [SEC-23][FEAT-06].
+            response: t.Object({ id: VId }),
 
             audit: { entity: "tenant", targetTenant: "entity" },
           },

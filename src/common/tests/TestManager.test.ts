@@ -100,6 +100,13 @@ const test_env: TEnv = {
   RATE_LIMIT_LOGIN_IP_PER_MIN: 20,
   RATE_LIMIT_REFRESH_PER_MIN: 30,
   RATE_LIMIT_TENANT_RESOLVE_PER_MIN: 30,
+  RATE_LIMIT_PASSWORD_FORGOT_PER_MIN: 5,
+  RATE_LIMIT_PASSWORD_FORGOT_PER_HOUR: 3,
+
+  // Nothing is delivered; tests read the in-memory messages [FEAT-06].
+  MAIL_PROVIDER: "console",
+  APP_PUBLIC_URL: "http://localhost:5173",
+  SMTP_SECURE: false,
 
   LOCAL_STORAGE_PATH: "./test_uploads",
   STORAGE_ALLOWED_TYPES: "image/jpeg,image/png,image/webp,application/pdf",

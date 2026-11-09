@@ -3,6 +3,7 @@ import ServiceSession from "@f/session/services/ServiceSession";
 import ServiceStorage from "@f/storage/services/ServiceStorage";
 import ServiceNotification from "@f/notification/services/ServiceNotification";
 import ServiceLoginLockout from "@f/auth/services/ServiceLoginLockout";
+import ServiceUserToken from "@f/auth/services/ServiceUserToken";
 import type { IJob } from "./JobScheduler";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -46,11 +47,14 @@ export const createJobs = (
   {
     name: "tokens.cleanup",
     intervalMs: HOUR_MS,
-    run: (c) =>
-      ServiceSession.cleanupRevokedTokens(
+    // Rotated refresh-token ids, and used or expired account tokens [FEAT-06].
+    run: async (c) => ({
+      revokedRefreshTokens: await ServiceSession.cleanupRevokedTokens(
         c,
         daysBefore(c.nowDatetime, REVOKED_TOKEN_TTL_DAYS),
       ),
+      userTokens: await ServiceUserToken.cleanup(c),
+    }),
   },
   {
     name: "notifications.retention",

@@ -130,7 +130,7 @@ describe("SEC-23: password policy", () => {
     expect(res.status).toBe(400);
   });
 
-  it("[SEC-23] POST /tenant generates a 128-bit random admin password", async () => {
+  it("[SEC-23][FEAT-06] POST /tenant returns no password: the admin is invited by e-mail", async () => {
     const headers = await testHeaders();
     const res = await send(
       "POST",
@@ -149,9 +149,8 @@ describe("SEC-23: password policy", () => {
       headers.Cookie,
     );
     expect(res.status).toBe(200);
-    // 16 random bytes, base64url without padding → 22 characters.
-    expect(await res.json()).toMatchObject({
-      password: expect.stringMatching(/^[A-Za-z0-9_-]{22}$/),
-    });
+    // Replaces the generated 128-bit password (interim SEC-23 fix) [FEAT-06].
+    const body: Record<string, unknown> = await res.json();
+    expect(Object.keys(body)).toEqual(["id"]);
   });
 });

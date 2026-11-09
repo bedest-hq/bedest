@@ -1,6 +1,8 @@
 import { Elysia, t } from "elysia";
 import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
+import ServiceInvite from "../services/ServiceInvite";
+import { EUserStatus } from "../enums/EUserStatus";
 import { VUserRole } from "../validations/VUserRole";
 import { VUserInput } from "../validations/VUserInput";
 import Context from "@/app/Context";
@@ -89,6 +91,8 @@ export const RouterUser = new Elysia({
                 tenantId: VId,
                 name: VString,
                 role: VUserRole,
+                // INVITED until the invitation is accepted [FEAT-06].
+                status: t.Enum(EUserStatus),
                 avatarId: t.Nullable(VId),
                 createdAt: t.Date(),
               }),
@@ -110,6 +114,21 @@ export const RouterUser = new Elysia({
             }),
             audit: { entity: "user", targetTenant: "user" },
             response: t.Object({ id: VId }),
+          },
+        )
+        .post(
+          "/invite",
+          async ({ body, userRuntime }) =>
+            await ServiceInvite.invite(userRuntime, body),
+          {
+            // [FEAT-06] Same role policy as POST /user [SEC-12].
+            body: t.Object({
+              email: VEmail,
+              role: VUserRole,
+              name: t.Optional(VUserInput.name),
+            }),
+            response: t.Object({ id: VId }),
+            audit: { entity: "user", action: "INVITE", targetTenant: "user" },
           },
         )
         .delete(

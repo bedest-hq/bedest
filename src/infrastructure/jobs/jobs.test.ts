@@ -14,6 +14,9 @@ import { EStorageStatus } from "@f/storage/enums/EStorageStatus";
 import { SNotification } from "@f/notification/schemas/SNotification";
 import { SUser } from "@f/user/schemas/SUser";
 import { EUserRole } from "@f/user/enums/EUserRole";
+import { SUserToken } from "@f/auth/schemas/SUserToken";
+import { EUserTokenType } from "@f/auth/enums/EUserTokenType";
+import { tokenHashOf } from "@f/auth/services/ServiceUserToken";
 import { JobScheduler } from "./JobScheduler";
 import { createJobs } from "./jobs";
 
@@ -198,6 +201,39 @@ describe("FEAT-08: jobs", () => {
       .from(SRevokedRefreshToken)
       .where(inArray(SRevokedRefreshToken.sessionId, [oldId, newId]));
     expect(left).toEqual([{ id: newId }]);
+  });
+
+  it("[FEAT-06][FEAT-08] tokens.cleanup also deletes used and expired account tokens, keeping valid ones", async () => {
+    const token = (expiresAt: Date, usedAt: Date | null) => ({
+      userId: test_user.id,
+      tenantId: test_tenant.id,
+      type: EUserTokenType.PASSWORD_RESET,
+      tokenHash: tokenHashOf(crypto.randomUUID()),
+      expiresAt,
+      usedAt,
+      createdAt: ago(DAY),
+    });
+    const later = new Date(NOW.getTime() + DAY);
+    const rows = await test_db
+      .insert(SUserToken)
+      .values([
+        token(ago(1000), null),
+        token(later, ago(1000)),
+        token(later, null),
+      ])
+      .returning({ id: SUserToken.id });
+
+    await scheduler().runOnce("tokens.cleanup");
+    const left = await test_db
+      .select({ id: SUserToken.id })
+      .from(SUserToken)
+      .where(
+        inArray(
+          SUserToken.id,
+          rows.map((r) => r.id),
+        ),
+      );
+    expect(left).toEqual([{ id: rows[2]?.id }]);
   });
 
   it("[FEAT-08] notifications.retention soft-deletes notifications older than the retention", async () => {

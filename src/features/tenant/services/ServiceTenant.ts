@@ -14,6 +14,7 @@ import { UtilEmail } from "@f/user/utils/UtilEmail";
 import { SUser } from "@f/user/schemas/SUser";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import ServiceStorage from "@f/storage/services/ServiceStorage";
+import ServiceInvite from "@f/user/services/ServiceInvite";
 
 class ServiceTenant extends ServiceBase<
   typeof STenant,
@@ -76,23 +77,20 @@ class ServiceTenant extends ServiceBase<
    * Creates a tenant and its first ADMIN (same e-mail) in ONE system-scope
    * transaction [BUG-16]: an e-mail already used by an active user in any
    * tenant (users.email is globally unique) is a 409 before anything is
-   * written, and any later failure rolls the tenant back too.
+   * written, and any later failure rolls the tenant back too. The ADMIN is
+   * invited (FEAT-06): no password is generated or returned [SEC-23]; a
+   * failed invitation e-mail rolls everything back.
    */
   async createWithAdmin(
     c: ITenantUserApp,
     data: Parameters<
       ServiceBase<typeof STenant, string, ITenantUserApp>["create"]
     >[1],
-  ): Promise<{ id: string; password: string }> {
+  ): Promise<{ id: string }> {
     if (!c.session.isSuperUser) {
       throw UtilHttp.fail(403);
     }
     const email = UtilEmail.normalize(data.email);
-    // 128-bit random password until the invitation flow (FEAT-06) [SEC-23].
-    const password = Buffer.from(
-      crypto.getRandomValues(new Uint8Array(16)),
-    ).toString("base64url");
-    const passwordHash = await Bun.password.hash(password);
 
     const id = await UtilTenantScope.systemScope(c.db, async (tx) => {
       const [taken] = await tx
@@ -112,18 +110,16 @@ class ServiceTenant extends ServiceBase<
         throw UtilHttp.fail(500);
       }
 
-      await tx.insert(SUser).values({
+      await ServiceInvite.inviteInTx(tx, c.nowDatetime, {
         tenantId: tenant.id,
-        name: "Admin",
         email,
-        password: passwordHash,
         role: EUserRole.ADMIN,
-        createdAt: c.nowDatetime,
+        name: "Admin",
       });
       return tenant.id;
     });
 
-    return { id, password };
+    return { id };
   }
 
   override async update(

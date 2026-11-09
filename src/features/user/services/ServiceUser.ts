@@ -88,6 +88,7 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       tenantId: SUser.tenantId,
       name: SUser.name,
       role: SUser.role,
+      status: SUser.status,
       avatarId: SUser.avatarId,
       createdAt: SUser.createdAt,
     });

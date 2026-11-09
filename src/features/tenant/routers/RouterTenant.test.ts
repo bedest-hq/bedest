@@ -149,9 +149,9 @@ describe("RouterTenant", () => {
 
     expect(res.status).toBe(200);
 
+    // [SEC-23][FEAT-06] The ADMIN is invited by e-mail: no password.
     expect(res.data).toStrictEqual({
       id: expect.any(String),
-      password: expect.any(String),
     });
   });
 

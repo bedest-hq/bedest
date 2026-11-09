@@ -162,6 +162,20 @@
       "when": 1794222698353,
       "tag": "0022_users_deleted_with_tenant",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794223066401,
+      "tag": "0023_account_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794223071721,
+      "tag": "0024_user_tokens_force_rls",
+      "breakpoints": true
     }
   ]
 }

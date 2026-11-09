@@ -74,6 +74,17 @@ describe("OPS-09: database reset guard", () => {
       const proc = Bun.spawn(["bun", "src/scripts/database/DatabaseReset.ts"], {
         env: {
           ...asProcessEnv(test_env),
+          // A valid production configuration needs a real mailer [FEAT-06].
+          ...(nodeEnv === "production"
+            ? {
+                MAIL_PROVIDER: "smtp",
+                SMTP_HOST: "smtp.example.com",
+                SMTP_PORT: "587",
+                SMTP_USER: "mailer",
+                SMTP_PASSWORD: "mailer-password",
+                MAIL_FROM: "no-reply@example.com",
+              }
+            : {}),
           NODE_ENV: nodeEnv,
           CONFIRM_RESET: "",
         },

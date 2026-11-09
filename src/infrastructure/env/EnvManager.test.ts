@@ -11,7 +11,20 @@ const validRaw = (): Record<string, string | undefined> => ({
   SECRET_KEY: "a-very-long-access-secret-key-for-tests-0001",
   REFRESH_KEY: "a-very-long-refresh-secret-key-for-tests-0002",
   PORT: "3000",
+  // Required since FEAT-06.
+  MAIL_PROVIDER: "console",
+  APP_PUBLIC_URL: "http://localhost:5173",
 });
+
+/** A complete SMTP mailer: production refuses the console one [FEAT-06]. */
+const SMTP_RAW = {
+  MAIL_PROVIDER: "smtp",
+  SMTP_HOST: "smtp.example.com",
+  SMTP_PORT: "587",
+  SMTP_USER: "mailer",
+  SMTP_PASSWORD: "mailer-password",
+  MAIL_FROM: "Bedest <no-reply@example.com>",
+};
 
 describe("EnvManager", () => {
   it("[SEC-02] a valid raw env record is accepted and injected values are used", () => {
@@ -45,6 +58,7 @@ describe("EnvManager", () => {
       ...validRaw(),
       NODE_ENV: "production",
       CORS_ORIGINS: "https://app.example.com, https://admin.example.com",
+      ...SMTP_RAW,
     };
     const env = new EnvManager().init(raw);
     expect(env.NODE_ENV).toBe("production");
@@ -126,5 +140,80 @@ describe("EnvManager (SEC-18)", () => {
         MAX_REQUEST_BODY_BYTES: String(10 * 1024 * 1024),
       }),
     ).toThrow(/MAX_REQUEST_BODY_BYTES/);
+  });
+});
+
+describe("EnvManager (FEAT-06)", () => {
+  const messageOf = (raw: Record<string, string | undefined>) => {
+    try {
+      new EnvManager().init(raw);
+      return "";
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err);
+    }
+  };
+
+  it("[FEAT-06] MAIL_PROVIDER and APP_PUBLIC_URL are required", () => {
+    const raw = validRaw();
+    delete raw.MAIL_PROVIDER;
+    delete raw.APP_PUBLIC_URL;
+    const message = messageOf(raw);
+    expect(message).toContain("[MAIL_PROVIDER]");
+    expect(message).toContain("[APP_PUBLIC_URL]");
+  });
+
+  it("[FEAT-06] the console mailer is refused in production", () => {
+    expect(
+      messageOf({
+        ...validRaw(),
+        NODE_ENV: "production",
+        CORS_ORIGINS: "https://app.example.com",
+      }),
+    ).toContain("[MAIL_PROVIDER] console delivers nothing");
+  });
+
+  it("[FEAT-06] smtp requires every SMTP variable and MAIL_FROM", () => {
+    const message = messageOf({ ...validRaw(), MAIL_PROVIDER: "smtp" });
+    for (const name of [
+      "SMTP_HOST",
+      "SMTP_PORT",
+      "SMTP_USER",
+      "SMTP_PASSWORD",
+      "MAIL_FROM",
+    ]) {
+      expect(message).toContain(
+        `[${name}] is required when MAIL_PROVIDER=smtp`,
+      );
+    }
+  });
+
+  it("[FEAT-06] a complete smtp configuration is accepted and coerced", () => {
+    const env = new EnvManager().init({
+      ...validRaw(),
+      ...SMTP_RAW,
+      SMTP_SECURE: "true",
+    });
+    expect(env.MAIL_PROVIDER).toBe("smtp");
+    expect(env.SMTP_PORT).toBe(587);
+    expect(env.SMTP_SECURE).toBe(true);
+  });
+
+  it("[FEAT-06] APP_PUBLIC_URL must be an http(s) URL without query or fragment", () => {
+    for (const bad of [
+      "not a url",
+      "ftp://example.com",
+      "https://app.example.com/?x=1",
+      "https://app.example.com/#a",
+    ]) {
+      expect(messageOf({ ...validRaw(), APP_PUBLIC_URL: bad })).toContain(
+        "[APP_PUBLIC_URL]",
+      );
+    }
+    expect(
+      messageOf({
+        ...validRaw(),
+        APP_PUBLIC_URL: "https://app.example.com/base/",
+      }),
+    ).toBe("");
   });
 });

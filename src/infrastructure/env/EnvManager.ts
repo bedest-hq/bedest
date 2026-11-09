@@ -33,6 +33,15 @@ const PLACEHOLDERS: ReadonlyArray<{
   { name: "DATABASE_PASSWORD", values: ["change-me"] },
 ];
 
+/** Required together when MAIL_PROVIDER=smtp [FEAT-06]. */
+const SMTP_REQUIRED = [
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_USER",
+  "SMTP_PASSWORD",
+  "MAIL_FROM",
+] as const;
+
 const formatErrors = (errors: string[]) =>
   `Env Configuration Error:\n${errors.map((e) => `  - ${e}`).join("\n")}`;
 
@@ -114,6 +123,20 @@ export class EnvManager {
       );
     }
 
+    // E-mail [FEAT-06].
+    if (!UtilEnv.isHttpUrl(env.APP_PUBLIC_URL)) {
+      errors.push(
+        "[APP_PUBLIC_URL] must be an http(s) URL without query or fragment.",
+      );
+    }
+    if (env.MAIL_PROVIDER === "smtp") {
+      for (const name of SMTP_REQUIRED) {
+        if (env[name] === undefined) {
+          errors.push(`[${name}] is required when MAIL_PROVIDER=smtp.`);
+        }
+      }
+    }
+
     if (env.CORS_ORIGIN !== undefined) {
       warnings.push(
         "CORS_ORIGIN is deprecated and will be removed in the next release; use CORS_ORIGINS (comma-separated).",
@@ -133,6 +156,12 @@ export class EnvManager {
     if (origins.some((origin) => origin.includes("*"))) {
       errors.push(
         "[CORS_ORIGINS] wildcard origins are not allowed in production.",
+      );
+    }
+
+    if (env.MAIL_PROVIDER === "console") {
+      errors.push(
+        "[MAIL_PROVIDER] console delivers nothing; use smtp in production.",
       );
     }
 

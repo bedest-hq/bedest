@@ -22,4 +22,17 @@ export class UtilEnv {
     }
     return UtilEnv.parseList(env.CORS_ORIGIN);
   }
+
+  /** An absolute http(s) URL without query or fragment [FEAT-06]. */
+  static isHttpUrl(value: string): boolean {
+    if (!URL.canParse(value)) {
+      return false;
+    }
+    const url = new URL(value);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      url.search === "" &&
+      url.hash === ""
+    );
+  }
 }

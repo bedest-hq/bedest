@@ -10,6 +10,7 @@ import {
 } from "@/common/tests/TestManager.test";
 import { RouterUser } from "./RouterUser";
 import { EUserRole } from "../enums/EUserRole";
+import { EUserStatus } from "../enums/EUserStatus";
 import { SUser } from "../schemas/SUser";
 
 const api = treaty(RouterUser);
@@ -58,6 +59,8 @@ describe("RouterUser", () => {
         createdAt: expect.any(Date),
         name: "List User",
         role: EUserRole.USER,
+        // [FEAT-06] The list shows the account status.
+        status: EUserStatus.ACTIVE,
         avatarId: null,
       },
       {
@@ -66,6 +69,7 @@ describe("RouterUser", () => {
         createdAt: expect.any(Date),
         name: "Test User",
         role: EUserRole.SYSTEM,
+        status: EUserStatus.ACTIVE,
         avatarId: null,
       },
     ]);

@@ -19,6 +19,9 @@ import {
   SNotificationRead,
 } from "@f/notification/schemas/SNotification";
 import { SSystemLog } from "@f/system/schemas/SSystemLog";
+import { SUserToken } from "@f/auth/schemas/SUserToken";
+import { EUserTokenType } from "@f/auth/enums/EUserTokenType";
+import { tokenHashOf } from "@f/auth/services/ServiceUserToken";
 import { ETenantPlan } from "@f/tenant/enums/ETenantPlan";
 import { EUserRole } from "@f/user/enums/EUserRole";
 
@@ -177,6 +180,22 @@ const CASES: IRlsCase[] = [
         // A fresh reader: (user, notification) is unique [BUG-05].
         userId: crypto.randomUUID(),
         readAt: new Date(),
+      }),
+  },
+  {
+    // One-time account tokens [FEAT-06].
+    name: "user_tokens",
+    table: SUserToken,
+    id: SUserToken.id,
+    tenantColumn: SUserToken.tenantId,
+    insert: (tx, tenantId) =>
+      tx.insert(SUserToken).values({
+        tenantId,
+        userId: tenantId === tenantB ? userB : userA,
+        type: EUserTokenType.PASSWORD_RESET,
+        tokenHash: tokenHashOf(crypto.randomUUID()),
+        expiresAt: new Date(Date.now() + 60_000),
+        createdAt: new Date(),
       }),
   },
   {

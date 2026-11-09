@@ -6,10 +6,15 @@ import RateLimitManager from "@/infrastructure/ratelimit/RateLimitManager";
 import ServiceAuth from "../services/ServiceAuth";
 import ServiceSession from "@f/session/services/ServiceSession";
 import { UtilAuth } from "../utils/UtilAuth";
-import { VPasswordCheck } from "../validations/VPassword";
+import { VPassword, VPasswordCheck } from "../validations/VPassword";
+import { VUserToken } from "../validations/VUserToken";
+import ServicePasswordReset from "../services/ServicePasswordReset";
+import ServiceInvite from "@f/user/services/ServiceInvite";
+import { VUserInput } from "@f/user/validations/VUserInput";
 import { VEmail, VId } from "bedest-core";
 
 const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
 
 // Each limiter is mounted on its own instance with `scoping: "scoped"`, so
 // it only applies to the routes of that instance (never the whole API).
@@ -153,9 +158,107 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
     },
   );
 
+// Account e-mail flows [FEAT-06]: the reset request has its own limiters
+// (per IP, and per e-mail per hour).
+const RouterPasswordForgot = new Elysia({ tags: ["Auth"] })
+  .use(Context.App())
+  .derive(({ body }) => ({ rateLimitEmail: UtilAuth.rateLimitEmail(body) }))
+  .use(
+    RateLimitManager.limiter({
+      name: "forgot:ip",
+      max: () => EnvManager.get().RATE_LIMIT_PASSWORD_FORGOT_PER_MIN,
+      durationMs: MINUTE_MS,
+      key: ({ clientIp }) => clientIp,
+    }),
+  )
+  .use(
+    RateLimitManager.limiter({
+      name: "forgot:email",
+      max: () => EnvManager.get().RATE_LIMIT_PASSWORD_FORGOT_PER_HOUR,
+      durationMs: HOUR_MS,
+      key: ({ rateLimitEmail }) => rateLimitEmail,
+    }),
+  )
+  .post(
+    "/password/forgot",
+    async ({ body, db, nowDatetime, set }) => {
+      await ServicePasswordReset.forgot({ db, nowDatetime }, body.email);
+      // Same answer whether or not the address exists.
+      set.status = 202;
+      return { success: true };
+    },
+    {
+      body: t.Object({ email: VEmail }),
+      response: { 202: t.Object({ success: t.Boolean() }) },
+    },
+  );
+
+const RouterAccountTokens = new Elysia({ tags: ["Auth"] })
+  .use(Context.App())
+  .post(
+    "/password/reset",
+    async ({ body, db, nowDatetime }) => {
+      await ServicePasswordReset.reset(
+        { db, nowDatetime },
+        body.token,
+        body.password,
+      );
+      return { success: true };
+    },
+    {
+      body: t.Object({ token: VUserToken, password: VPassword }),
+      response: t.Object({ success: t.Boolean() }),
+    },
+  )
+  .post(
+    "/invite/accept",
+    async ({
+      body,
+      db,
+      nowDatetime,
+      accessJwt,
+      refreshJwt,
+      cookie,
+      clientIp,
+      request,
+    }) => {
+      const payload = await ServiceInvite.accept({ db, nowDatetime }, body, {
+        ip: clientIp,
+        userAgent: request.headers.get("user-agent") ?? "",
+      });
+
+      // Signed in right away, like a login.
+      const refreshToken = await refreshJwt.sign({
+        ...payload,
+        typ: "refresh",
+      });
+      const accessToken = await accessJwt.sign({ ...payload, typ: "access" });
+      cookie.refreshToken.set({
+        value: refreshToken,
+        ...UtilAuth.cookieConf("refresh"),
+      });
+      cookie.accessToken.set({
+        value: accessToken,
+        ...UtilAuth.cookieConf("access"),
+      });
+
+      return { success: true, id: payload.userId };
+    },
+    {
+      body: t.Object({
+        token: VUserToken,
+        name: VUserInput.name,
+        password: VPassword,
+      }),
+      response: t.Object({ success: t.Boolean(), id: VId }),
+    },
+  );
+
 export const RouterAuth = new Elysia({ prefix: "/auth", tags: ["Auth"] })
   .use(RouterLogin)
   .use(RouterRefresh)
+  .use(RouterPasswordForgot)
+  .use(RouterAccountTokens)
   .guard({}, (app) =>
     app
       .use(Context.User())

@@ -105,4 +105,23 @@ export const VEnv = t.Object({
   RATE_LIMIT_REFRESH_PER_MIN: Type.Integer({ minimum: 1, default: 30 }),
   // Public tenant resolutions (GET /public/resolve) per minute per client IP [SEC-25].
   RATE_LIMIT_TENANT_RESOLVE_PER_MIN: Type.Integer({ minimum: 1, default: 30 }),
+  // Password-reset requests per minute per client IP [FEAT-06].
+  RATE_LIMIT_PASSWORD_FORGOT_PER_MIN: Type.Integer({ minimum: 1, default: 5 }),
+  // Password-reset requests per hour per normalized e-mail [FEAT-06].
+  RATE_LIMIT_PASSWORD_FORGOT_PER_HOUR: Type.Integer({ minimum: 1, default: 3 }),
+
+  // E-mail [FEAT-06]: smtp, or console (development/test only: nothing is
+  // delivered; refused when NODE_ENV=production).
+  MAIL_PROVIDER: t.Union([t.Literal("console"), t.Literal("smtp")]),
+  // Public base URL of the web app (http/https); e-mail links point here.
+  APP_PUBLIC_URL: t.String({ minLength: 1, maxLength: 2048 }),
+  // Sender of every e-mail, e.g. "Bedest <no-reply@example.com>" (smtp).
+  MAIL_FROM: t.Optional(t.String({ minLength: 3, maxLength: 320 })),
+  // SMTP server (all required when MAIL_PROVIDER=smtp).
+  SMTP_HOST: t.Optional(t.String({ minLength: 1 })),
+  SMTP_PORT: t.Optional(Type.Integer({ minimum: 1, maximum: 65535 })),
+  SMTP_USER: t.Optional(t.String({ minLength: 1 })),
+  SMTP_PASSWORD: t.Optional(t.String({ minLength: 1 })),
+  // TLS from the first byte (port 465); false = STARTTLS when offered.
+  SMTP_SECURE: t.Boolean({ default: false }),
 });
