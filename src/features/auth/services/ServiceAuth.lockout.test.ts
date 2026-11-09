@@ -4,8 +4,8 @@ import {
   createTestUser,
   test_db,
   test_runtime_db,
-  test_user,
-  testHeaders,
+  test_system_user,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { SSystemLog } from "@f/system/schemas/SSystemLog";
@@ -143,7 +143,10 @@ describe("FEAT-07: security events", () => {
 
   it("[FEAT-07] LOGOUT, PASSWORD_CHANGED and ROLE_CHANGED are audited", async () => {
     // SYSTEM may grant ADMIN (SEC-12).
-    const actor = { user: test_user, headers: await testHeaders() };
+    const actor = {
+      user: test_system_user,
+      headers: await testSystemHeaders(),
+    };
     const target = await createTestUser(EUserRole.USER);
     const { Elysia } = await import("elysia");
     const { ErrorHandler } =

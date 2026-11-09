@@ -3,7 +3,7 @@ import { Elysia } from "elysia";
 import {
   test_env,
   test_tenant,
-  testHeaders,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterTenant } from "./RouterTenant";
@@ -57,7 +57,7 @@ describe("SEC-25: public tenant resolution", () => {
 describe("SEC-25: limiter scope", () => {
   it("[SEC-25] the resolve limiter does not throttle the other tenant routes", async () => {
     const full = new Elysia().use(ErrorHandler).use(RouterTenant);
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
     for (let i = 0; i <= test_env.RATE_LIMIT_TENANT_RESOLVE_PER_MIN + 5; i++) {
       const res = await full.handle(
         new Request("http://localhost/tenant?limit=1&page=1", { headers }),

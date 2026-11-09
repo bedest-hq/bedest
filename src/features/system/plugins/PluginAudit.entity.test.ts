@@ -6,8 +6,8 @@ import {
   createForeignTenant,
   createTestUser,
   test_db,
-  testHeaders,
-  test_user,
+  test_system_user,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { EUserRole } from "@f/user/enums/EUserRole";
@@ -128,14 +128,14 @@ describe("BUG-11: audit rows record the configured entity, never a guessed id", 
     const res = await call(
       "PUT",
       `/tenant/${foreign.tenant.id}`,
-      (await testHeaders()).Cookie,
+      (await testSystemHeaders()).Cookie,
       {
         description: "updated by SYSTEM",
       },
     );
     expect(res.status).toBe(200);
 
-    const row = await newestRow(test_user.id);
+    const row = await newestRow(test_system_user.id);
     expect(row).toMatchObject({
       entity: "tenant",
       entityId: foreign.tenant.id,

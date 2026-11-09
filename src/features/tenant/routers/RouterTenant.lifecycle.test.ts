@@ -5,7 +5,7 @@ import {
   createForeignTenant,
   createTestUser,
   test_db,
-  testHeaders,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import WsManager, {
@@ -103,7 +103,7 @@ describe("FEAT-09: tenant lifecycle", () => {
     const res = await call(
       "DELETE",
       `/tenant/${tenant.id}`,
-      (await testHeaders()).Cookie,
+      (await testSystemHeaders()).Cookie,
     );
     expect(res.status).toBe(200);
 
@@ -140,7 +140,7 @@ describe("FEAT-09: tenant lifecycle", () => {
 
   it("[FEAT-09] restore brings back the tenant and the users deleted with it — not the ones deleted before", async () => {
     const { tenant, admin, member, gone } = await customer();
-    const system = (await testHeaders()).Cookie;
+    const system = (await testSystemHeaders()).Cookie;
     expect((await call("DELETE", `/tenant/${tenant.id}`, system)).status).toBe(
       200,
     );
@@ -172,7 +172,7 @@ describe("FEAT-09: tenant lifecycle", () => {
 
   it("[FEAT-09] restoring an active or unknown tenant → 404", async () => {
     const { tenant } = await customer();
-    const system = (await testHeaders()).Cookie;
+    const system = (await testSystemHeaders()).Cookie;
     expect(
       (await call("POST", `/tenant/${tenant.id}/restore`, system)).status,
     ).toBe(404);
@@ -189,7 +189,7 @@ describe("FEAT-09: tenant lifecycle", () => {
         await call(
           "DELETE",
           `/tenant/${tenant.id}`,
-          (await testHeaders()).Cookie,
+          (await testSystemHeaders()).Cookie,
         )
       ).status,
     ).toBe(200);
@@ -206,7 +206,7 @@ describe("FEAT-09: tenant lifecycle", () => {
 
   it("[FEAT-09] an e-mail taken meanwhile by another account → 409 and nothing is restored", async () => {
     const { tenant, member } = await customer();
-    const system = (await testHeaders()).Cookie;
+    const system = (await testSystemHeaders()).Cookie;
     expect((await call("DELETE", `/tenant/${tenant.id}`, system)).status).toBe(
       200,
     );

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { Elysia } from "elysia";
-import { testHeaders } from "@/common/tests/TestManager.test";
+import { testSystemHeaders } from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterAuth } from "@f/auth/routers/RouterAuth";
 import { RouterUser } from "./RouterUser";
@@ -30,7 +30,7 @@ const createUser = async (email: string) =>
       role: EUserRole.USER,
       password: "a-strong-password-1",
     },
-    (await testHeaders()).Cookie,
+    (await testSystemHeaders()).Cookie,
   );
 
 describe("SEC-21: e-mail addresses are validated and normalized", () => {

@@ -5,7 +5,7 @@ import {
   createTestUser,
   test_db,
   test_tenant,
-  testHeaders,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterAuth } from "@f/auth/routers/RouterAuth";
@@ -131,7 +131,7 @@ describe("SEC-23: password policy", () => {
   });
 
   it("[SEC-23][FEAT-06] POST /tenant returns no password: the admin is invited by e-mail", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
     const res = await send(
       "POST",
       "/tenant",

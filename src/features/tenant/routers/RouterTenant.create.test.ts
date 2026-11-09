@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import {
   createForeignTenant,
   test_db,
-  testHeaders,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { EUserRole } from "@f/user/enums/EUserRole";
@@ -22,7 +22,7 @@ const createTenant = async (email: string) => {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        Cookie: (await testHeaders()).Cookie,
+        Cookie: (await testSystemHeaders()).Cookie,
       },
       body: JSON.stringify({
         name: `Tenant ${domain}`,

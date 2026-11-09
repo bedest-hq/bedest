@@ -6,7 +6,7 @@ import {
   createTestUser,
   test_db,
   test_tenant,
-  testHeaders,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { EUserRole } from "@f/user/enums/EUserRole";
@@ -105,7 +105,7 @@ describe("SEC-27: file references stay inside the tenant", () => {
     const res = await put(
       `/tenant/${foreign.tenant.id}`,
       { logoId: systemFile },
-      (await testHeaders()).Cookie,
+      (await testSystemHeaders()).Cookie,
     );
     expect(res.status).toBe(404);
   });

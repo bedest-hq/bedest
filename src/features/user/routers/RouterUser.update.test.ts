@@ -3,7 +3,7 @@ import { Elysia } from "elysia";
 import {
   createForeignTenant,
   createTestUser,
-  testHeaders,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterTenant } from "@f/tenant/routers/RouterTenant";
@@ -48,7 +48,7 @@ describe("BUG-02: empty update payloads", () => {
     const res = await put(
       `/tenant/${foreign.tenant.id}`,
       {},
-      (await testHeaders()).Cookie,
+      (await testSystemHeaders()).Cookie,
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual(NO_FIELDS);

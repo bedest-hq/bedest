@@ -7,6 +7,7 @@ import {
   test_db,
   test_runtime_db,
   testHeaders,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import MailManager from "@/infrastructure/mail/MailManager";
@@ -479,7 +480,7 @@ describe("FEAT-06: invitations", () => {
         planStart: new Date(),
         planEnd: new Date(),
       },
-      (await testHeaders()).Cookie,
+      (await testSystemHeaders()).Cookie,
     );
     expect(res.status).toBe(200);
     const { id: tenantId }: { id: string } = await res.json();

@@ -6,8 +6,9 @@ import {
   createTestUser,
   test_db,
   test_tenant,
-  test_user,
+  test_system_user,
   testHeaders,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { RouterTenant } from "@f/tenant/routers/RouterTenant";
 import { STenant } from "@f/tenant/schemas/STenant";
@@ -19,7 +20,7 @@ const tenants = treaty(RouterTenant);
 
 describe("SEC-13: no self-lockout and no orphaned tenants", () => {
   it("[SEC-13] deleting the last active ADMIN of a tenant → 409", async () => {
-    const system = await testHeaders();
+    const system = await testSystemHeaders();
     const admin = await createForeignTenant(EUserRole.ADMIN);
 
     const res = await users
@@ -37,9 +38,9 @@ describe("SEC-13: no self-lockout and no orphaned tenants", () => {
   });
 
   it("[SEC-13] deleting the last active SYSTEM user → 409", async () => {
-    const self = await testHeaders(test_user);
+    const self = await testHeaders(test_system_user);
     const res = await users
-      .user({ id: test_user.id })
+      .user({ id: test_system_user.id })
       .delete({}, { headers: self });
     expect(res.status).toBe(409);
   });
@@ -47,7 +48,7 @@ describe("SEC-13: no self-lockout and no orphaned tenants", () => {
   it("[SEC-13] deleting the tenant that owns the acting SYSTEM user → 409", async () => {
     const res = await tenants
       .tenant({ id: test_tenant.id })
-      .delete({}, { headers: await testHeaders() });
+      .delete({}, { headers: await testSystemHeaders() });
     expect(res.status).toBe(409);
   });
 
@@ -60,7 +61,7 @@ describe("SEC-13: no self-lockout and no orphaned tenants", () => {
 
     const res = await tenants
       .tenant({ id: other.tenant.id })
-      .delete({}, { headers: await testHeaders() });
+      .delete({}, { headers: await testSystemHeaders() });
     expect(res.status).toBe(409);
   });
 });
