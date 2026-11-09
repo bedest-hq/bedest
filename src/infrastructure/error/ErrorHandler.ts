@@ -2,6 +2,7 @@ import { Elysia, ElysiaCustomStatusResponse } from "elysia";
 import { logger } from "../logger/logger";
 import { UtilHttp } from "@/common/utils/UtilHttp";
 import type { IApiError } from "@/common/types/IApiError";
+import { UtilRequestId } from "@/common/utils/UtilRequestId";
 
 /** Postgres SQLSTATE → client error [BUG-14]. */
 const PostgresErrorMap: Record<string, { status: number; message: string }> = {
@@ -58,7 +59,16 @@ const fromStatusBody = (code: number, body: unknown): IApiError => {
  */
 export const ErrorHandler = new Elysia({
   name: "ErrorHandler",
-}).onError({ as: "global" }, ({ code, error, set }) => {
+}).onError({ as: "global" }, ({ code, error, set, request }) => {
+  // Server errors carry the request id so a report can be matched with
+  // the access and error logs [FEAT-04].
+  const withRequestId = (body: IApiError): IApiError => {
+    const requestId = UtilRequestId.idOf(request);
+    return typeof set.status === "number" && set.status >= 500 && requestId
+      ? { ...body, requestId }
+      : body;
+  };
+
   switch (code) {
     case "VALIDATION":
       set.status = 400;
@@ -91,18 +101,18 @@ export const ErrorHandler = new Elysia({
   if (error instanceof ElysiaCustomStatusResponse) {
     const statusCode = Number(error.code);
     set.status = statusCode;
-    return fromStatusBody(statusCode, error.response);
+    return withRequestId(fromStatusBody(statusCode, error.response));
   }
 
   const mapped = PostgresErrorMap[getErrorCode(error) ?? ""];
   if (mapped) {
     set.status = mapped.status;
-    return UtilHttp.envelope(mapped.status, mapped.message);
+    return withRequestId(UtilHttp.envelope(mapped.status, mapped.message));
   }
 
   // pino serializes Error objects only under "err" [SEC-20].
   logger.error({ err: error }, "Internal Server Error.");
 
   set.status = 500;
-  return UtilHttp.envelope(500);
+  return withRequestId(UtilHttp.envelope(500));
 });

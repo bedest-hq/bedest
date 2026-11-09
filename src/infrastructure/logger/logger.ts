@@ -87,4 +87,6 @@ export const logger = {
   flush: (cb?: (err?: Error) => void) => {
     current().flush(cb);
   },
+  /** A child logger carrying `bindings` (e.g. the request id, FEAT-04). */
+  child: (bindings: Record<string, unknown>) => current().child(bindings),
 };

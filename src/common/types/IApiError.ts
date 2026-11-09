@@ -13,4 +13,6 @@ export interface IApiError {
   error: string;
   message?: string;
   details?: IApiErrorDetail[];
+  /** Present on 5xx responses: quote it when reporting a problem [FEAT-04]. */
+  requestId?: string;
 }

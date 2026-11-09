@@ -8,6 +8,7 @@ import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { PluginSecurityHeaders } from "./plugins/PluginSecurityHeaders";
 import { PluginBodyLimit } from "./plugins/PluginBodyLimit";
 import { PluginCsrf } from "./plugins/PluginCsrf";
+import { PluginRequestContext } from "./plugins/PluginRequestContext";
 import { createRouter } from "./Router";
 
 export interface IAppDeps {
@@ -28,6 +29,9 @@ export const createApp = (env: TEnv, deps: IAppDeps = {}) => {
 
   return (
     new Elysia()
+      // First: every request (404s included) gets an id and an access log
+      // line [FEAT-04].
+      .use(PluginRequestContext)
       .use(
         cors({
           origin:
