@@ -21,6 +21,19 @@ describe("seed", () => {
     await test_db.execute(sql`TRUNCATE TABLE users, tenants CASCADE`);
   });
 
+  it("[BUG-12] the seed runs through the non-privileged runtime role (no fake system tenant context)", async () => {
+    const role = await db.execute<{ role: string }>(sql`SELECT current_user AS role`);
+    expect(role.rows[0]?.role).toBe("bedest_app");
+
+    const result = await runSeed(db, {
+      nodeEnv: "development",
+      seedEnv: { SEED_SYSTEM_EMAIL: "role.com", SEED_SYSTEM_PASSWORD: "a-strong-seed-password" },
+      print: () => undefined,
+    });
+    expect(result.created).toBe(true);
+    expect(await systemUsers()).toHaveLength(1);
+  });
+
   it("[SEC-03] seeding twice creates exactly one SYSTEM user; the second run is a no-op", async () => {
     const lines: string[] = [];
     const opts = {
