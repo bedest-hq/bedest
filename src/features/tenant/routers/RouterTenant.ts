@@ -223,6 +223,24 @@ export const RouterTenant = new Elysia({
             audit: { entity: "tenant", targetTenant: "entity" },
           },
         )
+        .post(
+          "/:id/restore",
+          async ({ params, userRuntime }) =>
+            await ServiceTenant.restore(userRuntime, params.id),
+          {
+            params: t.Object({ id: VId }),
+            response: t.Object({
+              success: t.Boolean(),
+              restoredUsers: t.Number(),
+            }),
+            // [FEAT-09]
+            audit: {
+              entity: "tenant",
+              action: "RESTORE",
+              targetTenant: "entity",
+            },
+          },
+        )
         .get(
           "/",
           async ({ query, userRuntime }) => {

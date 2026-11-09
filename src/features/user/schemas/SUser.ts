@@ -1,5 +1,11 @@
 import { sql } from "drizzle-orm";
-import { uuid, pgTable, varchar, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  uuid,
+  pgTable,
+  varchar,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { EUserRolePg } from "../enums/EUserRole";
 import { STenant } from "@f/tenant/schemas/STenant";
 import { SStorage } from "@f/storage/schemas/SStorage";
@@ -17,6 +23,8 @@ export const SUser = pgTable(
     role: EUserRolePg().notNull(),
     avatarId: uuid().references(() => SStorage.id),
     password: varchar({ length: 255 }).notNull(),
+    // Soft-deleted together with its tenant: a restore brings it back [FEAT-09].
+    deletedWithTenant: boolean().notNull().default(false),
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_users_active", t.id),

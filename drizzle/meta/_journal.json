@@ -155,6 +155,13 @@
       "when": 1794221849015,
       "tag": "0021_sessions_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794222698353,
+      "tag": "0022_users_deleted_with_tenant",
+      "breakpoints": true
     }
   ]
 }

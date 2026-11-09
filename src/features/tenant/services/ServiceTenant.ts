@@ -6,7 +6,7 @@ import {
   UtilTenantScope,
 } from "bedest-core";
 import { STenant } from "../schemas/STenant";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { SelectedFields } from "drizzle-orm/pg-core";
 import ServiceSession from "@f/session/services/ServiceSession";
@@ -173,10 +173,85 @@ class ServiceTenant extends ServiceBase<
     if (target?.isSystem) {
       throw UtilHttp.fail(409, "Cannot delete the system tenant");
     }
-    const res = await this.scoped(c, (sc) => super.remove(sc, id));
-    // Users of a deleted tenant must lose access immediately [SEC-08].
+    // The tenant and its active users go together, marked so a restore
+    // can tell them from users deleted before [FEAT-09].
+    const res = await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const removed = await super.remove({ ...c, db: tx }, id);
+      await tx
+        .update(SUser)
+        .set({
+          isDeleted: true,
+          deletedAt: c.nowDatetime,
+          deletedWithTenant: true,
+        })
+        .where(and(eq(SUser.tenantId, id), eq(SUser.isDeleted, false)));
+      return removed;
+    });
+    // Users of a deleted tenant must lose access immediately [SEC-08]:
+    // sessions are revoked and their sockets closed.
     await ServiceSession.revokeTenantSessions(c, id);
     return res;
+  }
+
+  /**
+   * Undoes a tenant soft delete [FEAT-09] (SYSTEM only): the tenant and
+   * the users deleted together with it become active again; users deleted
+   * before stay deleted. An e-mail now used by another active account is
+   * a 409 and nothing changes.
+   */
+  async restore(c: ITenantUserApp, id: string) {
+    if (!c.session.isSuperUser) {
+      throw UtilHttp.fail(403, "Only SYSTEM can restore tenants");
+    }
+    return await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const [tenant] = await tx
+        .update(STenant)
+        .set({ isDeleted: false, deletedAt: null, updatedAt: c.nowDatetime })
+        .where(and(eq(STenant.id, id), eq(STenant.isDeleted, true)))
+        .returning({ id: STenant.id });
+      if (!tenant) {
+        throw UtilHttp.fail(404, "Deleted tenant not found");
+      }
+
+      const members = await tx
+        .select({ id: SUser.id, email: SUser.email })
+        .from(SUser)
+        .where(and(eq(SUser.tenantId, id), eq(SUser.deletedWithTenant, true)));
+      if (members.length === 0) {
+        return { success: true, restoredUsers: 0 };
+      }
+
+      const emails = members.map((m) => m.email.toLowerCase());
+      const [taken] = await tx
+        .select({ id: SUser.id })
+        .from(SUser)
+        .where(
+          and(
+            eq(SUser.isDeleted, false),
+            inArray(sql`lower(${SUser.email})`, emails),
+          ),
+        )
+        .limit(1);
+      if (taken) {
+        // Thrown inside the transaction: the tenant update rolls back.
+        throw UtilHttp.fail(
+          409,
+          "An e-mail of this tenant is now used by another account",
+        );
+      }
+
+      const restored = await tx
+        .update(SUser)
+        .set({
+          isDeleted: false,
+          deletedAt: null,
+          deletedWithTenant: false,
+          updatedAt: c.nowDatetime,
+        })
+        .where(and(eq(SUser.tenantId, id), eq(SUser.deletedWithTenant, true)))
+        .returning({ id: SUser.id });
+      return { success: true, restoredUsers: restored.length };
+    });
   }
 
   async checkPlan(c: IApp, tenantId: string) {

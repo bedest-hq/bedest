@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "deletedWithTenant" boolean DEFAULT false NOT NULL;
