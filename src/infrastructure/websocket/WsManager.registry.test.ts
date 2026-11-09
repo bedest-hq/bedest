@@ -51,7 +51,11 @@ describe("BUG-10: one registry keyed by connection", () => {
   it("[BUG-10] closing through another wrapper of the same connection removes it from every index", () => {
     const { manager, now } = setup();
     const c = connection();
-    manager.registerClient(c.wrapper(), { userId: "u1", sessionId: "s1", expiresAt: now() + HOUR });
+    manager.registerClient(c.wrapper(), {
+      userId: "u1",
+      sessionId: "s1",
+      expiresAt: now() + HOUR,
+    });
 
     manager.unregisterClient(c.wrapper());
 
@@ -65,8 +69,16 @@ describe("BUG-10: one registry keyed by connection", () => {
     const { manager, now } = setup();
     const laptop = connection();
     const phone = connection();
-    manager.registerClient(laptop.wrapper(), { userId: "u1", sessionId: "s1", expiresAt: now() + HOUR });
-    manager.registerClient(phone.wrapper(), { userId: "u1", sessionId: "s2", expiresAt: now() + HOUR });
+    manager.registerClient(laptop.wrapper(), {
+      userId: "u1",
+      sessionId: "s1",
+      expiresAt: now() + HOUR,
+    });
+    manager.registerClient(phone.wrapper(), {
+      userId: "u1",
+      sessionId: "s2",
+      expiresAt: now() + HOUR,
+    });
 
     manager.disconnectSession("s1");
     expect(laptop.closed).toEqual([[1008, "Session terminated"]]);
@@ -81,7 +93,11 @@ describe("BUG-10: one registry keyed by connection", () => {
   it("[BUG-10] disconnecting a user also drops its sockets from the session index", () => {
     const { manager, now } = setup();
     const c = connection();
-    manager.registerClient(c.wrapper(), { userId: "u1", sessionId: "s1", expiresAt: now() + HOUR });
+    manager.registerClient(c.wrapper(), {
+      userId: "u1",
+      sessionId: "s1",
+      expiresAt: now() + HOUR,
+    });
 
     manager.disconnectUser("u1");
     manager.disconnectSession("s1");
@@ -104,8 +120,16 @@ describe("BUG-10: sockets do not outlive their access token", () => {
     manager.init({ publish: () => undefined });
     const short = connection();
     const long = connection();
-    manager.registerClient(short.wrapper(), { userId: "u1", sessionId: "s1", expiresAt: now() + 1_000 });
-    manager.registerClient(long.wrapper(), { userId: "u2", sessionId: "s2", expiresAt: now() + HOUR });
+    manager.registerClient(short.wrapper(), {
+      userId: "u1",
+      sessionId: "s1",
+      expiresAt: now() + 1_000,
+    });
+    manager.registerClient(long.wrapper(), {
+      userId: "u2",
+      sessionId: "s2",
+      expiresAt: now() + HOUR,
+    });
 
     advance(999);
     runSweep();
@@ -125,7 +149,11 @@ describe("BUG-10: sockets do not outlive their access token", () => {
     manager.init({ publish: () => undefined });
     manager.closeAll();
     const c = connection();
-    manager.registerClient(c.wrapper(), { userId: "u1", sessionId: "s1", expiresAt: now() });
+    manager.registerClient(c.wrapper(), {
+      userId: "u1",
+      sessionId: "s1",
+      expiresAt: now(),
+    });
     advance(HOUR);
     runSweep();
     expect(c.closed).toEqual([]);

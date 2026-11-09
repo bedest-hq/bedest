@@ -30,10 +30,12 @@ describe("PluginAudit", () => {
     const { user, headers } = await createTestUser(EUserRole.USER);
     const newPassword = "brand-new-password-123";
 
-    const res = await api.user({ id: user.id }).put(
-      { currentPassword: "test_password", password: newPassword },
-      { headers },
-    );
+    const res = await api
+      .user({ id: user.id })
+      .put(
+        { currentPassword: "test_password", password: newPassword },
+        { headers },
+      );
     expect(res.status).toBe(200);
 
     const row = await newestAuditRow(user.id);

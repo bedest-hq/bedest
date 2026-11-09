@@ -281,10 +281,9 @@ describe("RouterTenant", () => {
 
     const adminAHeaders = await testHeaders(adminA);
 
-    const res = await api.tenant({ id: tenantB.id }).put(
-      { name: "Hacked Tenant B" },
-      { headers: adminAHeaders },
-    );
+    const res = await api
+      .tenant({ id: tenantB.id })
+      .put({ name: "Hacked Tenant B" }, { headers: adminAHeaders });
 
     expect(res.status).toBe(403);
   });

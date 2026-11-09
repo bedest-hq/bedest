@@ -12,7 +12,10 @@ import { RouterAuth } from "./RouterAuth";
 
 const authApi = treaty(RouterAuth);
 
-const postLogin = (app: { handle: (r: Request) => Promise<Response> }, body: unknown) =>
+const postLogin = (
+  app: { handle: (r: Request) => Promise<Response> },
+  body: unknown,
+) =>
   app.handle(
     new Request("http://localhost/auth/login", {
       method: "POST",

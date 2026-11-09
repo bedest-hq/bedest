@@ -32,7 +32,11 @@ const formatted = async (db: TDb, query: ReturnType<typeof sql>) => {
 
 export async function provisionRoles(
   db: TDb,
-  opts: { loginRole: string; loginPassword: string; print: (l: string) => void },
+  opts: {
+    loginRole: string;
+    loginPassword: string;
+    print: (l: string) => void;
+  },
 ) {
   if (!IDENTIFIER_RE.test(opts.loginRole)) {
     throw new Error(`Invalid role name: ${JSON.stringify(opts.loginRole)}`);

@@ -118,7 +118,11 @@ const resolveTargetTenant = async (
 const write = async (
   rt: ITenantUserApp,
   cfg: IAuditConf,
-  row: { action: string; entityId: string | null; payload: Record<string, unknown> },
+  row: {
+    action: string;
+    entityId: string | null;
+    payload: Record<string, unknown>;
+  },
 ) => {
   const targetTenantId = await resolveTargetTenant(rt, cfg, row.entityId);
   await ServiceSystemLog.log(rt, {
@@ -183,7 +187,9 @@ export const PluginAudit = new Elysia({ name: "PluginAudit" }).macro({
           action: failed ? `FAILED_${method}` : (cfg.action ?? method),
           // The URL's or the created entity's id, never the actor [BUG-11].
           entityId:
-            getId(params) ?? (failed ? undefined : getId(responseValue)) ?? null,
+            getId(params) ??
+            (failed ? undefined : getId(responseValue)) ??
+            null,
           payload: {
             statusCode,
             ...(error === undefined ? {} : { error }),

@@ -1,7 +1,6 @@
 import { UtilHttp } from "@/common/utils/UtilHttp";
 import { SStorage } from "../schemas/SStorage";
 
-
 import { and, eq, type SQL } from "drizzle-orm";
 import StorageManager from "@/infrastructure/storage/StorageManager";
 import {
@@ -108,7 +107,10 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
     const privileged =
       c.session.isSuperUser || c.session.role === EUserRole.ADMIN;
     if (!privileged && file.uploadedBy !== c.session.userId) {
-      throw UtilHttp.fail(403, "Only the uploader or an admin can delete this file");
+      throw UtilHttp.fail(
+        403,
+        "Only the uploader or an admin can delete this file",
+      );
     }
 
     if (await this.isReferenced(c, id)) {
@@ -179,14 +181,20 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
   ) {
     // Fail before creating any row when presigning is unsupported [BUG-04].
     if (!StorageManager.supportsPresign()) {
-      throw UtilHttp.fail(501, "The active storage provider does not support presigned URLs");
+      throw UtilHttp.fail(
+        501,
+        "The active storage provider does not support presigned URLs",
+      );
     }
     // Same allowlist and size limit as direct uploads [SEC-10].
     if (!UtilStorage.allowedTypes().includes(data.mimeType)) {
       throw UtilHttp.fail(400, `File type ${data.mimeType} is not allowed`);
     }
     if (data.size > UtilStorage.maxBytes()) {
-      throw UtilHttp.fail(400, `File exceeds the maximum size of ${UtilStorage.maxBytes()} bytes`);
+      throw UtilHttp.fail(
+        400,
+        `File exceeds the maximum size of ${UtilStorage.maxBytes()} bytes`,
+      );
     }
 
     const key = `${c.tenantId}/${crypto.randomUUID()}.${storageExtensionFor(data.mimeType)}`;

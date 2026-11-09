@@ -154,9 +154,8 @@ spyOn(EnvManager.default, "get").mockReturnValue(test_env);
 spyOn(DbManager.default, "get").mockReturnValue(asNodePg(test_app_db));
 
 // Imported after the spies: they pull in modules that read the env on import.
-const RateLimitManager = await import(
-  "@/infrastructure/ratelimit/RateLimitManager"
-);
+const RateLimitManager =
+  await import("@/infrastructure/ratelimit/RateLimitManager");
 const ServiceSession = await import("@f/session/services/ServiceSession");
 const ServiceSystem = await import("@f/system/services/ServiceSystem");
 

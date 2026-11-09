@@ -18,7 +18,10 @@ describe("OPS-10: version metadata", () => {
       "package.json": { name: "my-app", version: "1.2.0" },
       "bedest.json": { template: "bedest", version: "1.1.0" },
     });
-    expect(await readTemplateInfo(dir)).toEqual({ template: "bedest", version: "1.2.0" });
+    expect(await readTemplateInfo(dir)).toEqual({
+      template: "bedest",
+      version: "1.2.0",
+    });
   });
 
   it("[OPS-10] bedest.json only names the template", async () => {
@@ -26,13 +29,22 @@ describe("OPS-10: version metadata", () => {
       "package.json": { version: "2.0.0" },
       "bedest.json": { template: "bedest" },
     });
-    expect(await readTemplateInfo(dir)).toEqual({ template: "bedest", version: "2.0.0" });
+    expect(await readTemplateInfo(dir)).toEqual({
+      template: "bedest",
+      version: "2.0.0",
+    });
   });
 
   it("[OPS-10] no version (or no package.json) disables the check", async () => {
-    expect((await readTemplateInfo(await project({ "bedest.json": {} }))).version).toBeNull();
     expect(
-      (await readTemplateInfo(await project({ "package.json": { version: 3 } }))).version,
+      (await readTemplateInfo(await project({ "bedest.json": {} }))).version,
+    ).toBeNull();
+    expect(
+      (
+        await readTemplateInfo(
+          await project({ "package.json": { version: 3 } }),
+        )
+      ).version,
     ).toBeNull();
   });
 
@@ -40,7 +52,8 @@ describe("OPS-10: version metadata", () => {
     const info = await readTemplateInfo(".");
     const pkg: { version: string } = await Bun.file("package.json").json();
     expect(info.version).toBe(pkg.version);
-    const config: Record<string, unknown> = await Bun.file("bedest.json").json();
+    const config: Record<string, unknown> =
+      await Bun.file("bedest.json").json();
     expect("version" in config).toBe(false);
   });
 });

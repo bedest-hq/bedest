@@ -8,6 +8,7 @@ import {
   test_user,
   test_tenant,
   test_db,
+  test_owner_db,
 } from "@/common/tests/TestManager.test";
 import { RouterNotification } from "./RouterNotification";
 import { RouterAuth } from "@f/auth/routers/RouterAuth";
@@ -249,7 +250,7 @@ describe("RouterNotification", () => {
 
     // 2. Admin sends broadcast to test_tenant
     const adminContext: ITenantUserApp = {
-      db: test_db as unknown as ITenantUserApp["db"],
+      db: test_owner_db,
       nowDatetime: new Date(),
       tenantId: test_tenant.id,
       session: {

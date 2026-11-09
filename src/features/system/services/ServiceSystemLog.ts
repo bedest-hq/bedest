@@ -1,14 +1,8 @@
 import { UtilHttp } from "@/common/utils/UtilHttp";
 import { SSystemLog } from "../schemas/SSystemLog";
 import { logger } from "@/infrastructure/logger/logger";
-import {
-  ITenantUserApp,
-  TDb,
-  TDbOrTx,
-  UtilTenantScope,
-} from "bedest-core";
+import { ITenantUserApp, TDb, TDbOrTx, UtilTenantScope } from "bedest-core";
 import { and, count, desc, eq, SQL } from "drizzle-orm";
-
 
 export const SYSTEM_AUDIT_USER_ID = "00000000-0000-0000-0000-000000000000";
 

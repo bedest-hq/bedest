@@ -6,7 +6,9 @@ import EnvManager from "@/infrastructure/env/EnvManager";
  * are read [SEC-18]. Bun's serve.maxRequestBodySize (set in index.ts) also
  * enforces the limit for chunked bodies.
  */
-export const PluginBodyLimit = new Elysia({ name: "PluginBodyLimit" }).onRequest(
+export const PluginBodyLimit = new Elysia({
+  name: "PluginBodyLimit",
+}).onRequest(
   // onRequest always runs for every request of the app, before routing.
   ({ request, set }) => {
     const declared = Number(request.headers.get("content-length") ?? "0");

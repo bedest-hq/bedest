@@ -24,7 +24,12 @@ const createUser = async (email: string) =>
   json(
     "POST",
     "/user",
-    { name: "E-mail Test", email, role: EUserRole.USER, password: "a-strong-password-1" },
+    {
+      name: "E-mail Test",
+      email,
+      role: EUserRole.USER,
+      password: "a-strong-password-1",
+    },
     (await testHeaders()).Cookie,
   );
 

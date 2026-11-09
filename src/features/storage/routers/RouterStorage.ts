@@ -74,7 +74,10 @@ export const RouterStorage = new Elysia({
         params.id,
       );
 
-      Object.assign(set.headers, UtilStorage.fileHeaders(metadata, "attachment"));
+      Object.assign(
+        set.headers,
+        UtilStorage.fileHeaders(metadata, "attachment"),
+      );
 
       return fileBlob;
     },

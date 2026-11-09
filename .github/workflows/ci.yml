@@ -37,6 +37,9 @@ jobs:
       - name: 🧐 Quality Check
         run: bun run check
 
+      - name: Format
+        run: bun run format:check
+
       - name: 🏗️ Migration Drift Check
         env:
           DATABASE_HOST: localhost

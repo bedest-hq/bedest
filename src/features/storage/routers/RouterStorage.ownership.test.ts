@@ -1,7 +1,11 @@
 import { describe, it, expect, spyOn, mock } from "bun:test";
 import { Elysia } from "elysia";
 import { eq } from "drizzle-orm";
-import { createTestUser, test_db, test_tenant } from "@/common/tests/TestManager.test";
+import {
+  createTestUser,
+  test_db,
+  test_tenant,
+} from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { SUser } from "@f/user/schemas/SUser";
@@ -13,7 +17,9 @@ import { RouterStorage } from "./RouterStorage";
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 
 // External I/O only: the object store.
-spyOn(StorageManager.default, "upload").mockImplementation(mock(() => Promise.resolve()));
+spyOn(StorageManager.default, "upload").mockImplementation(
+  mock(() => Promise.resolve()),
+);
 
 const app = new Elysia().use(ErrorHandler).use(RouterStorage);
 
@@ -112,27 +118,42 @@ describe("SEC-26: who may delete a file", () => {
     const owner = await createTestUser(EUserRole.USER);
     const admin = await createTestUser(EUserRole.ADMIN);
     const id = await insertFile(owner.user.id);
-    await test_db.update(SUser).set({ avatarId: id }).where(eq(SUser.id, owner.user.id));
+    await test_db
+      .update(SUser)
+      .set({ avatarId: id })
+      .where(eq(SUser.id, owner.user.id));
 
     const res = await remove(id, owner.headers.Cookie);
     expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({ error: "Conflict", message: "File is in use" });
+    expect(await res.json()).toEqual({
+      error: "Conflict",
+      message: "File is in use",
+    });
     expect((await remove(id, admin.headers.Cookie)).status).toBe(409);
     expect(await isDeleted(id)).toBe(false);
 
     // Once unreferenced it can go.
-    await test_db.update(SUser).set({ avatarId: null }).where(eq(SUser.id, owner.user.id));
+    await test_db
+      .update(SUser)
+      .set({ avatarId: null })
+      .where(eq(SUser.id, owner.user.id));
     expect((await remove(id, owner.headers.Cookie)).status).toBe(200);
   });
 
   it("[SEC-26] a file used as the tenant logo cannot be deleted (409)", async () => {
     const admin = await createTestUser(EUserRole.ADMIN);
     const id = await insertFile(admin.user.id);
-    await test_db.update(STenant).set({ logoId: id }).where(eq(STenant.id, test_tenant.id));
+    await test_db
+      .update(STenant)
+      .set({ logoId: id })
+      .where(eq(STenant.id, test_tenant.id));
     try {
       expect((await remove(id, admin.headers.Cookie)).status).toBe(409);
     } finally {
-      await test_db.update(STenant).set({ logoId: null }).where(eq(STenant.id, test_tenant.id));
+      await test_db
+        .update(STenant)
+        .set({ logoId: null })
+        .where(eq(STenant.id, test_tenant.id));
     }
   });
 });

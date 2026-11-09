@@ -1,11 +1,6 @@
 import { and, eq, gt, lt, ne } from "drizzle-orm";
 import { SSession } from "../schemas/SSession";
-import {
-  IApp,
-  ITenantUserApp,
-  TDbOrTx,
-  UtilTenantScope,
-} from "bedest-core";
+import { IApp, ITenantUserApp, TDbOrTx, UtilTenantScope } from "bedest-core";
 import RedisManager from "@/infrastructure/redis/RedisManager";
 import WsManager from "@/infrastructure/websocket/WsManager";
 import { UtilSessionCache } from "../utils/UtilSessionCache";
@@ -115,7 +110,10 @@ class ServiceSession {
       const [old] = await tx
         .delete(SSession)
         .where(
-          and(eq(SSession.id, sessionId), gt(SSession.expiresAt, c.nowDatetime)),
+          and(
+            eq(SSession.id, sessionId),
+            gt(SSession.expiresAt, c.nowDatetime),
+          ),
         )
         .returning({ userId: SSession.userId, familyId: SSession.familyId });
 

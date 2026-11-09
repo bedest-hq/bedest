@@ -45,7 +45,11 @@ describe("BUG-02: empty update payloads", () => {
 
   it("[BUG-02] PUT /tenant/:id with {} as SYSTEM → 400", async () => {
     const foreign = await createForeignTenant(EUserRole.USER);
-    const res = await put(`/tenant/${foreign.tenant.id}`, {}, (await testHeaders()).Cookie);
+    const res = await put(
+      `/tenant/${foreign.tenant.id}`,
+      {},
+      (await testHeaders()).Cookie,
+    );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual(NO_FIELDS);
   });

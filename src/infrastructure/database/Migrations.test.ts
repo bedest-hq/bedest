@@ -60,14 +60,14 @@ describe("migrations (BUG-05)", () => {
       await apply(db, tagStartingWith("0010_"));
 
       const rows = await db.query<{ readAt: Date }>(
-        "SELECT \"readAt\" FROM notification_reads",
+        'SELECT "readAt" FROM notification_reads',
       );
       expect(rows.rows).toHaveLength(1);
       expect(rows.rows[0]?.readAt.toISOString()).toStartWith("2024-01-01");
 
       const again = await db
         .exec(
-          "INSERT INTO notification_reads (\"tenantId\", \"notificationId\", \"userId\", \"readAt\") VALUES ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', now())",
+          'INSERT INTO notification_reads ("tenantId", "notificationId", "userId", "readAt") VALUES (\'11111111-1111-1111-1111-111111111111\', \'22222222-2222-2222-2222-222222222222\', \'33333333-3333-3333-3333-333333333333\', now())',
         )
         .then(
           () => "inserted",
@@ -98,14 +98,32 @@ describe("migrations", () => {
       await apply(db, tagStartingWith("0005_"));
       await apply(db, tagStartingWith("0006_"));
 
-      const rows = await db.query<{ id: string; email: string; isDeleted: boolean }>(
-        "SELECT id, email, \"isDeleted\" FROM users ORDER BY id",
-      );
+      const rows = await db.query<{
+        id: string;
+        email: string;
+        isDeleted: boolean;
+      }>('SELECT id, email, "isDeleted" FROM users ORDER BY id');
       expect(rows.rows).toEqual([
-        { id: "00000000-0000-0000-0000-00000000000a", email: "dup@example.com", isDeleted: false },
-        { id: "00000000-0000-0000-0000-00000000000b", email: "dup@example.com", isDeleted: true },
-        { id: "00000000-0000-0000-0000-00000000000c", email: "dup@example.com", isDeleted: true },
-        { id: "00000000-0000-0000-0000-00000000000d", email: "solo@x.com", isDeleted: false },
+        {
+          id: "00000000-0000-0000-0000-00000000000a",
+          email: "dup@example.com",
+          isDeleted: false,
+        },
+        {
+          id: "00000000-0000-0000-0000-00000000000b",
+          email: "dup@example.com",
+          isDeleted: true,
+        },
+        {
+          id: "00000000-0000-0000-0000-00000000000c",
+          email: "dup@example.com",
+          isDeleted: true,
+        },
+        {
+          id: "00000000-0000-0000-0000-00000000000d",
+          email: "solo@x.com",
+          isDeleted: false,
+        },
       ]);
 
       const duplicate = await db
@@ -167,7 +185,9 @@ describe("migrations (SEC-27)", () => {
 
       let failure: unknown = null;
       try {
-        await db.exec(`UPDATE tenants SET "logoId" = gen_random_uuid() WHERE id = '${A}'`);
+        await db.exec(
+          `UPDATE tenants SET "logoId" = gen_random_uuid() WHERE id = '${A}'`,
+        );
       } catch (err) {
         failure = err;
       }

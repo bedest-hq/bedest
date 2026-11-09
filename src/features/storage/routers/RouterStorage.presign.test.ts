@@ -1,6 +1,10 @@
 import { describe, it, expect } from "bun:test";
 import { Elysia } from "elysia";
-import { test_db, test_tenant, testHeaders } from "@/common/tests/TestManager.test";
+import {
+  test_db,
+  test_tenant,
+  testHeaders,
+} from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { ProviderLocal } from "@/infrastructure/storage/providers/ProviderLocal";
 import { SStorage } from "../schemas/SStorage";
@@ -20,8 +24,15 @@ describe("BUG-04: presigning without provider support", () => {
       const res = await app.handle(
         new Request("http://localhost/storage/presign-upload", {
           method: "POST",
-          headers: { ...(await testHeaders()), "content-type": "application/json" },
-          body: JSON.stringify({ name: "a.png", mimeType: "image/png", size: 10 }),
+          headers: {
+            ...(await testHeaders()),
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            name: "a.png",
+            mimeType: "image/png",
+            size: 10,
+          }),
         }),
       );
       expect(res.status).toBe(501);

@@ -12,13 +12,19 @@ export interface IReadiness {
   checks: { db: "ok" | "error"; redis: TProbeResult; storage: TProbeResult };
 }
 
-const withTimeout = async <T>(probe: () => Promise<T>, ms: number): Promise<T> => {
+const withTimeout = async <T>(
+  probe: () => Promise<T>,
+  ms: number,
+): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       probe(),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("health probe timed out")), ms);
+        timer = setTimeout(
+          () => reject(new Error("health probe timed out")),
+          ms,
+        );
       }),
     ]);
   } finally {
@@ -54,7 +60,10 @@ class ServiceHealth {
   }
 
   /** Runs every probe with a timeout (default 2 s) and aggregates them. */
-  async readiness(probes: IHealthProbes, timeoutMs = 2000): Promise<IReadiness> {
+  async readiness(
+    probes: IHealthProbes,
+    timeoutMs = 2000,
+  ): Promise<IReadiness> {
     const [db, redis, storage] = await Promise.all([
       settle(async () => {
         await probes.db();
@@ -64,7 +73,11 @@ class ServiceHealth {
       settle(probes.storage, timeoutMs),
     ]);
 
-    const checks = { db: db === "ok" ? ("ok" as const) : ("error" as const), redis, storage };
+    const checks = {
+      db: db === "ok" ? ("ok" as const) : ("error" as const),
+      redis,
+      storage,
+    };
     if (!this.ready) {
       return { status: "error", reason: "shutting_down", checks };
     }

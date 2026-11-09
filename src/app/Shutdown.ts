@@ -21,7 +21,8 @@ const withTimeout = async (step: IShutdownStep, ms: number) => {
       Promise.resolve(step.run()),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error(`${step.name} did not finish within ${ms} ms`)),
+          () =>
+            reject(new Error(`${step.name} did not finish within ${ms} ms`)),
           ms,
         );
       }),
@@ -49,7 +50,10 @@ export function createShutdown(opts: IShutdownOptions) {
       opts.log("info", `Received ${signal}; shutting down gracefully.`);
 
       const deadline = setTimeout(() => {
-        opts.log("error", `Shutdown timed out after ${opts.timeoutMs} ms; forcing exit.`);
+        opts.log(
+          "error",
+          `Shutdown timed out after ${opts.timeoutMs} ms; forcing exit.`,
+        );
         opts.exit(1);
       }, opts.timeoutMs);
       // The deadline must never keep an otherwise finished process alive.

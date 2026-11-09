@@ -90,7 +90,9 @@ export class RedisManager {
     const down = (reason: string) => {
       if (up) {
         up = false;
-        logger.warn(`[RedisManager] ${name} connection lost (${reason}); retrying`);
+        logger.warn(
+          `[RedisManager] ${name} connection lost (${reason}); retrying`,
+        );
       }
     };
     connection.on("error", (err: Error) => down(err.message));
@@ -125,7 +127,10 @@ export class RedisManager {
       const reply = await Promise.race([
         this.client.ping(),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("ping timeout")), timeoutMs);
+          timer = setTimeout(
+            () => reject(new Error("ping timeout")),
+            timeoutMs,
+          );
         }),
       ]);
       return reply === "PONG";
@@ -395,7 +400,11 @@ export class RedisManager {
     );
   }
 
-  setClientsForTesting(client: unknown, publisher: unknown, subscriber: unknown) {
+  setClientsForTesting(
+    client: unknown,
+    publisher: unknown,
+    subscriber: unknown,
+  ) {
     this.client = client as Redis;
     this.publisher = publisher as Redis;
     this.subscriber = subscriber as Redis;

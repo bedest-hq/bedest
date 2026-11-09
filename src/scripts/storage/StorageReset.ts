@@ -43,7 +43,9 @@ if (import.meta.main) {
       confirm: CONFIRM_RESET,
     });
     process.stdout.write(
-      removed ? `Removed ${removed}.\n` : "LOCAL_STORAGE_PATH not set, nothing removed.\n",
+      removed
+        ? `Removed ${removed}.\n`
+        : "LOCAL_STORAGE_PATH not set, nothing removed.\n",
     );
   });
 }

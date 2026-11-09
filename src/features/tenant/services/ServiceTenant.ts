@@ -1,5 +1,10 @@
 import { UtilHttp } from "@/common/utils/UtilHttp";
-import { IApp, ITenantUserApp, ServiceBase, UtilTenantScope } from "bedest-core";
+import {
+  IApp,
+  ITenantUserApp,
+  ServiceBase,
+  UtilTenantScope,
+} from "bedest-core";
 import { STenant } from "../schemas/STenant";
 import { and, eq } from "drizzle-orm";
 
@@ -8,7 +13,11 @@ import ServiceSession from "@f/session/services/ServiceSession";
 import { UtilEmail } from "@f/user/utils/UtilEmail";
 import ServiceStorage from "@f/storage/services/ServiceStorage";
 
-class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> {
+class ServiceTenant extends ServiceBase<
+  typeof STenant,
+  string,
+  ITenantUserApp
+> {
   constructor() {
     super(STenant);
   }
@@ -45,7 +54,9 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
 
   override async create(
     c: ITenantUserApp,
-    data: Parameters<ServiceBase<typeof STenant, string, ITenantUserApp>["create"]>[1],
+    data: Parameters<
+      ServiceBase<typeof STenant, string, ITenantUserApp>["create"]
+    >[1],
   ) {
     if (!c.session?.isSuperUser) {
       throw UtilHttp.fail(403);
@@ -58,7 +69,9 @@ class ServiceTenant extends ServiceBase<typeof STenant, string, ITenantUserApp> 
   override async update(
     c: ITenantUserApp,
     id: string,
-    data: Parameters<ServiceBase<typeof STenant, string, ITenantUserApp>["update"]>[2],
+    data: Parameters<
+      ServiceBase<typeof STenant, string, ITenantUserApp>["update"]
+    >[2],
   ) {
     if (typeof data.email === "string") {
       data = { ...data, email: UtilEmail.normalize(data.email) };

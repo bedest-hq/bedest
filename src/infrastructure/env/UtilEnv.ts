@@ -13,7 +13,9 @@ export class UtilEnv {
    * Allowed browser origins. `CORS_ORIGINS` wins; the deprecated
    * `CORS_ORIGIN` is still read for one release.
    */
-  static corsOrigins(env: Pick<TEnv, "CORS_ORIGINS" | "CORS_ORIGIN">): string[] {
+  static corsOrigins(
+    env: Pick<TEnv, "CORS_ORIGINS" | "CORS_ORIGIN">,
+  ): string[] {
     const list = UtilEnv.parseList(env.CORS_ORIGINS);
     if (list.length > 0) {
       return list;

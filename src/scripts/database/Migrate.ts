@@ -21,7 +21,9 @@ async function main() {
   const owner = UtilScriptDb.openOwner(env);
   try {
     await runMigrations(owner.db, DATABASE_MIGRATION_DIR);
-    process.stdout.write(`Migrations from ${DATABASE_MIGRATION_DIR} applied.\n`);
+    process.stdout.write(
+      `Migrations from ${DATABASE_MIGRATION_DIR} applied.\n`,
+    );
   } finally {
     await owner.end();
   }

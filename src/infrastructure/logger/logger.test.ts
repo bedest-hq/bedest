@@ -28,7 +28,10 @@ describe("SEC-20: logging", () => {
 
       // Replay exactly what ErrorHandler logged through a real pino logger.
       const { lines, stream } = capture();
-      const sink = createLogger({ NODE_ENV: "production", LOG_LEVEL: "info" }, stream);
+      const sink = createLogger(
+        { NODE_ENV: "production", LOG_LEVEL: "info" },
+        stream,
+      );
       sink.error(...(spy.mock.calls[0] as Parameters<typeof logger.error>));
       const entry = JSON.parse(lines[0] ?? "{}") as {
         err?: { message?: string; stack?: string };
@@ -42,7 +45,10 @@ describe("SEC-20: logging", () => {
 
   it("[SEC-20] secrets, cookies and query params are redacted", () => {
     const { lines, stream } = capture();
-    const sink = createLogger({ NODE_ENV: "production", LOG_LEVEL: "info" }, stream);
+    const sink = createLogger(
+      { NODE_ENV: "production", LOG_LEVEL: "info" },
+      stream,
+    );
     const dbError = Object.assign(new Error("duplicate key"), {
       params: ["victim@example.com", "$argon2id$hash"],
       cause: { params: ["cause-param-secret"] },
@@ -50,10 +56,17 @@ describe("SEC-20: logging", () => {
     sink.info(
       {
         req: {
-          headers: { cookie: "accessToken=abc.def", authorization: "Bearer tkn" },
+          headers: {
+            cookie: "accessToken=abc.def",
+            authorization: "Bearer tkn",
+          },
         },
         body: { password: "hunter2", currentPassword: "old-pass" },
-        auth: { token: "t0k3n", refreshToken: "r3fr3sh", accessToken: "acc3ss" },
+        auth: {
+          token: "t0k3n",
+          refreshToken: "r3fr3sh",
+          accessToken: "acc3ss",
+        },
         err: dbError,
       },
       "something happened",
@@ -79,6 +92,8 @@ describe("SEC-20: logging", () => {
   it("[SEC-20] LOG_LEVEL defaults to silent in test and info otherwise", () => {
     expect(createLogger({ NODE_ENV: "test" }).level).toBe("silent");
     expect(createLogger({ NODE_ENV: "production" }).level).toBe("info");
-    expect(createLogger({ NODE_ENV: "production", LOG_LEVEL: "warn" }).level).toBe("warn");
+    expect(
+      createLogger({ NODE_ENV: "production", LOG_LEVEL: "warn" }).level,
+    ).toBe("warn");
   });
 });

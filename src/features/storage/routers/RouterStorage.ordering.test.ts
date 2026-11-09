@@ -56,7 +56,9 @@ describe("BUG-03: storage write/delete ordering", () => {
   });
 
   it("[BUG-03] the object key extension comes from the MIME type, never the client file name", async () => {
-    spyOn(StorageManager.default, "upload").mockImplementation(() => Promise.resolve());
+    spyOn(StorageManager.default, "upload").mockImplementation(() =>
+      Promise.resolve(),
+    );
     const res = await upload("my-photo");
     expect(res.status).toBe(200);
     const { key } = (await res.json()) as { key: string };
@@ -64,7 +66,9 @@ describe("BUG-03: storage write/delete ordering", () => {
   });
 
   it("[BUG-03] remove only soft-deletes; the object stays until the purge job", async () => {
-    spyOn(StorageManager.default, "upload").mockImplementation(() => Promise.resolve());
+    spyOn(StorageManager.default, "upload").mockImplementation(() =>
+      Promise.resolve(),
+    );
     const del = spyOn(StorageManager.default, "delete").mockImplementation(() =>
       Promise.resolve(),
     );
@@ -79,7 +83,10 @@ describe("BUG-03: storage write/delete ordering", () => {
     );
     expect(res.status).toBe(200);
     expect(del).not.toHaveBeenCalled();
-    const [row] = await test_db.select().from(SStorage).where(eq(SStorage.id, id));
+    const [row] = await test_db
+      .select()
+      .from(SStorage)
+      .where(eq(SStorage.id, id));
     expect(row?.isDeleted).toBe(true);
   });
 });

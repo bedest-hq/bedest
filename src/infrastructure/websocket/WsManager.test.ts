@@ -19,8 +19,16 @@ describe("WsManager", () => {
     const manager = new WsManager();
     const a = fakeSocket();
     const b = fakeSocket();
-    manager.registerClient(a.ws, { userId: "u1", sessionId: "s1", expiresAt: Date.now() + 60_000 });
-    manager.registerClient(b.ws, { userId: "u2", sessionId: "s2", expiresAt: Date.now() + 60_000 });
+    manager.registerClient(a.ws, {
+      userId: "u1",
+      sessionId: "s1",
+      expiresAt: Date.now() + 60_000,
+    });
+    manager.registerClient(b.ws, {
+      userId: "u2",
+      sessionId: "s2",
+      expiresAt: Date.now() + 60_000,
+    });
 
     manager.closeAll();
 

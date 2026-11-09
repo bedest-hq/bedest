@@ -26,7 +26,10 @@ describe("ProvisionRoles", () => {
     };
 
     await provisionRoles(test_owner_db, opts);
-    await provisionRoles(test_owner_db, { ...opts, loginPassword: "rotated-password-2" });
+    await provisionRoles(test_owner_db, {
+      ...opts,
+      loginPassword: "rotated-password-2",
+    });
 
     expect(await roleInfo("bedest_test_login")).toEqual({
       rolcanlogin: true,

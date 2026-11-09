@@ -89,9 +89,9 @@ describe("SEC-07: login/refresh rate limiting", () => {
   it("[SEC-07] the per-IP login limit applies across different e-mails", async () => {
     withEnv({ RATE_LIMIT_LOGIN_IP_PER_MIN: 3 });
     for (let i = 0; i < 3; i++) {
-      expect((await login(`nobody${i}@example.com`, "whatever123")).status).toBe(
-        401,
-      );
+      expect(
+        (await login(`nobody${i}@example.com`, "whatever123")).status,
+      ).toBe(401);
     }
     expect((await login("nobody9@example.com", "whatever123")).status).toBe(
       429,

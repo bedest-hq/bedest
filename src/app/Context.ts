@@ -84,7 +84,12 @@ class Context {
 
           // A valid signature is not enough: the session must still exist
           // (logout, revocation, deleted user/tenant) [SEC-08].
-          if (!(await ServiceSession.isActive({ db, nowDatetime }, payload.sessionId))) {
+          if (
+            !(await ServiceSession.isActive(
+              { db, nowDatetime },
+              payload.sessionId,
+            ))
+          ) {
             throw UtilHttp.fail(401);
           }
 

@@ -35,7 +35,9 @@ export const createRouter = (
   if (env.BILLING_WEBHOOK_SECRET) {
     api.use(new Elysia({ prefix: "/v1" }).use(RouterBilling));
   } else {
-    logger.info("Billing webhook disabled (BILLING_WEBHOOK_SECRET is not set).");
+    logger.info(
+      "Billing webhook disabled (BILLING_WEBHOOK_SECRET is not set).",
+    );
   }
 
   return api;

@@ -27,7 +27,10 @@ export class UtilSessionCache {
 
   set(sessionId: string, nowMs: number, sessionExpiresAtMs: number) {
     this.entries.delete(sessionId);
-    this.entries.set(sessionId, Math.min(nowMs + this.ttlMs, sessionExpiresAtMs));
+    this.entries.set(
+      sessionId,
+      Math.min(nowMs + this.ttlMs, sessionExpiresAtMs),
+    );
     while (this.entries.size > this.maxSize) {
       const oldest = this.entries.keys().next();
       if (oldest.done) {

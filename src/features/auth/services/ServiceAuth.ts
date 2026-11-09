@@ -8,12 +8,7 @@ import ServiceSystem from "@f/system/services/ServiceSystem";
 import { EUserRole } from "@f/user/enums/EUserRole";
 
 import ServiceSystemLog from "@f/system/services/ServiceSystemLog";
-import {
-  IApp,
-  ITenantUserApp,
-  TDbOrTx,
-  UtilTenantScope,
-} from "bedest-core";
+import { IApp, ITenantUserApp, TDbOrTx, UtilTenantScope } from "bedest-core";
 import WsManager from "@/infrastructure/websocket/WsManager";
 
 const DUMMY_HASH = await Bun.password.hash("invalid_dummy_password");

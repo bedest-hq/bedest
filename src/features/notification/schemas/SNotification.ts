@@ -55,4 +55,3 @@ export const SNotificationRead = pgTable(
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();
-

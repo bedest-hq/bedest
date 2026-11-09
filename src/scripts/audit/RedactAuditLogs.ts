@@ -48,8 +48,7 @@ export async function redactAuditLogs(
       break;
     }
 
-    const updates: Array<{ id: string; payload: Record<string, unknown> }> =
-      [];
+    const updates: Array<{ id: string; payload: Record<string, unknown> }> = [];
     for (const row of rows) {
       const scrubbed = UtilAudit.scrub(row.payload);
       if (

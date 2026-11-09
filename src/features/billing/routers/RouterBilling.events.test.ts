@@ -4,7 +4,11 @@ import { Elysia } from "elysia";
 import { and, eq } from "drizzle-orm";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterBilling } from "./RouterBilling";
-import { test_db, test_env, test_tenant } from "@/common/tests/TestManager.test";
+import {
+  test_db,
+  test_env,
+  test_tenant,
+} from "@/common/tests/TestManager.test";
 import { STenant } from "@/features/tenant/schemas/STenant";
 import { SSystemLog } from "@/features/system/schemas/SSystemLog";
 import { ETenantPlan } from "@/features/tenant/enums/ETenantPlan";
@@ -28,7 +32,10 @@ const deliver = async (type: string, object: Record<string, unknown>) => {
   const res = await app.handle(
     new Request("http://localhost/billing/webhook", {
       method: "POST",
-      headers: { "content-type": "application/json", "stripe-signature": `t=${t},v1=${sig}` },
+      headers: {
+        "content-type": "application/json",
+        "stripe-signature": `t=${t},v1=${sig}`,
+      },
       body: raw,
     }),
   );
@@ -37,7 +44,10 @@ const deliver = async (type: string, object: Record<string, unknown>) => {
 };
 
 const tenant = async () => {
-  const [row] = await test_db.select().from(STenant).where(eq(STenant.id, test_tenant.id));
+  const [row] = await test_db
+    .select()
+    .from(STenant)
+    .where(eq(STenant.id, test_tenant.id));
   return row;
 };
 
@@ -48,7 +58,12 @@ const audits = (action: string) =>
   test_db
     .select()
     .from(SSystemLog)
-    .where(and(eq(SSystemLog.tenantId, test_tenant.id), eq(SSystemLog.action, action)));
+    .where(
+      and(
+        eq(SSystemLog.tenantId, test_tenant.id),
+        eq(SSystemLog.action, action),
+      ),
+    );
 
 /** A Stripe subscription in the 2025-03-31.basil shape (periods on items). */
 const subscription = (overrides: Record<string, unknown> = {}) => ({
@@ -65,7 +80,12 @@ const subscription = (overrides: Record<string, unknown> = {}) => ({
         object: "subscription_item",
         current_period_start: nowSec(),
         current_period_end: nowSec() + 31 * DAY,
-        price: { id: "price_pro", lookup_key: "pro", nickname: null, metadata: {} },
+        price: {
+          id: "price_pro",
+          lookup_key: "pro",
+          nickname: null,
+          metadata: {},
+        },
       },
     ],
   },
@@ -97,7 +117,9 @@ describe("BUG-07: billing event semantics", () => {
     const row = await tenant();
     expect(row.plan).toBe(ETenantPlan.PROFESSIONAL);
     expect(row.subscriptionId).toBe("sub_123");
-    expect(Math.abs(Math.floor(row.planEnd.getTime() / 1000) - end)).toBeLessThan(5);
+    expect(
+      Math.abs(Math.floor(row.planEnd.getTime() / 1000) - end),
+    ).toBeLessThan(5);
   });
 
   it("[BUG-07] customer.subscription.updated still reads top-level periods of older API versions", async () => {
@@ -116,7 +138,10 @@ describe("BUG-07: billing event semantics", () => {
   });
 
   it("[BUG-07] customer.subscription.deleted downgrades to BASIC", async () => {
-    await deliver("customer.subscription.deleted", subscription({ status: "canceled" }));
+    await deliver(
+      "customer.subscription.deleted",
+      subscription({ status: "canceled" }),
+    );
     expect((await tenant()).plan).toBe(ETenantPlan.BASIC);
     expect(await audits("SUBSCRIPTION_CANCELED")).toHaveLength(1);
   });
@@ -128,7 +153,9 @@ describe("BUG-07: billing event semantics", () => {
       id: "in_1",
       object: "invoice",
       customer: "cus_123",
-      parent: { subscription_details: { subscription: "sub_123", metadata: {} } },
+      parent: {
+        subscription_details: { subscription: "sub_123", metadata: {} },
+      },
       lines: { data: [{ period: { start: nowSec(), end } }] },
     });
     expect(res.success).toBe(true);
@@ -144,13 +171,18 @@ describe("BUG-07: billing event semantics", () => {
       object: "invoice",
       customer: "cus_123",
       subscription: "sub_123",
-      lines: { data: [{ period: { start: nowSec(), end: nowSec() + 30 * DAY } }] },
+      lines: {
+        data: [{ period: { start: nowSec(), end: nowSec() + 30 * DAY } }],
+      },
     });
     expect((await tenant()).planEnd.getTime()).toBe(later.getTime());
   });
 
   it("[BUG-07] invoice.payment_failed is audited and does not change the plan", async () => {
-    await setTenant({ subscriptionId: "sub_123", plan: ETenantPlan.PROFESSIONAL });
+    await setTenant({
+      subscriptionId: "sub_123",
+      plan: ETenantPlan.PROFESSIONAL,
+    });
     await deliver("invoice.payment_failed", {
       id: "in_3",
       object: "invoice",

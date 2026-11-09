@@ -1,5 +1,8 @@
 import { defineConfig } from "drizzle-kit";
-import { UtilDbSsl, type TDbSslMode } from "./src/infrastructure/database/UtilDbSsl";
+import {
+  UtilDbSsl,
+  type TDbSslMode,
+} from "./src/infrastructure/database/UtilDbSsl";
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -30,7 +33,8 @@ export default defineConfig({
     password:
       process.env.DATABASE_MIGRATION_PASSWORD ?? required("DATABASE_PASSWORD"),
     ssl: UtilDbSsl.options({
-      NODE_ENV: process.env.NODE_ENV === "production" ? "production" : "development",
+      NODE_ENV:
+        process.env.NODE_ENV === "production" ? "production" : "development",
       DATABASE_SSL_MODE: sslMode,
       DATABASE_SSL_CA: process.env.DATABASE_SSL_CA,
     }),

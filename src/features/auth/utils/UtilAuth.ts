@@ -2,7 +2,6 @@ import { UtilHttp } from "@/common/utils/UtilHttp";
 import EnvManager from "@/infrastructure/env/EnvManager";
 import { JWT_AUDIENCE, TJwtPayload } from "../validations/VJwtPayload";
 
-
 /**
  * The refresh cookie is only sent to the auth routes (refresh, logout),
  * never to the rest of the API [SEC-24].

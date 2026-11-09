@@ -74,7 +74,9 @@ describe("Shutdown", () => {
     ]);
     await h.shutdown("SIGTERM");
     expect(calls).toEqual(["closeDb"]);
-    expect(h.logs.some((l) => l.startsWith("error:") && l.includes("closeRedis"))).toBe(true);
+    expect(
+      h.logs.some((l) => l.startsWith("error:") && l.includes("closeRedis")),
+    ).toBe(true);
     expect(h.exits).toEqual([1]);
   });
 
@@ -90,7 +92,10 @@ describe("Shutdown", () => {
   });
 
   it("[FEAT-03] hard-exits with code 1 after SHUTDOWN_TIMEOUT_MS when a step hangs", async () => {
-    const h = harness([{ name: "stopServer", run: () => new Promise(() => {}) }], 20);
+    const h = harness(
+      [{ name: "stopServer", run: () => new Promise(() => {}) }],
+      20,
+    );
     void h.shutdown("SIGTERM");
     expect(await h.exited).toBe(1);
     expect(h.logs.some((l) => l.includes("timed out"))).toBe(true);

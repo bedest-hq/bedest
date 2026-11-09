@@ -22,20 +22,25 @@ describe("SEC-13: no self-lockout and no orphaned tenants", () => {
     const system = await testHeaders();
     const admin = await createForeignTenant(EUserRole.ADMIN);
 
-    const res = await users.user({ id: admin.user.id }).delete({}, { headers: system });
+    const res = await users
+      .user({ id: admin.user.id })
+      .delete({}, { headers: system });
     expect(res.status).toBe(409);
 
     // With a second ADMIN the first one can go.
     const second = await createTestUser(EUserRole.ADMIN, admin.tenant);
     expect(second.user.tenantId).toBe(admin.tenant.id);
     expect(
-      (await users.user({ id: admin.user.id }).delete({}, { headers: system })).status,
+      (await users.user({ id: admin.user.id }).delete({}, { headers: system }))
+        .status,
     ).toBe(200);
   });
 
   it("[SEC-13] deleting the last active SYSTEM user → 409", async () => {
     const self = await testHeaders(test_user);
-    const res = await users.user({ id: test_user.id }).delete({}, { headers: self });
+    const res = await users
+      .user({ id: test_user.id })
+      .delete({}, { headers: self });
     expect(res.status).toBe(409);
   });
 

@@ -25,7 +25,9 @@ const buildApp = () =>
     .use(PluginBodyLimit)
     .use(PluginCsrf)
     .use(ErrorHandler)
-    .group("/api", (api) => api.use(RouterHealth).group("/v1", (v1) => v1.use(RouterUser)));
+    .group("/api", (api) =>
+      api.use(RouterHealth).group("/v1", (v1) => v1.use(RouterUser)),
+    );
 
 describe("SEC-18: HTTP hardening", () => {
   afterEach(() => {
@@ -44,7 +46,9 @@ describe("SEC-18: HTTP hardening", () => {
     }
 
     production();
-    const prod = await buildApp().handle(new Request("http://localhost/api/health/live"));
+    const prod = await buildApp().handle(
+      new Request("http://localhost/api/health/live"),
+    );
     expect(prod.headers.get("strict-transport-security")).toBe(
       "max-age=31536000; includeSubDomains",
     );
@@ -84,7 +88,9 @@ describe("SEC-18: HTTP hardening", () => {
 
     expect((await put("https://evil.example")).status).toBe(403);
     expect((await put()).status).toBe(403);
-    expect((await put(undefined, "https://evil.example/page")).status).toBe(403);
+    expect((await put(undefined, "https://evil.example/page")).status).toBe(
+      403,
+    );
     // Allowed origin (or referer) reaches the route (404: unknown user).
     expect((await put(ORIGIN)).status).toBe(404);
     expect((await put(undefined, `${ORIGIN}/settings`)).status).toBe(404);
@@ -96,7 +102,10 @@ describe("SEC-18: HTTP hardening", () => {
     const noCookie = await app.handle(
       new Request("http://localhost/api/v1/user", {
         method: "POST",
-        headers: { "content-type": "application/json", Origin: "https://evil.example" },
+        headers: {
+          "content-type": "application/json",
+          Origin: "https://evil.example",
+        },
         body: "{}",
       }),
     );

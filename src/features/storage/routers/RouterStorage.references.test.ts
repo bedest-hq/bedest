@@ -64,7 +64,11 @@ describe("SEC-27: file references stay inside the tenant", () => {
     const adminA = await createForeignTenant(EUserRole.ADMIN);
     const fileB = await insertFile(test_tenant.id);
 
-    const res = await put(`/tenant/${adminA.tenant.id}`, { logoId: fileB }, adminA.headers.Cookie);
+    const res = await put(
+      `/tenant/${adminA.tenant.id}`,
+      { logoId: fileB },
+      adminA.headers.Cookie,
+    );
     expect(res.status).toBe(404);
     expect(await logoOf(adminA.tenant.id)).toBeNull();
   });
@@ -73,12 +77,24 @@ describe("SEC-27: file references stay inside the tenant", () => {
     const adminA = await createForeignTenant(EUserRole.ADMIN);
     const pending = await insertFile(adminA.tenant.id, EStorageStatus.PENDING);
     expect(
-      (await put(`/tenant/${adminA.tenant.id}`, { logoId: pending }, adminA.headers.Cookie)).status,
+      (
+        await put(
+          `/tenant/${adminA.tenant.id}`,
+          { logoId: pending },
+          adminA.headers.Cookie,
+        )
+      ).status,
     ).toBe(400);
 
     const ready = await insertFile(adminA.tenant.id);
     expect(
-      (await put(`/tenant/${adminA.tenant.id}`, { logoId: ready }, adminA.headers.Cookie)).status,
+      (
+        await put(
+          `/tenant/${adminA.tenant.id}`,
+          { logoId: ready },
+          adminA.headers.Cookie,
+        )
+      ).status,
     ).toBe(200);
     expect(await logoOf(adminA.tenant.id)).toBe(ready);
   });
@@ -99,14 +115,20 @@ describe("SEC-27: file references stay inside the tenant", () => {
     const foreignFile = await insertFile(test_tenant.id);
     const path = `/user/${me.user.id}`;
 
-    expect((await put(path, { avatarId: foreignFile }, me.headers.Cookie)).status).toBe(404);
+    expect(
+      (await put(path, { avatarId: foreignFile }, me.headers.Cookie)).status,
+    ).toBe(404);
     expect(await avatarOf(me.user.id)).toBeNull();
 
     const own = await insertFile(me.tenant.id);
-    expect((await put(path, { avatarId: own }, me.headers.Cookie)).status).toBe(200);
+    expect((await put(path, { avatarId: own }, me.headers.Cookie)).status).toBe(
+      200,
+    );
     expect(await avatarOf(me.user.id)).toBe(own);
 
-    expect((await put(path, { avatarId: null }, me.headers.Cookie)).status).toBe(200);
+    expect(
+      (await put(path, { avatarId: null }, me.headers.Cookie)).status,
+    ).toBe(200);
     expect(await avatarOf(me.user.id)).toBeNull();
   });
 

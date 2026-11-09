@@ -23,12 +23,7 @@ const app = new Elysia()
 
 const PASSWORD = "test_password";
 
-const call = (
-  method: string,
-  path: string,
-  cookie?: string,
-  body?: unknown,
-) =>
+const call = (method: string, path: string, cookie?: string, body?: unknown) =>
   app.handle(
     new Request(`http://localhost${path}`, {
       method,
@@ -114,9 +109,9 @@ describe("SEC-08: revoked, deleted or demoted principals lose access", () => {
     expect(refreshed.status).toBe(200);
     const newCookie = cookiesOf(refreshed);
     expect(accessRole(newCookie)).toBe(EUserRole.USER);
-    expect(
-      (await call("GET", "/user?limit=10&page=1", newCookie)).status,
-    ).toBe(403);
+    expect((await call("GET", "/user?limit=10&page=1", newCookie)).status).toBe(
+      403,
+    );
   });
 
   it("[SEC-08] a role change through the API revokes the target's sessions", async () => {
@@ -219,12 +214,10 @@ describe("SEC-08: revoked, deleted or demoted principals lose access", () => {
     const sessionId = (
       JSON.parse(
         Buffer.from(
-          (
-            cookie
-              .split("; ")
-              .find((c) => c.startsWith("accessToken="))
-              ?.split(".")[1] ?? ""
-          ),
+          cookie
+            .split("; ")
+            .find((c) => c.startsWith("accessToken="))
+            ?.split(".")[1] ?? "",
           "base64url",
         ).toString("utf8"),
       ) as { sessionId: string }

@@ -142,7 +142,8 @@ describe("RouterStorage", () => {
       .where(eq(SStorage.id, fileId));
 
     // 2. Presign download URL
-    const presignDownloadRes = await api.storage({ id: fileId })["presign-download"].get({
+    const fileApi = api.storage({ id: fileId });
+    const presignDownloadRes = await fileApi["presign-download"].get({
       headers,
     });
 

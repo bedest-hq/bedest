@@ -25,7 +25,11 @@ describe("OPS-09: storage reset guard", () => {
     const { storage } = await scratchDir();
     const err = await rejection(
       runStorageReset({
-        env: { ...test_env, NODE_ENV: "production", LOCAL_STORAGE_PATH: storage },
+        env: {
+          ...test_env,
+          NODE_ENV: "production",
+          LOCAL_STORAGE_PATH: storage,
+        },
         argv: ["--yes"],
         confirm: test_env.DATABASE_NAME,
       }),
@@ -37,7 +41,10 @@ describe("OPS-09: storage reset guard", () => {
   it("[OPS-09] refuses without confirmation", async () => {
     const { storage } = await scratchDir();
     const err = await rejection(
-      runStorageReset({ env: { ...test_env, LOCAL_STORAGE_PATH: storage }, argv: [] }),
+      runStorageReset({
+        env: { ...test_env, LOCAL_STORAGE_PATH: storage },
+        argv: [],
+      }),
     );
     expect(String(err)).toContain("--yes");
     expect(existsSync(storage)).toBe(true);

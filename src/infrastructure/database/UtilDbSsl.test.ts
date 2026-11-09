@@ -12,7 +12,10 @@ describe("UtilDbSsl", () => {
 
   it("[SEC-15] disable → no TLS", () => {
     expect(
-      UtilDbSsl.options({ NODE_ENV: "production", DATABASE_SSL_MODE: "disable" }),
+      UtilDbSsl.options({
+        NODE_ENV: "production",
+        DATABASE_SSL_MODE: "disable",
+      }),
     ).toBe(false);
   });
 

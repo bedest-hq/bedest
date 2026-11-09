@@ -251,7 +251,9 @@ describe("BUG-09: RedisManager recovery", () => {
     sub.status = "reconnecting";
     sub.patterns.clear();
     const received: string[] = [];
-    await RedisManager.psubscribe("events:*", (_p, channel) => received.push(channel));
+    await RedisManager.psubscribe("events:*", (_p, channel) =>
+      received.push(channel),
+    );
     expect(sub.patterns.has("events:*")).toBe(false);
     expect(RedisManager.isSubscriberReady()).toBe(false);
     expect(RedisManager.isPublisherReady()).toBe(true);

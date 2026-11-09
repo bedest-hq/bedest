@@ -251,6 +251,7 @@ docker-compose up -d
 | `bun run dev` | Start development server with hot reload |
 | `bun run build` | Compile the application into a standalone executable via Bun |
 | `bun run check` | Run TypeScript type-check and ESLint |
+| `bun run format` / `bun run format:check` | Format with Prettier / verify formatting (CI runs the check) |
 | `bun run test` | Run isolated unit and integration tests via PGlite |
 | `bun run db:generate` | Generate Drizzle migrations |
 | `bun run db:migrate` | Apply migrations to the database |

@@ -56,7 +56,12 @@ describe("SEC-12: user management policy matrix", () => {
           "update-password",
           "remove",
         ] as const) {
-          const status = expectedStatus(actorRole, targetRole, sameTenant, action);
+          const status = expectedStatus(
+            actorRole,
+            targetRole,
+            sameTenant,
+            action,
+          );
           it(`[SEC-12] ${actorRole} → ${action} ${targetRole} (${sameTenant ? "same" : "foreign"} tenant) → ${status}`, async () => {
             const actor = await createTestUser(actorRole);
             const target = sameTenant
@@ -152,11 +157,13 @@ describe("SEC-12: self-service and role assignment", () => {
     const system = await createTestUser(EUserRole.SYSTEM);
     const admin = await createTestUser(EUserRole.ADMIN);
 
-    const promote = async (headers: Record<string, string>, role: EUserRole) => {
+    const promote = async (
+      headers: Record<string, string>,
+      role: EUserRole,
+    ) => {
       const target = await createTestUser(EUserRole.USER);
-      return (
-        await api.user({ id: target.user.id }).put({ role }, { headers })
-      ).status;
+      return (await api.user({ id: target.user.id }).put({ role }, { headers }))
+        .status;
     };
 
     expect(await promote(system.headers, EUserRole.ADMIN)).toBe(200);

@@ -480,7 +480,8 @@ export const subscriptionPeriod = (sub: TRecord) => {
     start:
       parseDate(sub.current_period_start) ??
       parseDate(item.current_period_start),
-    end: parseDate(sub.current_period_end) ?? parseDate(item.current_period_end),
+    end:
+      parseDate(sub.current_period_end) ?? parseDate(item.current_period_end),
   };
 };
 

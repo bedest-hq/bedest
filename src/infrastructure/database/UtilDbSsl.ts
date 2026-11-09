@@ -9,7 +9,8 @@ export interface IDbSslEnv {
   DATABASE_SSL_CA?: string;
 }
 
-export type TDbSslOptions = false | { rejectUnauthorized: boolean; ca?: string };
+export type TDbSslOptions =
+  false | { rejectUnauthorized: boolean; ca?: string };
 
 /**
  * The single source of the Postgres TLS options [SEC-15], used by the

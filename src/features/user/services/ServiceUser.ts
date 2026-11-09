@@ -3,7 +3,11 @@ import { EUserRole } from "../enums/EUserRole";
 import { SUser } from "../schemas/SUser";
 
 import { and, count, eq, ne } from "drizzle-orm";
-import { ITenantUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core";
+import {
+  ITenantUserApp,
+  ServiceBaseTenant,
+  UtilTenantScope,
+} from "bedest-core";
 import { IPolicyActor, UtilUserPolicy } from "../utils/UtilUserPolicy";
 import { UtilEmail } from "../utils/UtilEmail";
 import ServiceSession from "@f/session/services/ServiceSession";
@@ -119,7 +123,10 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       }
       if (data.password) {
         if (!data.currentPassword) {
-          throw UtilHttp.fail(400, "currentPassword is required to change your password");
+          throw UtilHttp.fail(
+            400,
+            "currentPassword is required to change your password",
+          );
         }
         const valid = await Bun.password.verify(
           data.currentPassword,
@@ -153,7 +160,11 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     // target user's tenant [SEC-27].
     if (data.avatarId !== undefined) {
       if (data.avatarId !== null) {
-        await ServiceStorage.assertAttachable(c, target.tenantId, data.avatarId);
+        await ServiceStorage.assertAttachable(
+          c,
+          target.tenantId,
+          data.avatarId,
+        );
       }
       payload.avatarId = data.avatarId;
     }
@@ -190,18 +201,26 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       return;
     }
     const sameRole = and(
-      eq(SUser.role, target.role === EUserRole.ADMIN ? EUserRole.ADMIN : EUserRole.SYSTEM),
+      eq(
+        SUser.role,
+        target.role === EUserRole.ADMIN ? EUserRole.ADMIN : EUserRole.SYSTEM,
+      ),
       eq(SUser.isDeleted, false),
       ne(SUser.id, target.id),
-      target.role === EUserRole.ADMIN ? eq(SUser.tenantId, target.tenantId) : undefined,
+      target.role === EUserRole.ADMIN
+        ? eq(SUser.tenantId, target.tenantId)
+        : undefined,
     );
     const [others] = await UtilTenantScope.systemScope(c.db, (tx) =>
       tx.select({ n: count() }).from(SUser).where(sameRole),
     );
     if (Number(others?.n ?? 0) === 0) {
-      throw UtilHttp.fail(409, target.role === EUserRole.ADMIN
-            ? "Cannot delete the last active ADMIN of the tenant"
-            : "Cannot delete the last active SYSTEM user");
+      throw UtilHttp.fail(
+        409,
+        target.role === EUserRole.ADMIN
+          ? "Cannot delete the last active ADMIN of the tenant"
+          : "Cannot delete the last active SYSTEM user",
+      );
     }
   }
 

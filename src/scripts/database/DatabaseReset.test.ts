@@ -31,7 +31,12 @@ describe("OPS-09: database reset guard", () => {
   it("[OPS-09] refuses without --yes or a matching CONFIRM_RESET", async () => {
     const recreate = recorder();
     for (const confirm of [undefined, "", "another_db"]) {
-      const err = await runDatabaseReset({ env: test_env, argv: [], confirm, recreate }).then(
+      const err = await runDatabaseReset({
+        env: test_env,
+        argv: [],
+        confirm,
+        recreate,
+      }).then(
         () => null,
         (e: unknown) => e,
       );
@@ -67,7 +72,11 @@ describe("OPS-09: database reset guard", () => {
   it("[OPS-09] the CLI exits 1 and connects nowhere when refused", async () => {
     for (const nodeEnv of ["production", "development"]) {
       const proc = Bun.spawn(["bun", "src/scripts/database/DatabaseReset.ts"], {
-        env: { ...asProcessEnv(test_env), NODE_ENV: nodeEnv, CONFIRM_RESET: "" },
+        env: {
+          ...asProcessEnv(test_env),
+          NODE_ENV: nodeEnv,
+          CONFIRM_RESET: "",
+        },
         stdout: "pipe",
         stderr: "pipe",
       });

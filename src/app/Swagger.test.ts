@@ -11,7 +11,9 @@ const docs = (overrides: Partial<typeof test_env>, path = "/api/docs") =>
 describe("SEC-17: API documentation exposure", () => {
   it("[SEC-17] production → GET /api/docs is 404", async () => {
     expect((await docs({ NODE_ENV: "production" })).status).toBe(404);
-    expect((await docs({ NODE_ENV: "production" }, "/api/docs/json")).status).toBe(404);
+    expect(
+      (await docs({ NODE_ENV: "production" }, "/api/docs/json")).status,
+    ).toBe(404);
   });
 
   it("[SEC-17] production with ENABLE_API_DOCS=true serves the docs", async () => {

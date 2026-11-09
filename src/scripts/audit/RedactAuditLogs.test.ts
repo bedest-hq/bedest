@@ -38,7 +38,10 @@ describe("RedactAuditLogs", () => {
     const leaking: string[] = [];
     for (let i = 0; i < 5; i++) {
       leaking.push(
-        await insertLog({ currentPassword: `old-${i}`, newPassword: `new-${i}` }),
+        await insertLog({
+          currentPassword: `old-${i}`,
+          newPassword: `new-${i}`,
+        }),
       );
     }
     const clean = await insertLog({ name: "unchanged", statusCode: 200 });

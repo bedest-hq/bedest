@@ -24,7 +24,9 @@ const app = new Elysia()
     throw status(400, "Missing tenant header");
   })
   .get("/fail", () => {
-    throw UtilHttp.fail(409, "File is in use", [{ field: "id", message: "referenced" }]);
+    throw UtilHttp.fail(409, "File is in use", [
+      { field: "id", message: "referenced" },
+    ]);
   })
   .get("/pg/:code", ({ params }) => {
     throw pgError(params.code);
@@ -33,7 +35,10 @@ const app = new Elysia()
     throw new Error("secret internal detail");
   })
   .get("/cookie", ({ cookie }) => cookie.session.value, {
-    cookie: t.Cookie({ session: t.String() }, { secrets: "cookie-secret", sign: ["session"] }),
+    cookie: t.Cookie(
+      { session: t.String() },
+      { secrets: "cookie-secret", sign: ["session"] },
+    ),
   })
   .post("/file", ({ body }) => body.file.size, {
     body: t.Object({ file: t.File({ type: "image/png" }) }),
@@ -42,7 +47,10 @@ const app = new Elysia()
 const req = (method: string, path: string, init: RequestInit = {}) =>
   app.handle(new Request(`http://localhost${path}`, { method, ...init }));
 
-const envelope = async (res: Response) => ({ status: res.status, body: await res.json() });
+const envelope = async (res: Response) => ({
+  status: res.status,
+  body: await res.json(),
+});
 
 describe("BUG-14: one error envelope { error, message?, details? }", () => {
   it("[BUG-14] validation errors: 400 Bad Request with field details", async () => {
@@ -52,7 +60,10 @@ describe("BUG-14: one error envelope { error, message?, details? }", () => {
     });
     const { status: code, body } = await envelope(res);
     expect(code).toBe(400);
-    expect(body).toMatchObject({ error: "Bad Request", message: "Validation failed" });
+    expect(body).toMatchObject({
+      error: "Bad Request",
+      message: "Validation failed",
+    });
     expect(body.details).toEqual([expect.objectContaining({ field: "name" })]);
   });
 
@@ -137,7 +148,9 @@ describe("BUG-14: one error envelope { error, message?, details? }", () => {
   });
 
   it("[BUG-14] an invalid cookie signature: 400 envelope", async () => {
-    const res = await req("GET", "/cookie", { headers: { cookie: "session=forged.signature" } });
+    const res = await req("GET", "/cookie", {
+      headers: { cookie: "session=forged.signature" },
+    });
     expect(await envelope(res)).toEqual({
       status: 400,
       body: { error: "Bad Request", message: "Invalid cookie signature" },
@@ -146,8 +159,13 @@ describe("BUG-14: one error envelope { error, message?, details? }", () => {
 
   it("[BUG-14] a file of the wrong type: 422 envelope", async () => {
     const form = new FormData();
-    form.append("file", new File(["plain text"], "a.png", { type: "image/png" }));
-    const { status: code, body } = await envelope(await req("POST", "/file", { body: form }));
+    form.append(
+      "file",
+      new File(["plain text"], "a.png", { type: "image/png" }),
+    );
+    const { status: code, body } = await envelope(
+      await req("POST", "/file", { body: form }),
+    );
     expect(code).toBe(422);
     expect(body).toMatchObject({ error: "Unprocessable Content" });
     expect(typeof body.message).toBe("string");

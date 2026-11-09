@@ -37,7 +37,11 @@ export class UtilStripeSignature {
       }
     }
 
-    if (!timestamp || !/^\d{1,12}$/.test(timestamp) || signatures.length === 0) {
+    if (
+      !timestamp ||
+      !/^\d{1,12}$/.test(timestamp) ||
+      signatures.length === 0
+    ) {
       return false;
     }
     if (Math.abs(nowSec - Number(timestamp)) > toleranceSec) {

@@ -64,7 +64,10 @@ const auditRows = (action: string) =>
     .select()
     .from(SSystemLog)
     .where(
-      and(eq(SSystemLog.tenantId, test_tenant.id), eq(SSystemLog.action, action)),
+      and(
+        eq(SSystemLog.tenantId, test_tenant.id),
+        eq(SSystemLog.action, action),
+      ),
     );
 
 const setPlan = (plan: ETenantPlan) =>

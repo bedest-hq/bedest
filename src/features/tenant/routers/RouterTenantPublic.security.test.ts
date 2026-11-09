@@ -1,6 +1,10 @@
 import { describe, it, expect } from "bun:test";
 import { Elysia } from "elysia";
-import { test_env, test_tenant, testHeaders } from "@/common/tests/TestManager.test";
+import {
+  test_env,
+  test_tenant,
+  testHeaders,
+} from "@/common/tests/TestManager.test";
 import { ErrorHandler } from "@/infrastructure/error/ErrorHandler";
 import { RouterTenant } from "./RouterTenant";
 import { RouterTenantPublic } from "./RouterTenantPublic";
@@ -18,7 +22,10 @@ describe("SEC-25: public tenant resolution", () => {
   it("[SEC-25] an unknown domain → 404 'Tenant not found' (no product copy)", async () => {
     const res = await resolve("unknown-magazine.com");
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "Not Found", message: "Tenant not found" });
+    expect(await res.json()).toEqual({
+      error: "Not Found",
+      message: "Tenant not found",
+    });
   });
 
   it("[SEC-25] a known domain still resolves", async () => {
@@ -32,7 +39,9 @@ describe("SEC-25: public tenant resolution", () => {
     expect((await resolve("a!b")).status).toBe(400);
     expect((await resolve("under_score.example.com")).status).toBe(400);
     expect((await resolve("-leading.example.com")).status).toBe(400);
-    expect((await resolve(`${"a".repeat(63)}.`.repeat(4) + "com")).status).toBe(400);
+    expect((await resolve(`${"a".repeat(63)}.`.repeat(4) + "com")).status).toBe(
+      400,
+    );
   });
 
   it("[SEC-25] more than RATE_LIMIT_TENANT_RESOLVE_PER_MIN requests per IP and minute → 429", async () => {

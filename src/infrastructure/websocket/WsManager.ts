@@ -68,7 +68,10 @@ export class WsManager {
     this.server = server;
     this.setupRedisSubscription();
     this.stopSweep?.();
-    this.stopSweep = this.every(() => this.sweepExpired(), WS_SWEEP_INTERVAL_MS);
+    this.stopSweep = this.every(
+      () => this.sweepExpired(),
+      WS_SWEEP_INTERVAL_MS,
+    );
   }
 
   setupRedisSubscription() {
@@ -144,7 +147,12 @@ export class WsManager {
     return entry;
   }
 
-  private terminate(ids: Iterable<string>, event: string, code: number, reason: string) {
+  private terminate(
+    ids: Iterable<string>,
+    event: string,
+    code: number,
+    reason: string,
+  ) {
     for (const id of [...ids]) {
       const entry = this.remove(id);
       if (!entry) {
@@ -180,7 +188,10 @@ export class WsManager {
   disconnectUser(userId: string) {
     this.disconnectUserLocal(userId);
     if (RedisManager.isPublisherReady()) {
-      void RedisManager.publish(`events:disconnect:user:${userId}`, "terminated");
+      void RedisManager.publish(
+        `events:disconnect:user:${userId}`,
+        "terminated",
+      );
     }
   }
 

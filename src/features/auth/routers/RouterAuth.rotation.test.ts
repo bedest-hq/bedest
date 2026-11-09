@@ -66,9 +66,10 @@ describe("SEC-09: refresh-token rotation", () => {
       },
     );
 
-    const results = await Promise.all([refresh(cookie), refresh(cookie)]).finally(
-      () => barrier.mockRestore(),
-    );
+    const results = await Promise.all([
+      refresh(cookie),
+      refresh(cookie),
+    ]).finally(() => barrier.mockRestore());
     const statuses = results.map((r) => r.status).sort();
     expect(statuses).toEqual([200, 401]);
   });

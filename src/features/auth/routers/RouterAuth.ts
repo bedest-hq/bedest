@@ -39,7 +39,10 @@ const RouterLogin = new Elysia({ tags: ["Auth"] })
         { email: body.email, password: body.password },
       );
 
-      const refreshToken = await refreshJwt.sign({ ...payload, typ: "refresh" });
+      const refreshToken = await refreshJwt.sign({
+        ...payload,
+        typ: "refresh",
+      });
       const accessToken = await accessJwt.sign({ ...payload, typ: "access" });
 
       cookie.refreshToken.set({
@@ -97,8 +100,14 @@ const RouterRefresh = new Elysia({ tags: ["Auth"] })
         payload.sessionId,
       );
 
-      const newAccessToken = await accessJwt.sign({ ...newPayload, typ: "access" });
-      const newRefreshToken = await refreshJwt.sign({ ...newPayload, typ: "refresh" });
+      const newAccessToken = await accessJwt.sign({
+        ...newPayload,
+        typ: "access",
+      });
+      const newRefreshToken = await refreshJwt.sign({
+        ...newPayload,
+        typ: "refresh",
+      });
 
       cookie.accessToken.set({
         value: newAccessToken,

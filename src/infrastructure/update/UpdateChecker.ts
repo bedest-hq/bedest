@@ -118,7 +118,9 @@ export async function checkForUpdates(
 
     if (!latestVersion) {
       const repo =
-        template === "bedest-lite" ? "bedest-hq/bedest-lite" : "bedest-hq/bedest";
+        template === "bedest-lite"
+          ? "bedest-hq/bedest-lite"
+          : "bedest-hq/bedest";
       const response = await fetch(
         `https://api.github.com/repos/${repo}/releases/latest`,
         {
@@ -139,7 +141,11 @@ export async function checkForUpdates(
             `https://github.com/${repo}/releases/tag/${data.tag_name}`;
           await Bun.write(
             cachePath,
-            JSON.stringify({ timestamp: Date.now(), latestVersion, releaseUrl }),
+            JSON.stringify({
+              timestamp: Date.now(),
+              latestVersion,
+              releaseUrl,
+            }),
           );
         }
       }

@@ -36,7 +36,10 @@ class StorageManager {
   }
 
   private static notImplemented() {
-    return UtilHttp.fail(501, "The active storage provider does not support presigned URLs");
+    return UtilHttp.fail(
+      501,
+      "The active storage provider does not support presigned URLs",
+    );
   }
 
   /** Test hook: swap the provider; returns a function restoring the old one. */

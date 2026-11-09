@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { sql, type SQL } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
-import {
-  ITenantUserApp,
-  TDbOrTx,
-  UtilTenantScope,
-} from "bedest-core";
+import { ITenantUserApp, TDbOrTx, UtilTenantScope } from "bedest-core";
 import {
   createForeignTenant,
   createTestUser,
@@ -63,7 +59,10 @@ const tenantCtx = (tenantId: string, userId: string): ITenantUserApp => ({
 });
 
 const rowsOf = (res: unknown): unknown[] =>
-  typeof res === "object" && res !== null && "rows" in res && Array.isArray(res.rows)
+  typeof res === "object" &&
+  res !== null &&
+  "rows" in res &&
+  Array.isArray(res.rows)
     ? res.rows
     : [];
 
@@ -89,7 +88,9 @@ const update = (tx: TDbOrTx, c: IRlsCase, id: string) =>
     sql`UPDATE ${c.table} SET ${sql.identifier(c.tenantColumn.name)} = ${c.tenantColumn} WHERE ${c.id} = ${id} RETURNING ${c.id}`,
   );
 const remove = (tx: TDbOrTx, c: IRlsCase, id: string) =>
-  tx.execute(sql`DELETE FROM ${c.table} WHERE ${c.id} = ${id} RETURNING ${c.id}`);
+  tx.execute(
+    sql`DELETE FROM ${c.table} WHERE ${c.id} = ${id} RETURNING ${c.id}`,
+  );
 const raw = (q: SQL) => DbManager.get().execute(q);
 
 const CASES: IRlsCase[] = [
