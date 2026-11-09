@@ -19,7 +19,10 @@ const RouterStorage = createRouterStorage(routerTestEnv);
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 
 // External I/O only: the object store.
-const downloadSpy = spyOn(StorageManager.default, "download").mockImplementation(
+const downloadSpy = spyOn(
+  StorageManager.default,
+  "download",
+).mockImplementation(
   // Providers stream objects [BUG-18].
   mock(() => {
     const blob = new Blob(["<script>alert(1)</script>"]);

@@ -20,7 +20,10 @@ const deleteSpy = spyOn(StorageManager.default, "delete").mockImplementation(
   mock(() => Promise.resolve()),
 );
 
-const downloadSpy = spyOn(StorageManager.default, "download").mockImplementation(
+const downloadSpy = spyOn(
+  StorageManager.default,
+  "download",
+).mockImplementation(
   // Providers stream objects [BUG-18].
   mock(() => {
     const blob = new Blob(["mock file data"]);
