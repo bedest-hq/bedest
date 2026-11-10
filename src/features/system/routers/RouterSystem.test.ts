@@ -2,14 +2,17 @@ import { describe, it, expect } from "bun:test";
 import { treaty } from "@elysiajs/eden";
 import { Elysia } from "elysia";
 import Context from "@/app/Context";
-import { testHeaders, testUserHeaders } from "@/common/tests/TestManager.test";
+import {
+  testUserHeaders,
+  testSystemHeaders,
+} from "@/common/tests/TestManager.test";
 import { RouterSystem } from "./RouterSystem";
 
 const api = treaty(RouterSystem);
 
 describe("RouterSystem", () => {
   it("Get initial maintenance status", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     const res = await api.system.maintenance.get({
       headers,
@@ -22,7 +25,7 @@ describe("RouterSystem", () => {
   });
 
   it("Enable maintenance mode", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     const res = await api.system.maintenance.post(
       {
@@ -40,7 +43,7 @@ describe("RouterSystem", () => {
   });
 
   it("Disable maintenance mode", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     const res = await api.system.maintenance.post(
       {
@@ -58,7 +61,7 @@ describe("RouterSystem", () => {
   });
 
   it("Negative: Non-SYSTEM user receives 503 Service Unavailable when maintenance is enabled", async () => {
-    const sysHeaders = await testHeaders();
+    const sysHeaders = await testSystemHeaders();
     const userHeaders = await testUserHeaders();
 
     // Enable maintenance

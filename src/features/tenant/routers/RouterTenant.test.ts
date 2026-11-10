@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { treaty } from "@elysiajs/eden";
 import { Elysia } from "elysia";
 import Context from "@/app/Context";
+import { UtilPlanGuard } from "@f/tenant/utils/UtilPlanGuard";
 import { RouterTenant } from "./RouterTenant";
 import {
   testHeaders,
@@ -9,6 +10,7 @@ import {
   createForeignTenant,
   test_tenant,
   test_db,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { ETenantPlan } from "../enums/ETenantPlan";
 import { STenant } from "../schemas/STenant";
@@ -19,7 +21,7 @@ const api = treaty(RouterTenant);
 
 describe("RouterTenant", () => {
   it("Get all with system", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     await api.tenant.post(
       {
@@ -55,8 +57,8 @@ describe("RouterTenant", () => {
       {
         id: expect.any(String),
         name: "Test Tenant",
-        domain: "test.com",
-        email: "test@example.com",
+        domain: test_tenant.domain,
+        email: test_tenant.email,
         country: "Test Country",
         logoId: null,
       },
@@ -64,15 +66,15 @@ describe("RouterTenant", () => {
   });
 
   it("Get tenant by id", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     const res = await api.tenant({ id: test_tenant.id }).get({
       headers: headers,
     });
 
     expect(res.data).toStrictEqual({
-      email: "test@example.com",
-      domain: "test.com",
+      email: test_tenant.email,
+      domain: test_tenant.domain,
       name: "Test Tenant",
       country: "Test Country",
       phones: ["05555555555"],
@@ -94,7 +96,7 @@ describe("RouterTenant", () => {
   });
 
   it("Get Self", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     const res = await api.tenant.self.get({
       headers: headers,
@@ -104,8 +106,8 @@ describe("RouterTenant", () => {
     expect(res.data).toStrictEqual({
       id: expect.any(String),
       name: "Test Tenant",
-      domain: "test.com",
-      email: "test@example.com",
+      domain: test_tenant.domain,
+      email: test_tenant.email,
       country: "Test Country",
       phones: ["05555555555"],
       links: [],
@@ -127,7 +129,7 @@ describe("RouterTenant", () => {
   });
 
   it("Create a new tenant", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     const res = await api.tenant.post(
       {
@@ -148,14 +150,14 @@ describe("RouterTenant", () => {
 
     expect(res.status).toBe(200);
 
+    // [SEC-23][FEAT-06] The ADMIN is invited by e-mail: no password.
     expect(res.data).toStrictEqual({
       id: expect.any(String),
-      password: expect.any(String),
     });
   });
 
   it("Update tenant", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     const res = await api.tenant({ id: test_tenant.id }).put(
       {
@@ -172,7 +174,7 @@ describe("RouterTenant", () => {
 
     expect(updatedRes.data).toStrictEqual({
       email: "updated@tenant.com",
-      domain: "test.com",
+      domain: test_tenant.domain,
       name: "Test Tenant",
       country: "Test Country",
       phones: ["05555555555"],
@@ -194,9 +196,13 @@ describe("RouterTenant", () => {
   });
 
   it("Delete tenant", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
+    // [SEC-08] Deleting a tenant revokes the sessions of its users, so the
+    // test deletes another tenant instead of the acting SYSTEM user's own
+    // tenant (which would also log the actor out; see SEC-13).
+    const foreign = await createForeignTenant(EUserRole.USER);
 
-    const res = await api.tenant({ id: test_tenant.id }).delete(
+    const res = await api.tenant({ id: foreign.tenant.id }).delete(
       {},
       {
         headers,
@@ -205,7 +211,7 @@ describe("RouterTenant", () => {
 
     expect(res.status).toBe(200);
 
-    const checkRes = await api.tenant({ id: test_tenant.id }).get({
+    const checkRes = await api.tenant({ id: foreign.tenant.id }).get({
       headers,
     });
 
@@ -277,10 +283,9 @@ describe("RouterTenant", () => {
 
     const adminAHeaders = await testHeaders(adminA);
 
-    const res = await api.tenant({ id: tenantB.id }).put(
-      { name: "Hacked Tenant B" },
-      { headers: adminAHeaders },
-    );
+    const res = await api
+      .tenant({ id: tenantB.id })
+      .put({ name: "Hacked Tenant B" }, { headers: adminAHeaders });
 
     expect(res.status).toBe(403);
   });
@@ -316,7 +321,7 @@ describe("RouterTenant", () => {
   });
 
   it("Delete non-existent tenant returns 404 Not Found", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
     const fakeId = "00000000-0000-0000-0000-000000000000";
 
     const res = await api.tenant({ id: fakeId }).delete({}, { headers });
@@ -397,6 +402,8 @@ describe("RouterTenant", () => {
 
     const testApp = new Elysia()
       .use(Context.User())
+      // PlanGuard is opt-in per router [QLT-05].
+      .macro("PlanGuard", UtilPlanGuard.macro)
       .get("/protected-plan", () => ({ status: "ok" }), {
         PlanGuard: [ETenantPlan.PROFESSIONAL],
       });

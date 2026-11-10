@@ -1,7 +1,12 @@
 import { Elysia, t } from "elysia";
 import { EUserRole } from "../enums/EUserRole";
 import ServiceUser from "../services/ServiceUser";
+import ServiceInvite from "../services/ServiceInvite";
+import { EUserStatus } from "../enums/EUserStatus";
+import { VUserRole } from "../validations/VUserRole";
+import { VUserInput } from "../validations/VUserInput";
 import Context from "@/app/Context";
+import { VPassword, VPasswordCheck } from "@f/auth/validations/VPassword";
 import { UtilRouter, VEmail, VId, VQuery, VString } from "bedest-core";
 
 export const RouterUser = new Elysia({
@@ -12,7 +17,7 @@ export const RouterUser = new Elysia({
   .get(
     "/self",
     async ({ userRuntime }) => {
-      const res = await ServiceUser.getById(
+      const res = await ServiceUser.getProfile(
         userRuntime,
         userRuntime.session.userId,
       );
@@ -21,7 +26,7 @@ export const RouterUser = new Elysia({
     {
       response: t.Object({
         name: VString,
-        role: t.Enum(EUserRole),
+        role: VUserRole,
         avatarId: t.Nullable(VId),
         email: VEmail,
         createdAt: t.Date(),
@@ -31,7 +36,7 @@ export const RouterUser = new Elysia({
   .get(
     "/:id",
     async ({ params, userRuntime }) => {
-      const res = await ServiceUser.getById(userRuntime, params.id);
+      const res = await ServiceUser.getProfile(userRuntime, params.id);
       return res;
     },
     {
@@ -40,7 +45,7 @@ export const RouterUser = new Elysia({
       }),
       response: t.Object({
         name: VString,
-        role: t.Enum(EUserRole),
+        role: VUserRole,
         avatarId: t.Nullable(VId),
         createdAt: t.Date(),
       }),
@@ -55,11 +60,15 @@ export const RouterUser = new Elysia({
     {
       params: t.Object({ id: VId }),
       body: t.Object({
-        name: t.Optional(VString),
-        currentPassword: t.Optional(t.String({ minLength: 6, maxLength: 100 })),
-        password: t.Optional(t.String({ minLength: 6, maxLength: 100 })),
+        name: t.Optional(VUserInput.name),
+        currentPassword: t.Optional(VPasswordCheck),
+        password: t.Optional(VPassword),
+        // A READY file of the user's tenant, or null to clear [SEC-27].
+        avatarId: t.Optional(t.Nullable(VId)),
+        // Assigning a role goes through UtilUserPolicy [SEC-12].
+        role: t.Optional(VUserRole),
       }),
-      audit: true,
+      audit: { entity: "user", targetTenant: "user" },
     },
   )
   .guard(
@@ -71,7 +80,7 @@ export const RouterUser = new Elysia({
         .get(
           "/",
           async ({ query, userRuntime }) => {
-            const res = await ServiceUser.getAll(userRuntime, query);
+            const res = await ServiceUser.list(userRuntime, query);
             return res;
           },
           {
@@ -81,7 +90,9 @@ export const RouterUser = new Elysia({
                 id: VId,
                 tenantId: VId,
                 name: VString,
-                role: t.Enum(EUserRole),
+                role: VUserRole,
+                // INVITED until the invitation is accepted [FEAT-06].
+                status: t.Enum(EUserStatus),
                 avatarId: t.Nullable(VId),
                 createdAt: t.Date(),
               }),
@@ -96,13 +107,28 @@ export const RouterUser = new Elysia({
           },
           {
             body: t.Object({
-              name: VString,
-              email: VString,
-              role: t.Enum(EUserRole),
-              password: t.String({ minLength: 6, maxLength: 100 }),
+              name: VUserInput.name,
+              email: VEmail,
+              role: VUserRole,
+              password: VPassword,
             }),
-            audit: true,
+            audit: { entity: "user", targetTenant: "user" },
             response: t.Object({ id: VId }),
+          },
+        )
+        .post(
+          "/invite",
+          async ({ body, userRuntime }) =>
+            await ServiceInvite.invite(userRuntime, body),
+          {
+            // [FEAT-06] Same role policy as POST /user [SEC-12].
+            body: t.Object({
+              email: VEmail,
+              role: VUserRole,
+              name: t.Optional(VUserInput.name),
+            }),
+            response: t.Object({ id: VId }),
+            audit: { entity: "user", action: "INVITE", targetTenant: "user" },
           },
         )
         .delete(
@@ -114,7 +140,7 @@ export const RouterUser = new Elysia({
             params: t.Object({
               id: VId,
             }),
-            audit: true,
+            audit: { entity: "user", targetTenant: "user" },
           },
         ),
   );

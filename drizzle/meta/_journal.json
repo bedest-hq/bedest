@@ -1,0 +1,181 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791726662957,
+      "tag": "0000_shallow_exiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794150914951,
+      "tag": "0001_billing_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794151821214,
+      "tag": "0002_session_token_families",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794152101869,
+      "tag": "0003_storage_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794152394293,
+      "tag": "0004_rls_roles_and_force",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794165102986,
+      "tag": "0005_users_email_lowercase_dedupe",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794165104066,
+      "tag": "0006_users_email_lower_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794165374726,
+      "tag": "0007_tenants_is_system",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794165375516,
+      "tag": "0008_mark_system_tenant",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794166708839,
+      "tag": "0009_notification_reads_dedupe",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794166709958,
+      "tag": "0010_notification_reads_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794167117207,
+      "tag": "0011_system_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794167936750,
+      "tag": "0012_partial_index_column_refs",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794203228520,
+      "tag": "0013_storage_uploaded_by",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794203518903,
+      "tag": "0014_clear_foreign_file_refs",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794203531438,
+      "tag": "0015_tenants_logo_fk",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794204562321,
+      "tag": "0016_audit_entity_nullable_target_tenant",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794207813305,
+      "tag": "0017_perf_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794220853010,
+      "tag": "0018_audit_logs_immutable",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794221396436,
+      "tag": "0019_login_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794221848231,
+      "tag": "0020_sessions_drop_orphans",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794221849015,
+      "tag": "0021_sessions_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794222698353,
+      "tag": "0022_users_deleted_with_tenant",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794223066401,
+      "tag": "0023_account_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794223071721,
+      "tag": "0024_user_tokens_force_rls",
+      "breakpoints": true
+    }
+  ]
+}

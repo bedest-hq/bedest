@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: ["main", "master"]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-test:
     name: Code Quality & Testing
@@ -21,23 +28,36 @@ jobs:
       - name: 🥟 Setup Bun & Cache
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
-          cache: true
+          # Keep in sync with the Dockerfile (oven/bun:<version>).
+          bun-version: 1.3.14
 
       - name: 📦 Install Dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: 🧐 Quality Check
         run: bun run check
 
-      - name: 🏗️ Generate Migrations Check
-        run: bun run db:generate
+      - name: Format
+        run: bun run format:check
+
+      - name: 🏗️ Migration Drift Check
         env:
           DATABASE_HOST: localhost
           DATABASE_PORT: 5432
           DATABASE_NAME: dummy
           DATABASE_USER: dummy
           DATABASE_PASSWORD: dummy
+        run: |
+          bun run db:generate
+          # Fails when a schema changed without a committed migration
+          # (modified or new, untracked files under drizzle/).
+          if [ -n "$(git status --porcelain -- drizzle/)" ]; then
+            git status --porcelain -- drizzle/
+            git diff -- drizzle/
+            echo "::error::Schema changes without a committed migration. Run 'bun run db:generate --name <reason>' and commit drizzle/."
+            exit 1
+          fi
+          bun run db:check
 
-      - name: 🧪 Run Unit & Integration Tests
-        run: bun run test
+      - name: 🧪 Tests & Coverage
+        run: bun test --coverage

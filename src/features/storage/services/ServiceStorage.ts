@@ -1,29 +1,88 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import { SStorage } from "../schemas/SStorage";
 
-import { status } from "elysia";
+import { and, eq, lt, type SQL } from "drizzle-orm";
+import { logger } from "@/infrastructure/logger/logger";
 import StorageManager from "@/infrastructure/storage/StorageManager";
-import { ITenantApp, ITenantUserApp, ServiceBaseTenant } from "bedest-core";
+import {
+  IApp,
+  ITenantApp,
+  ITenantUserApp,
+  ServiceBaseTenant,
+  UtilTenantScope,
+} from "bedest-core";
+import { EUserRole } from "@f/user/enums/EUserRole";
+import { SUser } from "@f/user/schemas/SUser";
+import { STenant } from "@f/tenant/schemas/STenant";
+import { EStorageStatus } from "../enums/EStorageStatus";
+import { STORAGE_NAME_MAX } from "../validations/VStorageInput";
+import { storageExtensionFor, UtilStorage } from "../utils/UtilStorage";
+
+/** type/subtype without parameters, lower case (Image/PNG; x=y is image/png). */
+const mediaTypeOf = (contentType: string | undefined) =>
+  (contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
 
 class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
   constructor() {
     super(SStorage);
   }
 
+  /** Only READY files are ever listed or served [SEC-10]. */
+  protected override getFilters(c: ITenantApp, id?: string): SQL[] {
+    return [
+      ...super.getFilters(c, id),
+      eq(SStorage.status, EStorageStatus.READY),
+    ];
+  }
+
+  /** Hard-deletes a row that never became READY (its object never existed). */
+  private async discardPending(c: ITenantUserApp, id: string) {
+    await UtilTenantScope.tenantScope(c, (tx) =>
+      tx
+        .delete(SStorage)
+        .where(
+          and(eq(SStorage.id, id), eq(SStorage.status, EStorageStatus.PENDING)),
+        ),
+    );
+  }
+
+  /**
+   * Row first (PENDING), then the object, then READY [BUG-03]: a failed
+   * object write removes the row, a failed row insert never writes an
+   * object. The key extension comes from the MIME type, not the file name.
+   */
   async upload(c: ITenantUserApp, file: File) {
-    const fileExtension = file.name.split(".").pop();
-    const uniqueFileName = `${crypto.randomUUID()}.${fileExtension}`;
-    const key = `${c.tenantId}/${uniqueFileName}`;
-
-    const arrayBuffer = await file.arrayBuffer();
-
-    await StorageManager.upload(key, arrayBuffer, file.type);
+    // storage_files.name is varchar(255): refuse before writing anything [QLT-11].
+    if (file.name.length > STORAGE_NAME_MAX) {
+      throw UtilHttp.fail(
+        400,
+        `File name is longer than ${STORAGE_NAME_MAX} characters`,
+      );
+    }
+    const key = `${c.tenantId}/${crypto.randomUUID()}.${storageExtensionFor(file.type)}`;
 
     const res = await super.create(c, {
       name: file.name,
       key: key,
       mimeType: file.type,
       size: file.size,
+      status: EStorageStatus.PENDING,
+      uploadedBy: c.session.userId,
     });
+
+    try {
+      await StorageManager.upload(key, await file.arrayBuffer(), file.type);
+    } catch (err) {
+      await this.discardPending(c, res.id);
+      throw err;
+    }
+
+    await UtilTenantScope.tenantScope(c, (tx) =>
+      tx
+        .update(SStorage)
+        .set({ status: EStorageStatus.READY })
+        .where(eq(SStorage.id, res.id)),
+    );
 
     return { id: res.id, key: key };
   }
@@ -35,53 +94,233 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
       name: SStorage.name,
     });
 
-    if (!fileRecord) {
-      throw status("Not Found");
+    // Streamed from the provider; a missing object is a 404 [BUG-18].
+    const object = await StorageManager.download(fileRecord.key);
+    if (!object) {
+      throw UtilHttp.fail(404, "File content not found");
     }
 
-    const fileBlob = await StorageManager.download(fileRecord.key);
-
-    if (!fileBlob) {
-      throw status("Not Found");
-    }
-
-    return { fileBlob, metadata: fileRecord };
+    return { object, metadata: fileRecord };
   }
 
+  /**
+   * Only the uploader or an ADMIN/SYSTEM user may delete a file, and never
+   * while it is used as an avatar or logo [SEC-26]. Files from before
+   * SEC-26 have no uploader: only ADMIN/SYSTEM can delete those.
+   */
   async remove(c: ITenantUserApp, id: string) {
-    const fileRecord = await super.getById(c, id, {
-      key: SStorage.key,
+    const file = await super.getById(c, id, {
+      uploadedBy: SStorage.uploadedBy,
     });
 
-    if (!fileRecord) {
-      throw status("Not Found");
+    const privileged =
+      c.session.isSuperUser || c.session.role === EUserRole.ADMIN;
+    if (!privileged && file.uploadedBy !== c.session.userId) {
+      throw UtilHttp.fail(
+        403,
+        "Only the uploader or an admin can delete this file",
+      );
     }
 
-    await StorageManager.delete(fileRecord.key);
+    if (await this.isReferenced(c, id)) {
+      throw UtilHttp.fail(409, "File is in use");
+    }
 
+    // Soft delete only; the object is removed by the purge job [BUG-03].
     return await super.remove(c, id);
+  }
+
+  /**
+   * A file may be referenced (avatar, logo) only by its own tenant and only
+   * once it is READY [SEC-27]. Foreign keys are not subject to RLS, so the
+   * lookup runs in a tenant scope bound to `tenantId` (never a bypass):
+   * another tenant's file is 404, a pending one 400. Call it with the
+   * top-level database handle, not inside another scope.
+   */
+  async assertAttachable(c: IApp, tenantId: string, fileId: string) {
+    const [file] = await UtilTenantScope.tenantScope(
+      { db: c.db, nowDatetime: c.nowDatetime, tenantId },
+      (tx) =>
+        tx
+          .select({ status: SStorage.status })
+          .from(SStorage)
+          .where(
+            and(
+              eq(SStorage.id, fileId),
+              eq(SStorage.tenantId, tenantId),
+              eq(SStorage.isDeleted, false),
+            ),
+          )
+          .limit(1),
+    );
+    if (!file) {
+      throw UtilHttp.fail(404, "File not found");
+    }
+    if (file.status !== EStorageStatus.READY) {
+      throw UtilHttp.fail(400, "File is not ready");
+    }
+  }
+
+  /**
+   * Whether a user (avatar) or tenant (logo) points at the file: active
+   * ones only, or also soft-deleted ones (their foreign keys still block a
+   * hard delete). System scope: references from any tenant count.
+   */
+  private async isReferenced(
+    c: IApp,
+    id: string,
+    includeDeleted = false,
+  ): Promise<boolean> {
+    return await UtilTenantScope.systemScope(c.db, async (tx) => {
+      const [avatar] = await tx
+        .select({ id: SUser.id })
+        .from(SUser)
+        .where(
+          and(
+            eq(SUser.avatarId, id),
+            includeDeleted ? undefined : eq(SUser.isDeleted, false),
+          ),
+        )
+        .limit(1);
+      if (avatar) {
+        return true;
+      }
+      const [logo] = await tx
+        .select({ id: STenant.id })
+        .from(STenant)
+        .where(
+          and(
+            eq(STenant.logoId, id),
+            includeDeleted ? undefined : eq(STenant.isDeleted, false),
+          ),
+        )
+        .limit(1);
+      return logo !== undefined;
+    });
   }
 
   async presignUpload(
     c: ITenantUserApp,
     data: { name: string; mimeType: string; size: number },
   ) {
-    const fileExtension = data.name.includes(".")
-      ? data.name.split(".").pop()
-      : "bin";
-    const uniqueFileName = `${crypto.randomUUID()}.${fileExtension}`;
-    const key = `${c.tenantId}/${uniqueFileName}`;
+    // Fail before creating any row when presigning is unsupported [BUG-04].
+    if (!StorageManager.supportsPresign()) {
+      throw UtilHttp.fail(
+        501,
+        "The active storage provider does not support presigned URLs",
+      );
+    }
+    // Same allowlist and size limit as direct uploads [SEC-10].
+    if (!UtilStorage.allowedTypes().includes(data.mimeType)) {
+      throw UtilHttp.fail(400, `File type ${data.mimeType} is not allowed`);
+    }
+    if (data.size > UtilStorage.maxBytes()) {
+      throw UtilHttp.fail(
+        400,
+        `File exceeds the maximum size of ${UtilStorage.maxBytes()} bytes`,
+      );
+    }
 
+    const key = `${c.tenantId}/${crypto.randomUUID()}.${storageExtensionFor(data.mimeType)}`;
+
+    // The row stays PENDING (never served) until the upload is finalized.
     const res = await super.create(c, {
       name: data.name,
       key: key,
       mimeType: data.mimeType,
       size: data.size,
+      status: EStorageStatus.PENDING,
+      uploadedBy: c.session.userId,
     });
 
-    const uploadUrl = await StorageManager.getUploadUrl(key, data.mimeType);
+    const uploadUrl = await StorageManager.getUploadUrl(
+      key,
+      data.mimeType,
+      data.size,
+    );
 
     return { uploadUrl, key, id: res.id };
+  }
+
+  /**
+   * Finalizes a presigned upload [FEAT-12] (uploader or ADMIN/SYSTEM):
+   * the object must exist with the declared size and type, then the row
+   * becomes READY. A mismatch deletes the object and the row (400). No
+   * object yet is a 400 that keeps the row, so the client can still PUT
+   * while the URL is valid (storage.cleanupPending removes it later).
+   * Completing a READY file again is a no-op.
+   */
+  async complete(
+    c: ITenantUserApp,
+    id: string,
+  ): Promise<{ id: string; status: EStorageStatus.READY }> {
+    const [file] = await UtilTenantScope.tenantScope(c, (tx) =>
+      tx
+        .select({
+          key: SStorage.key,
+          mimeType: SStorage.mimeType,
+          size: SStorage.size,
+          status: SStorage.status,
+          uploadedBy: SStorage.uploadedBy,
+        })
+        .from(SStorage)
+        .where(
+          and(
+            eq(SStorage.id, id),
+            eq(SStorage.tenantId, c.tenantId),
+            eq(SStorage.isDeleted, false),
+          ),
+        )
+        .limit(1),
+    );
+    if (!file) {
+      throw UtilHttp.fail(404, "File not found");
+    }
+
+    const privileged =
+      c.session.isSuperUser || c.session.role === EUserRole.ADMIN;
+    if (!privileged && file.uploadedBy !== c.session.userId) {
+      throw UtilHttp.fail(
+        403,
+        "Only the uploader or an admin can complete this upload",
+      );
+    }
+
+    if (file.status === EStorageStatus.READY) {
+      return { id, status: EStorageStatus.READY };
+    }
+
+    const head = await StorageManager.head(file.key);
+    if (!head) {
+      throw UtilHttp.fail(400, "The file has not been uploaded yet");
+    }
+
+    if (
+      head.contentLength !== file.size ||
+      mediaTypeOf(head.contentType) !== mediaTypeOf(file.mimeType)
+    ) {
+      try {
+        await StorageManager.delete(file.key);
+        await this.discardPending(c, id);
+      } catch (err) {
+        // The row stays PENDING; storage.cleanupPending retries [FEAT-08].
+        logger.warn({ err, id }, "storage.complete: object delete failed");
+      }
+      throw UtilHttp.fail(
+        400,
+        "The uploaded file does not match the declared size or type",
+      );
+    }
+
+    await UtilTenantScope.tenantScope(c, (tx) =>
+      tx
+        .update(SStorage)
+        .set({ status: EStorageStatus.READY })
+        .where(
+          and(eq(SStorage.id, id), eq(SStorage.status, EStorageStatus.PENDING)),
+        ),
+    );
+    return { id, status: EStorageStatus.READY };
   }
 
   async presignDownload(c: ITenantApp, id: string) {
@@ -89,12 +328,80 @@ class ServiceStorage extends ServiceBaseTenant<typeof SStorage, string> {
       key: SStorage.key,
     });
 
-    if (!fileRecord) {
-      throw status("Not Found");
-    }
-
     const downloadUrl = await StorageManager.getDownloadUrl(fileRecord.key);
     return { downloadUrl };
+  }
+
+  /**
+   * Job storage.purgeDeleted [FEAT-08]: for files soft-deleted before
+   * `olderThan`, delete the object, then hard-delete the row unless a user
+   * (avatar) or tenant (logo) still references it. A failed object delete
+   * keeps the row for the next run.
+   */
+  async purgeDeleted(c: IApp, olderThan: Date) {
+    const rows = await UtilTenantScope.systemScope(c.db, (tx) =>
+      tx
+        .select({ id: SStorage.id, key: SStorage.key })
+        .from(SStorage)
+        .where(
+          and(eq(SStorage.isDeleted, true), lt(SStorage.deletedAt, olderThan)),
+        ),
+    );
+    let purged = 0;
+    for (const row of rows) {
+      if (await this.isReferenced(c, row.id, true)) {
+        continue;
+      }
+      try {
+        await StorageManager.delete(row.key);
+      } catch (err) {
+        logger.warn(
+          { err, id: row.id },
+          "storage.purgeDeleted: object delete failed",
+        );
+        continue;
+      }
+      await UtilTenantScope.systemScope(c.db, (tx) =>
+        tx.delete(SStorage).where(eq(SStorage.id, row.id)),
+      );
+      purged++;
+    }
+    return { purged };
+  }
+
+  /**
+   * Job storage.cleanupPending [FEAT-08]: uploads still PENDING after
+   * `olderThan` never completed; remove their object (if any) and row.
+   */
+  async cleanupPending(c: IApp, olderThan: Date) {
+    const rows = await UtilTenantScope.systemScope(c.db, (tx) =>
+      tx
+        .select({ id: SStorage.id, key: SStorage.key })
+        .from(SStorage)
+        .where(
+          and(
+            eq(SStorage.status, EStorageStatus.PENDING),
+            lt(SStorage.createdAt, olderThan),
+          ),
+        ),
+    );
+    let removed = 0;
+    for (const row of rows) {
+      try {
+        await StorageManager.delete(row.key);
+      } catch (err) {
+        logger.warn(
+          { err, id: row.id },
+          "storage.cleanupPending: object delete failed",
+        );
+        continue;
+      }
+      await UtilTenantScope.systemScope(c.db, (tx) =>
+        tx.delete(SStorage).where(eq(SStorage.id, row.id)),
+      );
+      removed++;
+    }
+    return { removed };
   }
 }
 

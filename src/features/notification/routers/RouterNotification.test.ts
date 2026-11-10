@@ -12,11 +12,28 @@ import {
 import { RouterNotification } from "./RouterNotification";
 import { RouterAuth } from "@f/auth/routers/RouterAuth";
 import { SNotification } from "../schemas/SNotification";
-import ServiceNotification from "../services/ServiceNotification";
 import { EUserRole } from "@f/user/enums/EUserRole";
-import { ITenantUserApp } from "bedest-core";
 
 const api = treaty(RouterNotification);
+
+/**
+ * Bun's WebSocket constructor takes `{ headers }` (Bun.WebSocketOptions),
+ * but with the default DOM lib TypeScript only sees the browser overload;
+ * the guard names the runtime constructor's real signature (no cast).
+ */
+type TBunWebSocketCtor = new (
+  url: string,
+  options: Bun.WebSocketOptions,
+) => WebSocket;
+const isBunWebSocketCtor = (ctor: unknown): ctor is TBunWebSocketCtor =>
+  typeof ctor === "function";
+const openWebSocket = (url: string, headers: Record<string, string>) => {
+  const ctor: unknown = globalThis.WebSocket;
+  if (!isBunWebSocketCtor(ctor)) {
+    throw new Error("WebSocket is not available");
+  }
+  return new ctor(url, { headers });
+};
 
 describe("RouterNotification", () => {
   let wsUrl: string;
@@ -155,10 +172,7 @@ describe("RouterNotification", () => {
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("WS timeout")), 2000);
 
-      const ws = new WebSocket(wsUrl, {
-        // @ts-expect-error - Bun WebSocket accepts headers here
-        headers,
-      });
+      const ws = openWebSocket(wsUrl, headers);
 
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data as string);
@@ -209,10 +223,7 @@ describe("RouterNotification", () => {
         3000,
       );
 
-      const ws = new WebSocket(wsUrl, {
-        // @ts-expect-error - Bun WebSocket accepts headers here
-        headers,
-      });
+      const ws = openWebSocket(wsUrl, headers);
 
       let receivedTerminated = false;
 
@@ -247,21 +258,14 @@ describe("RouterNotification", () => {
     const userB = await createTestUser(EUserRole.USER, test_tenant);
     const foreign = await createForeignTenant(EUserRole.USER);
 
-    // 2. Admin sends broadcast to test_tenant
-    const adminContext: ITenantUserApp = {
-      db: test_db as unknown as ITenantUserApp["db"],
-      nowDatetime: new Date(),
+    // 2. A broadcast to test_tenant (fixture: there is no send API, QLT-05)
+    await test_db.insert(SNotification).values({
       tenantId: test_tenant.id,
-      session: {
-        userId: test_user.id,
-        sessionId: "admin-session",
-        role: EUserRole.ADMIN,
-        isSuperUser: false,
-      },
-    };
-
-    await ServiceNotification.sendToTenant(adminContext, "maintenance_alert", {
-      text: "System maintenance tonight",
+      userId: null,
+      isBroadcast: true,
+      event: "maintenance_alert",
+      payload: { text: "System maintenance tonight" },
+      createdAt: new Date(),
     });
 
     // 3. User A and User B see the broadcast notification

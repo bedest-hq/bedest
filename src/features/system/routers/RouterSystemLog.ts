@@ -2,7 +2,8 @@ import { Elysia, t } from "elysia";
 import Context from "@/app/Context";
 import ServiceSystemLog from "../services/ServiceSystemLog";
 import { EUserRole } from "@/features/user/enums/EUserRole";
-import { UtilRouter, VId, VString } from "bedest-core";
+import { VId, VString } from "bedest-core";
+import { VCursor, VCursorPage } from "@/common/validations/VPagination";
 
 export const RouterSystemLog = new Elysia({
   prefix: "/log",
@@ -29,14 +30,17 @@ export const RouterSystemLog = new Elysia({
               entity: t.Optional(t.String()),
               entityId: t.Optional(VId),
               userId: t.Optional(VId),
+              // Keyset pagination; page is ignored when set [PERF-02].
+              cursor: VCursor,
             }),
-            response: UtilRouter.defPaginatedSchema(
+            response: VCursorPage(
               t.Object({
                 id: VId,
                 userId: VId,
                 action: VString,
                 entity: VString,
-                entityId: VId,
+                entityId: t.Nullable(VId),
+                targetTenantId: t.Nullable(VId),
                 payload: t.Record(t.String(), t.Unknown()),
                 createdAt: t.Date(),
               }),
@@ -58,7 +62,8 @@ export const RouterSystemLog = new Elysia({
               userId: VId,
               action: VString,
               entity: VString,
-              entityId: VId,
+              entityId: t.Nullable(VId),
+              targetTenantId: t.Nullable(VId),
               payload: t.Record(t.String(), t.Unknown()),
               createdAt: t.Date(),
             }),

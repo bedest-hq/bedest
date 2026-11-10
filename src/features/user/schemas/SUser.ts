@@ -1,5 +1,13 @@
-import { uuid, pgTable, varchar } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  uuid,
+  pgTable,
+  varchar,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { EUserRolePg } from "../enums/EUserRole";
+import { EUserStatus, EUserStatusPg } from "../enums/EUserStatus";
 import { STenant } from "@f/tenant/schemas/STenant";
 import { SStorage } from "@f/storage/schemas/SStorage";
 import { baseColumns, UtilDbSchema } from "bedest-core";
@@ -16,10 +24,19 @@ export const SUser = pgTable(
     role: EUserRolePg().notNull(),
     avatarId: uuid().references(() => SStorage.id),
     password: varchar({ length: 255 }).notNull(),
+    // INVITED until the invitation is accepted; cannot log in [FEAT-06].
+    status: EUserStatusPg().notNull().default(EUserStatus.ACTIVE),
+    // Soft-deleted together with its tenant: a restore brings it back [FEAT-09].
+    deletedWithTenant: boolean().notNull().default(false),
   },
   (t) => [
     UtilDbSchema.activeIndex("idx_users_active", t.id),
-    UtilDbSchema.activeUniqueIndex("idx_users_email", t.email),
+    // RLS predicate on active users [PERF-01].
+    UtilDbSchema.activeIndex("idx_users_tenant", t.tenantId),
+    // Case-insensitive uniqueness among active users [SEC-21].
+    uniqueIndex("idx_users_email_lower")
+      .on(sql`lower(${t.email})`)
+      .where(sql`"isDeleted" = false`),
     UtilDbSchema.tenantIsolationPolicy(t.tenantId),
   ],
 ).enableRLS();

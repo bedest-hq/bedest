@@ -1,8 +1,9 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
+import { UtilCursor } from "@/common/utils/UtilCursor";
 import { SSystemLog } from "../schemas/SSystemLog";
 import { logger } from "@/infrastructure/logger/logger";
-import { ITenantUserApp, TDb, UtilTenantScope } from "bedest-core";
+import { ITenantUserApp, TDb, TDbOrTx, UtilTenantScope } from "bedest-core";
 import { and, count, desc, eq, SQL } from "drizzle-orm";
-import { status } from "elysia";
 
 export const SYSTEM_AUDIT_USER_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -12,8 +13,9 @@ class ServiceSystemLog {
     params: {
       action: string;
       entity: string;
-      entityId: string;
-      payload: unknown;
+      entityId: string | null;
+      targetTenantId?: string | null;
+      payload: Record<string, unknown>;
     },
   ) {
     try {
@@ -24,7 +26,8 @@ class ServiceSystemLog {
           action: params.action,
           entity: params.entity,
           entityId: params.entityId,
-          payload: params.payload as Record<string, unknown>,
+          targetTenantId: params.targetTenantId ?? null,
+          payload: params.payload,
         });
       });
     } catch (err) {
@@ -39,22 +42,51 @@ class ServiceSystemLog {
       userId?: string;
       action: string;
       entity: string;
-      entityId: string;
-      payload: unknown;
+      entityId: string | null;
+      payload: Record<string, unknown>;
     },
   ) {
     try {
-      await db.insert(SSystemLog).values({
-        tenantId: params.tenantId,
-        userId: params.userId ?? SYSTEM_AUDIT_USER_ID,
-        action: params.action,
-        entity: params.entity,
-        entityId: params.entityId,
-        payload: params.payload as Record<string, unknown>,
+      // System events are written across tenants: system scope [BUG-01].
+      await UtilTenantScope.systemScope(db, async (tx) => {
+        await tx.insert(SSystemLog).values({
+          tenantId: params.tenantId,
+          userId: params.userId ?? SYSTEM_AUDIT_USER_ID,
+          action: params.action,
+          entity: params.entity,
+          entityId: params.entityId,
+          payload: params.payload,
+        });
       });
     } catch (err) {
       logger.error({ err, params }, "Audit Log insertion failed");
     }
+  }
+
+  /**
+   * Inserts a system event inside the caller's transaction. Unlike
+   * `logEvent` it does not swallow errors, so the surrounding transaction
+   * rolls back when the audit row cannot be written.
+   */
+  async insertEvent(
+    tx: TDbOrTx,
+    params: {
+      tenantId: string;
+      userId?: string;
+      action: string;
+      entity: string;
+      entityId: string | null;
+      payload: Record<string, unknown>;
+    },
+  ) {
+    await tx.insert(SSystemLog).values({
+      tenantId: params.tenantId,
+      userId: params.userId ?? SYSTEM_AUDIT_USER_ID,
+      action: params.action,
+      entity: params.entity,
+      entityId: params.entityId,
+      payload: params.payload,
+    });
   }
 
   async getAll(
@@ -66,8 +98,13 @@ class ServiceSystemLog {
       entity?: string;
       entityId?: string;
       userId?: string;
+      cursor?: string;
     },
   ) {
+    // Decode before opening the transaction: a bad cursor is a 400.
+    const cursor =
+      query.cursor === undefined ? undefined : UtilCursor.decode(query.cursor);
+
     return await UtilTenantScope.tenantScope(c, async (tx) => {
       const filters: SQL<unknown>[] = [];
 
@@ -84,29 +121,50 @@ class ServiceSystemLog {
         filters.push(eq(SSystemLog.userId, query.userId));
       }
 
+      const select = () =>
+        tx
+          .select({
+            row: {
+              id: SSystemLog.id,
+              userId: SSystemLog.userId,
+              action: SSystemLog.action,
+              entity: SSystemLog.entity,
+              entityId: SSystemLog.entityId,
+              targetTenantId: SSystemLog.targetTenantId,
+              payload: SSystemLog.payload,
+              createdAt: SSystemLog.createdAt,
+            },
+            cursorKey: UtilCursor.key(SSystemLog.createdAt),
+          })
+          .from(SSystemLog)
+          .orderBy(desc(SSystemLog.createdAt), desc(SSystemLog.id))
+          .$dynamic();
+
+      // Keyset mode: no COUNT, no OFFSET [PERF-02].
+      if (cursor) {
+        const rows = await select()
+          .where(
+            and(
+              ...filters,
+              UtilCursor.after(SSystemLog.createdAt, SSystemLog.id, cursor),
+            ),
+          )
+          .limit(query.limit + 1);
+        const { data, nextCursor } = UtilCursor.page(rows, query.limit);
+        return { data, meta: { limit: query.limit, nextCursor } };
+      }
+
       const [totalRes] = await tx
         .select({ count: count() })
         .from(SSystemLog)
         .where(and(...filters));
 
       const total = Number(totalRes.count);
-      const offset = (query.page - 1) * query.limit;
-
-      const data = await tx
-        .select({
-          id: SSystemLog.id,
-          userId: SSystemLog.userId,
-          action: SSystemLog.action,
-          entity: SSystemLog.entity,
-          entityId: SSystemLog.entityId,
-          payload: SSystemLog.payload,
-          createdAt: SSystemLog.createdAt,
-        })
-        .from(SSystemLog)
+      const rows = await select()
         .where(and(...filters))
-        .orderBy(desc(SSystemLog.createdAt))
-        .limit(query.limit)
-        .offset(offset);
+        .limit(query.limit + 1)
+        .offset((query.page - 1) * query.limit);
+      const { data, nextCursor } = UtilCursor.page(rows, query.limit);
 
       return {
         data,
@@ -115,6 +173,7 @@ class ServiceSystemLog {
           page: query.page,
           limit: query.limit,
           totalPages: Math.ceil(total / query.limit),
+          nextCursor,
         },
       };
     });
@@ -129,7 +188,7 @@ class ServiceSystemLog {
         .limit(1);
 
       if (!res) {
-        throw status("Not Found");
+        throw UtilHttp.fail(404);
       }
 
       return res;

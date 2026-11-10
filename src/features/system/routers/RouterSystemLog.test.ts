@@ -6,6 +6,7 @@ import {
   test_user,
   test_tenant,
   test_db,
+  testSystemHeaders,
 } from "@/common/tests/TestManager.test";
 import { RouterSystemLog } from "./RouterSystemLog";
 import { SSystemLog } from "../schemas/SSystemLog";
@@ -20,7 +21,7 @@ const userApi = treaty(RouterUser);
 
 describe("RouterSystemLog", () => {
   it("List and filter audit logs for ADMIN/SYSTEM", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     await test_db.insert(SSystemLog).values({
       tenantId: test_tenant.id,
@@ -46,7 +47,7 @@ describe("RouterSystemLog", () => {
   });
 
   it("Get a specific audit log by ID", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     const [insertedLog] = await test_db
       .insert(SSystemLog)
@@ -68,7 +69,7 @@ describe("RouterSystemLog", () => {
   });
 
   it("Return 404 for non-existent log ID", async () => {
-    const headers = await testHeaders();
+    const headers = await testSystemHeaders();
 
     const res = await api.log({ id: SYSTEM_UUID }).get({ headers });
 

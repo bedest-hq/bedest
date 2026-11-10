@@ -1,12 +1,61 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import { EUserRole } from "../enums/EUserRole";
 import { SUser } from "../schemas/SUser";
-import { status } from "elysia";
-import { eq, and } from "drizzle-orm";
-import { ITenantUserApp, ServiceBaseTenant, UtilTenantScope } from "bedest-core";
+
+import { and, count, eq, ne } from "drizzle-orm";
+import {
+  ITenantUserApp,
+  ServiceBaseTenant,
+  UtilTenantScope,
+} from "bedest-core";
+import { IPolicyActor, UtilUserPolicy } from "../utils/UtilUserPolicy";
+import { UtilEmail } from "../utils/UtilEmail";
+import ServiceSession from "@f/session/services/ServiceSession";
+import ServiceStorage from "@f/storage/services/ServiceStorage";
+import ServiceSystemLog from "@f/system/services/ServiceSystemLog";
 
 class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
   constructor() {
     super(SUser);
+  }
+
+  private actor(c: ITenantUserApp): IPolicyActor {
+    return {
+      role: c.session.role,
+      userId: c.session.userId,
+      tenantId: c.tenantId,
+    };
+  }
+
+  /**
+   * Loads an active user the actor can see (any tenant for SYSTEM, the
+   * actor's own tenant otherwise); 404 when not visible.
+   */
+  private async loadTarget(c: ITenantUserApp, id: string) {
+    const columns = {
+      id: SUser.id,
+      role: SUser.role,
+      tenantId: SUser.tenantId,
+      password: SUser.password,
+    };
+    const active = and(eq(SUser.id, id), eq(SUser.isDeleted, false));
+
+    const [row] = c.session.isSuperUser
+      ? await UtilTenantScope.systemScope(c.db, (tx) =>
+          tx.select(columns).from(SUser).where(active).limit(1),
+        )
+      : await UtilTenantScope.tenantScope(c, (tx) =>
+          tx
+            .select(columns)
+            .from(SUser)
+            .where(and(active, eq(SUser.tenantId, c.tenantId)))
+            .limit(1),
+        );
+
+    if (!row) {
+      throw UtilHttp.fail(404);
+    }
+    return row;
   }
 
   async create(
@@ -19,42 +68,35 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       avatarId?: string;
     },
   ) {
+    if (!UtilUserPolicy.canGrantRole(c.session.role, data.role)) {
+      throw UtilHttp.fail(403);
+    }
+
     const hash = await Bun.password.hash(data.password);
-
-    const userR = c.session.role;
-    const targetR = data.role;
-
-    if (targetR === EUserRole.SYSTEM && userR !== EUserRole.SYSTEM) {
-      throw status("Forbidden");
-    }
-
-    if (
-      targetR === EUserRole.ADMIN &&
-      userR !== EUserRole.ADMIN &&
-      userR !== EUserRole.SYSTEM
-    ) {
-      throw status("Forbidden");
-    }
 
     return super.create(c, {
       ...data,
+      email: UtilEmail.normalize(data.email),
       password: hash,
     });
   }
 
-  async getAll(c: ITenantUserApp, query: { limit: number; page: number }) {
-    return super.getAll(c, query, {
+  /** Tenant users without credentials (the base getAll takes columns). */
+  async list(c: ITenantUserApp, query: { limit: number; page: number }) {
+    return this.getAll(c, query, {
       id: SUser.id,
       tenantId: SUser.tenantId,
       name: SUser.name,
       role: SUser.role,
+      status: SUser.status,
       avatarId: SUser.avatarId,
       createdAt: SUser.createdAt,
     });
   }
 
-  async getById(c: ITenantUserApp, id: string) {
-    return super.getById(c, id, {
+  /** One user profile without credentials. */
+  async getProfile(c: ITenantUserApp, id: string) {
+    return this.getById(c, id, {
       name: SUser.name,
       role: SUser.role,
       email: SUser.email,
@@ -70,47 +112,41 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
       name?: string;
       password?: string;
       currentPassword?: string;
-      avatarId?: string;
+      avatarId?: string | null;
+      role?: EUserRole;
     },
   ) {
-    const isSelf = c.session.userId === id;
-    const isPrivileged = [EUserRole.ADMIN, EUserRole.SYSTEM].includes(
-      c.session.role as EUserRole, // FIXME with a better usage.
-    );
+    const actor = this.actor(c);
+    const target = await this.loadTarget(c, id);
 
-    if (!isSelf && !isPrivileged) {
-      throw status("Forbidden");
-    }
-
-    if (data.password) {
-      if (!isPrivileged) {
+    if (UtilUserPolicy.isSelf(actor, target)) {
+      if (data.role !== undefined) {
+        throw UtilHttp.fail(403, "You cannot change your own role");
+      }
+      if (data.password) {
         if (!data.currentPassword) {
-          throw status("Bad Request", {
-            message: "currentPassword is required to change your password",
-          });
+          throw UtilHttp.fail(
+            400,
+            "currentPassword is required to change your password",
+          );
         }
-
-        const existing = await UtilTenantScope.tenantScope(c, async (tx) => {
-          const [row] = await tx
-            .select({ password: SUser.password })
-            .from(SUser)
-            .where(and(eq(SUser.id, id), eq(SUser.isDeleted, false)))
-            .limit(1);
-          return row;
-        });
-
-        if (!existing) {
-          throw status("Not Found");
-        }
-
         const valid = await Bun.password.verify(
           data.currentPassword,
-          existing.password,
+          target.password,
         );
-
         if (!valid) {
-          throw status("Unauthorized", { message: "Wrong current password" });
+          throw UtilHttp.fail(401, "Wrong current password");
         }
+      }
+    } else {
+      if (!UtilUserPolicy.canManage(actor, target)) {
+        throw UtilHttp.fail(403);
+      }
+      if (
+        data.role !== undefined &&
+        !UtilUserPolicy.canGrantRole(actor.role, data.role)
+      ) {
+        throw UtilHttp.fail(403);
       }
     }
 
@@ -122,49 +158,104 @@ class ServiceUser extends ServiceBaseTenant<typeof SUser, string> {
     if (data.password) {
       payload.password = await Bun.password.hash(data.password);
     }
-    if (data.avatarId) {
+    // null clears the avatar; a new one must be a READY file of the
+    // target user's tenant [SEC-27].
+    if (data.avatarId !== undefined) {
+      if (data.avatarId !== null) {
+        await ServiceStorage.assertAttachable(
+          c,
+          target.tenantId,
+          data.avatarId,
+        );
+      }
       payload.avatarId = data.avatarId;
+    }
+    if (data.role !== undefined) {
+      payload.role = data.role;
     }
 
     await super.update(c, id, payload);
 
+    // Credentials or privileges changed: old sessions must not survive
+    // [SEC-08]. Your own password change keeps the current session only.
+    const roleChanged = data.role !== undefined && data.role !== target.role;
+    if (data.password || roleChanged) {
+      await ServiceSession.revokeUserSessions(c, id, {
+        exceptSessionId:
+          UtilUserPolicy.isSelf(actor, target) && !roleChanged
+            ? c.session.sessionId
+            : undefined,
+      });
+    }
+
+    // Security events [FEAT-07]: never the password itself.
+    if (data.password) {
+      await ServiceSystemLog.log(c, {
+        action: "PASSWORD_CHANGED",
+        entity: "user",
+        entityId: id,
+        payload: { self: UtilUserPolicy.isSelf(actor, target) },
+      });
+    }
+    if (roleChanged) {
+      await ServiceSystemLog.log(c, {
+        action: "ROLE_CHANGED",
+        entity: "user",
+        entityId: id,
+        payload: { from: target.role, to: data.role },
+      });
+    }
+
     return { success: true };
   }
 
+  /**
+   * Refuses to delete the last active ADMIN of a tenant or the last active
+   * SYSTEM user of the platform (self-lockout, orphaned tenants) [SEC-13].
+   */
+  private async assertNotLastPrivileged(
+    c: ITenantUserApp,
+    target: { id: string; role: string; tenantId: string },
+  ) {
+    if (target.role !== EUserRole.ADMIN && target.role !== EUserRole.SYSTEM) {
+      return;
+    }
+    const sameRole = and(
+      eq(
+        SUser.role,
+        target.role === EUserRole.ADMIN ? EUserRole.ADMIN : EUserRole.SYSTEM,
+      ),
+      eq(SUser.isDeleted, false),
+      ne(SUser.id, target.id),
+      target.role === EUserRole.ADMIN
+        ? eq(SUser.tenantId, target.tenantId)
+        : undefined,
+    );
+    const [others] = await UtilTenantScope.systemScope(c.db, (tx) =>
+      tx.select({ n: count() }).from(SUser).where(sameRole),
+    );
+    if (Number(others?.n ?? 0) === 0) {
+      throw UtilHttp.fail(
+        409,
+        target.role === EUserRole.ADMIN
+          ? "Cannot delete the last active ADMIN of the tenant"
+          : "Cannot delete the last active SYSTEM user",
+      );
+    }
+  }
+
   override async remove(c: ITenantUserApp, id: string) {
-    const target = await UtilTenantScope.systemScope(c.db, async (tx) => {
-      const [row] = await tx
-        .select({ id: SUser.id, role: SUser.role, tenantId: SUser.tenantId })
-        .from(SUser)
-        .where(and(eq(SUser.id, id), eq(SUser.isDeleted, false)))
-        .limit(1);
-      return row;
-    });
+    const target = await this.loadTarget(c, id);
 
-    if (!target) {
-      throw status("Not Found");
+    if (!UtilUserPolicy.canManage(this.actor(c), target)) {
+      throw UtilHttp.fail(403);
     }
 
-    if (
-      target.role === EUserRole.SYSTEM &&
-      c.session.role !== EUserRole.SYSTEM
-    ) {
-      throw status("Forbidden");
-    }
+    await this.assertNotLastPrivileged(c, target);
 
-    if (
-      target.role === EUserRole.ADMIN &&
-      c.session.role !== EUserRole.SYSTEM &&
-      c.session.userId !== id
-    ) {
-      throw status("Forbidden");
-    }
-
-    if (c.session.role !== EUserRole.SYSTEM && target.tenantId !== c.tenantId) {
-      throw status("Forbidden");
-    }
-
-    return super.remove(c, id);
+    const res = await super.remove(c, id);
+    await ServiceSession.revokeUserSessions(c, id);
+    return res;
   }
 }
 

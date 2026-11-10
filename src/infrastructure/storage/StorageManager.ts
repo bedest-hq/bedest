@@ -1,14 +1,27 @@
+import { UtilHttp } from "@/common/utils/UtilHttp";
 import EnvManager from "../env/EnvManager";
 import { logger } from "../logger/logger";
-import { status } from "elysia";
-import { IProvider } from "./interfaces/IProvider";
+
+import { IObjectHead, IProvider, IStoredObject } from "./interfaces/IProvider";
 import { ProviderLocal } from "./providers/ProviderLocal";
 import { ProviderS3 } from "./providers/ProviderS3";
 
 class StorageManager {
-  private activeProvider: IProvider | null = null;
+  private resolved: IProvider | null | undefined;
 
-  constructor() {
+  /** Chosen from the environment on first use, never at import [QLT-01]. */
+  private get activeProvider(): IProvider | null {
+    if (this.resolved === undefined) {
+      this.resolved = StorageManager.fromEnv();
+    }
+    return this.resolved;
+  }
+
+  private set activeProvider(provider: IProvider | null) {
+    this.resolved = provider;
+  }
+
+  private static fromEnv(): IProvider | null {
     const env = EnvManager.get();
 
     if (
@@ -17,14 +30,47 @@ class StorageManager {
       env.S3_ACCESS_KEY &&
       env.S3_SECRET_KEY
     ) {
-      this.activeProvider = new ProviderS3();
       logger.info("S3 Storage Provider enabled.");
-    } else if (env.LOCAL_STORAGE_PATH) {
-      this.activeProvider = new ProviderLocal(env.LOCAL_STORAGE_PATH);
-      logger.info("Local Storage Provider enabled.");
-    } else {
-      logger.warn("No storage providers configured! File uploads will fail.");
+      return new ProviderS3();
     }
+    if (env.LOCAL_STORAGE_PATH) {
+      logger.info("Local Storage Provider enabled.");
+      return new ProviderLocal(env.LOCAL_STORAGE_PATH);
+    }
+    logger.warn("No storage providers configured! File uploads will fail.");
+    return null;
+  }
+
+  /** Whether the active provider can issue presigned URLs [BUG-04]. */
+  supportsPresign(): boolean {
+    return Boolean(
+      this.activeProvider?.getUploadUrl && this.activeProvider.getDownloadUrl,
+    );
+  }
+
+  private static notImplemented() {
+    return UtilHttp.fail(
+      501,
+      "The active storage provider does not support presigned URLs",
+    );
+  }
+
+  /** Test hook: swap the provider; returns a function restoring the old one. */
+  useProviderForTesting(provider: IProvider | null) {
+    const previous = this.activeProvider;
+    this.activeProvider = provider;
+    return () => {
+      this.activeProvider = previous;
+    };
+  }
+
+  /** Readiness probe: throws when the configured provider is unusable. */
+  async healthCheck(): Promise<"ok" | "disabled"> {
+    if (!this.activeProvider) {
+      return "disabled";
+    }
+    await this.activeProvider.healthCheck();
+    return "ok";
   }
 
   async upload(
@@ -33,7 +79,7 @@ class StorageManager {
     contentType: string,
   ): Promise<void> {
     if (!this.activeProvider) {
-      throw status("Service Unavailable");
+      throw UtilHttp.fail(503);
     }
     await this.activeProvider.upload(key, body, contentType);
   }
@@ -45,35 +91,50 @@ class StorageManager {
     await this.activeProvider.delete(key);
   }
 
-  async download(key: string): Promise<Blob | null> {
+  async download(key: string): Promise<IStoredObject | null> {
     if (!this.activeProvider) {
-      throw status("Service Unavailable");
+      throw UtilHttp.fail(503);
     }
     return await this.activeProvider.download(key);
+  }
+
+  /** Size and type of an object; null when it does not exist [FEAT-12]. */
+  async head(key: string): Promise<IObjectHead | null> {
+    if (!this.activeProvider) {
+      throw UtilHttp.fail(503);
+    }
+    return await this.activeProvider.head(key);
   }
 
   async getUploadUrl(
     key: string,
     contentType: string,
+    contentLength: number,
     expiresIn = 300,
   ): Promise<string> {
     if (!this.activeProvider) {
-      throw status("Service Unavailable");
+      throw UtilHttp.fail(503);
     }
-    if (this.activeProvider.getUploadUrl) {
-      return await this.activeProvider.getUploadUrl(key, contentType, expiresIn);
+    // No fake URLs pointing at routes that do not exist [BUG-04].
+    if (!this.activeProvider.getUploadUrl) {
+      throw StorageManager.notImplemented();
     }
-    return `/storage/upload?key=${encodeURIComponent(key)}`;
+    return await this.activeProvider.getUploadUrl(
+      key,
+      contentType,
+      contentLength,
+      expiresIn,
+    );
   }
 
   async getDownloadUrl(key: string, expiresIn = 300): Promise<string> {
     if (!this.activeProvider) {
-      throw status("Service Unavailable");
+      throw UtilHttp.fail(503);
     }
-    if (this.activeProvider.getDownloadUrl) {
-      return await this.activeProvider.getDownloadUrl(key, expiresIn);
+    if (!this.activeProvider.getDownloadUrl) {
+      throw StorageManager.notImplemented();
     }
-    return `/storage/download?key=${encodeURIComponent(key)}`;
+    return await this.activeProvider.getDownloadUrl(key, expiresIn);
   }
 }
 

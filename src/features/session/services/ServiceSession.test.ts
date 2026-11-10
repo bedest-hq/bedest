@@ -1,11 +1,15 @@
 import { describe, it, expect } from "bun:test";
 import ServiceSession from "./ServiceSession";
-import { test_db, test_user, test_tenant } from "@/common/tests/TestManager.test";
+import {
+  test_owner_db,
+  test_user,
+  test_tenant,
+} from "@/common/tests/TestManager.test";
 import { IApp } from "bedest-core";
 
 describe("ServiceSession", () => {
   const context: IApp = {
-    db: test_db as unknown as IApp["db"],
+    db: test_owner_db,
     nowDatetime: new Date(),
   };
 
@@ -39,10 +43,16 @@ describe("ServiceSession", () => {
     });
 
     // 3. isValid returns false for expired session, true for valid session
-    const isExpiredValid = await ServiceSession.isValid(context, expiredSession!.id);
+    const isExpiredValid = await ServiceSession.isValid(
+      context,
+      expiredSession!.id,
+    );
     expect(isExpiredValid).toBe(false);
 
-    const isFutureValid = await ServiceSession.isValid(context, validSession!.id);
+    const isFutureValid = await ServiceSession.isValid(
+      context,
+      validSession!.id,
+    );
     expect(isFutureValid).toBe(true);
 
     // 4. Run cleanExpiredSessions
@@ -50,11 +60,17 @@ describe("ServiceSession", () => {
     expect(cleanResult.count).toBeGreaterThanOrEqual(1);
 
     // 5. Expired session no longer exists in DB
-    const isExpiredStillValid = await ServiceSession.isValid(context, expiredSession!.id);
+    const isExpiredStillValid = await ServiceSession.isValid(
+      context,
+      expiredSession!.id,
+    );
     expect(isExpiredStillValid).toBe(false);
 
     // 6. Valid session remains valid
-    const isFutureStillValid = await ServiceSession.isValid(context, validSession!.id);
+    const isFutureStillValid = await ServiceSession.isValid(
+      context,
+      validSession!.id,
+    );
     expect(isFutureStillValid).toBe(true);
   });
 });

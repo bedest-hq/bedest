@@ -1,12 +1,11 @@
-import { Elysia, status, t } from "elysia";
+import { Elysia, t } from "elysia";
 import { STenant } from "../schemas/STenant";
-import { ETenantPlan } from "../enums/ETenantPlan";
 import ServiceTenant from "../services/ServiceTenant";
 import Context from "@/app/Context";
 import { EUserRole } from "@f/user/enums/EUserRole";
 import { VTenantPlan } from "../validations/VTenantPlan";
+import { VTenantInput } from "../validations/VTenantInput";
 import { RouterTenantPublic } from "./RouterTenantPublic";
-import ServiceUser from "@f/user/services/ServiceUser";
 import { UtilRouter, VEmail, VId, VQuery, VString } from "bedest-core";
 
 export const RouterTenant = new Elysia({
@@ -77,16 +76,8 @@ export const RouterTenant = new Elysia({
   .get(
     "/:id",
     async ({ params, userRuntime }) => {
-      const id = params.id;
-
-      if (
-        userRuntime.session.role !== EUserRole.SYSTEM &&
-        id !== userRuntime.tenantId
-      ) {
-        throw status("Forbidden");
-      }
-
-      const res = await ServiceTenant.getById(userRuntime, id, {
+      // Own tenant only unless SYSTEM: enforced by the service [BUG-15].
+      const res = await ServiceTenant.getById(userRuntime, params.id, {
         name: STenant.name,
         domain: STenant.domain,
         email: STenant.email,
@@ -140,18 +131,9 @@ export const RouterTenant = new Elysia({
   .put(
     "/:id",
     async ({ body, params, userRuntime }) => {
-      const id = params.id;
-
-      if (userRuntime.session.role !== EUserRole.SYSTEM) {
-        if (id !== userRuntime.tenantId) {
-          throw status("Forbidden");
-        }
-        delete body.plan;
-        delete body.planStart;
-        delete body.planEnd;
-      }
-
-      return await ServiceTenant.update(userRuntime, id, body);
+      // Authorization (own tenant, plan fields SYSTEM-only) is enforced by
+      // the service; the body is passed unchanged [BUG-15].
+      return await ServiceTenant.update(userRuntime, params.id, body);
     },
     {
       RoleGuard: [EUserRole.ADMIN, EUserRole.SYSTEM],
@@ -159,35 +141,29 @@ export const RouterTenant = new Elysia({
         id: VId,
       }),
       body: t.Object({
-        name: t.Optional(VString),
-        domain: t.Optional(VString),
-        country: t.Optional(VString),
-        phones: t.Optional(t.Array(t.String())),
-        links: t.Optional(t.Array(t.String())),
-        address: t.Optional(VString),
-        city: t.Optional(VString),
-        state: t.Optional(VString),
-        zipCode: t.Optional(VString),
-        taxId: t.Optional(VString),
-        currency: t.Optional(VString),
-        timezone: t.Optional(VString),
-        description: t.Optional(VString),
-        tagline: t.Optional(t.Nullable(VString)),
-        workingHours: t.Optional(t.Nullable(VString)),
-        copyright: t.Optional(t.Nullable(VString)),
-        email: t.Optional(VString),
+        name: t.Optional(VTenantInput.name),
+        domain: t.Optional(VTenantInput.domain),
+        country: t.Optional(VTenantInput.country),
+        phones: t.Optional(VTenantInput.phones),
+        links: t.Optional(VTenantInput.links),
+        address: t.Optional(VTenantInput.address),
+        city: t.Optional(VTenantInput.city),
+        state: t.Optional(VTenantInput.state),
+        zipCode: t.Optional(VTenantInput.zipCode),
+        taxId: t.Optional(VTenantInput.taxId),
+        currency: t.Optional(VTenantInput.currency),
+        timezone: t.Optional(VTenantInput.timezone),
+        description: t.Optional(VTenantInput.description),
+        tagline: t.Optional(t.Nullable(VTenantInput.tagline)),
+        workingHours: t.Optional(t.Nullable(VTenantInput.workingHours)),
+        copyright: t.Optional(t.Nullable(VTenantInput.copyright)),
+        email: t.Optional(VEmail),
         logoId: t.Optional(VId),
-        plan: t.Optional(
-          t.Union([
-            t.Literal(ETenantPlan.BASIC),
-            t.Literal(ETenantPlan.STANDARD),
-            t.Literal(ETenantPlan.PROFESSIONAL),
-          ]),
-        ),
+        plan: t.Optional(VTenantPlan),
         planStart: t.Optional(t.Date()),
         planEnd: t.Optional(t.Date()),
       }),
-      audit: true,
+      audit: { entity: "tenant", targetTenant: "entity" },
     },
   )
   .guard(
@@ -199,58 +175,38 @@ export const RouterTenant = new Elysia({
         .post(
           "/",
           async ({ body, userRuntime }) => {
-            const tenant = await ServiceTenant.create(userRuntime, body);
-
-            const randomBuffer = new Uint8Array(6);
-            crypto.getRandomValues(randomBuffer);
-            const password = Buffer.from(randomBuffer).toString("hex");
-
-            await ServiceUser.create(
-              { ...userRuntime, tenantId: tenant.id },
-              {
-                email: body.email,
-                name: "Admin",
-                role: EUserRole.ADMIN,
-                password,
-              },
-            );
-
-            return { id: tenant.id, password };
+            // Tenant and ADMIN in one transaction [BUG-16].
+            return await ServiceTenant.createWithAdmin(userRuntime, body);
           },
           {
             body: t.Object({
-              name: VString,
-              domain: VString,
-              country: VString,
-              phones: t.Array(t.String()),
-              links: t.Optional(t.Array(t.String())),
-              address: t.Optional(VString),
-              city: t.Optional(VString),
-              state: t.Optional(VString),
-              zipCode: t.Optional(VString),
-              taxId: t.Optional(VString),
-              currency: t.Optional(VString),
-              timezone: t.Optional(VString),
-              description: t.Optional(VString),
-              tagline: t.Optional(t.Nullable(VString)),
-              workingHours: t.Optional(t.Nullable(VString)),
-              copyright: t.Optional(t.Nullable(VString)),
-              email: VString,
-              logoId: t.Optional(VId),
-              plan: t.Union([
-                t.Literal(ETenantPlan.BASIC),
-                t.Literal(ETenantPlan.STANDARD),
-                t.Literal(ETenantPlan.PROFESSIONAL),
-              ]),
+              name: VTenantInput.name,
+              domain: VTenantInput.domain,
+              country: VTenantInput.country,
+              phones: VTenantInput.phones,
+              links: t.Optional(VTenantInput.links),
+              address: t.Optional(VTenantInput.address),
+              city: t.Optional(VTenantInput.city),
+              state: t.Optional(VTenantInput.state),
+              zipCode: t.Optional(VTenantInput.zipCode),
+              taxId: t.Optional(VTenantInput.taxId),
+              currency: t.Optional(VTenantInput.currency),
+              timezone: t.Optional(VTenantInput.timezone),
+              description: t.Optional(VTenantInput.description),
+              tagline: t.Optional(t.Nullable(VTenantInput.tagline)),
+              workingHours: t.Optional(t.Nullable(VTenantInput.workingHours)),
+              copyright: t.Optional(t.Nullable(VTenantInput.copyright)),
+              email: VEmail,
+              // No logoId: a new tenant owns no file yet; set it with PUT
+              // after uploading [SEC-27].
+              plan: VTenantPlan,
               planStart: t.Date(),
               planEnd: t.Date(),
             }),
-            response: t.Object({
-              id: VId,
-              password: t.String(),
-            }),
+            // The ADMIN is invited by e-mail; no password [SEC-23][FEAT-06].
+            response: t.Object({ id: VId }),
 
-            audit: true,
+            audit: { entity: "tenant", targetTenant: "entity" },
           },
         )
         .delete(
@@ -262,7 +218,25 @@ export const RouterTenant = new Elysia({
             params: t.Object({
               id: VId,
             }),
-            audit: true,
+            audit: { entity: "tenant", targetTenant: "entity" },
+          },
+        )
+        .post(
+          "/:id/restore",
+          async ({ params, userRuntime }) =>
+            await ServiceTenant.restore(userRuntime, params.id),
+          {
+            params: t.Object({ id: VId }),
+            response: t.Object({
+              success: t.Boolean(),
+              restoredUsers: t.Number(),
+            }),
+            // [FEAT-09]
+            audit: {
+              entity: "tenant",
+              action: "RESTORE",
+              targetTenant: "entity",
+            },
           },
         )
         .get(

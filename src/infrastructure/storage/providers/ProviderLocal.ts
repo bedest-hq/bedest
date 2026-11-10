@@ -1,12 +1,19 @@
 import path from "node:path";
+import { access, constants, mkdir } from "node:fs/promises";
 import { logger } from "../../logger/logger";
-import { IProvider } from "../interfaces/IProvider";
+import { IObjectHead, IProvider, IStoredObject } from "../interfaces/IProvider";
 
 export class ProviderLocal implements IProvider {
   private basePath: string;
 
   constructor(basePath: string) {
     this.basePath = basePath;
+  }
+
+  /** The storage directory exists (created if needed) and is writable. */
+  async healthCheck(): Promise<void> {
+    await mkdir(this.basePath, { recursive: true });
+    await access(this.basePath, constants.W_OK);
   }
 
   async upload(key: string, body: Buffer | ArrayBuffer): Promise<void> {
@@ -39,35 +46,30 @@ export class ProviderLocal implements IProvider {
         { err, key, path: fullPath },
         "Failed to delete file locally",
       );
+      // Propagate: the purge job decides whether to retry [BUG-03].
+      throw new Error("Local storage delete failed", { cause: err });
     }
   }
 
-  async download(key: string): Promise<Blob | null> {
-    const fullPath = path.join(this.basePath, key);
-    const file = Bun.file(fullPath);
-
-    try {
-      const exists = await file.exists();
-      if (!exists) {
-        return null;
-      }
-
-      return file;
-    } catch (err) {
-      logger.error(
-        { err, key, path: fullPath },
-        "Failed to download file locally",
-      );
+  /** Streams the file; null when it does not exist, other errors throw [BUG-18]. */
+  async download(key: string): Promise<IStoredObject | null> {
+    const file = Bun.file(path.join(this.basePath, key));
+    if (!(await file.exists())) {
       return null;
     }
+    return {
+      stream: file.stream(),
+      contentLength: file.size,
+      contentType: file.type || undefined,
+    };
   }
 
-  getUploadUrl(key: string, contentType: string): Promise<string> {
-    void contentType;
-    return Promise.resolve(`/storage/upload?key=${encodeURIComponent(key)}`);
-  }
-
-  getDownloadUrl(key: string): Promise<string> {
-    return Promise.resolve(`/storage/download?key=${encodeURIComponent(key)}`);
+  /** Size and type (from the key extension); null when missing [FEAT-12]. */
+  async head(key: string): Promise<IObjectHead | null> {
+    const file = Bun.file(path.join(this.basePath, key));
+    if (!(await file.exists())) {
+      return null;
+    }
+    return { contentLength: file.size, contentType: file.type || undefined };
   }
 }

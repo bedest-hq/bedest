@@ -1,8 +1,11 @@
 import Context from "@/app/Context";
 import { Elysia, t } from "elysia";
 import ServiceNotification from "../services/ServiceNotification";
-import { UtilRouter, VId, VQuery } from "bedest-core";
+import { VId, VQuery } from "bedest-core";
+import { VCursor, VCursorPage } from "@/common/validations/VPagination";
 import WsManager from "@/infrastructure/websocket/WsManager";
+import EnvManager from "@/infrastructure/env/EnvManager";
+import { UtilOrigin } from "@/app/plugins/UtilOrigin";
 
 export const RouterNotification = new Elysia({
   prefix: "/notifications",
@@ -22,9 +25,11 @@ export const RouterNotification = new Elysia({
         VQuery,
         t.Object({
           unreadOnly: t.Optional(t.BooleanString()),
+          // Keyset pagination; page is ignored when set [PERF-02].
+          cursor: VCursor,
         }),
       ]),
-      response: UtilRouter.defPaginatedSchema(
+      response: VCursorPage(
         t.Object({
           id: VId,
           event: t.String(),
@@ -61,16 +66,30 @@ export const RouterNotification = new Elysia({
   // WebSocket
 
   .ws("/live", {
+    // Cross-site WebSocket hijacking protection [SEC-18]: in production the
+    // upgrade is refused unless Origin is one of CORS_ORIGINS.
+    beforeHandle({ request, set }) {
+      const env = EnvManager.get();
+      if (
+        env.NODE_ENV === "production" &&
+        !UtilOrigin.isAllowed(request.headers.get("origin"), env)
+      ) {
+        set.status = 403;
+        return "Forbidden";
+      }
+    },
     body: t.Object({
       event: t.Literal("ping"),
     }),
     open(ws) {
-      const { userRuntime } = ws.data;
-      WsManager.registerClient(
-        userRuntime.session.userId,
-        ws,
-        userRuntime.session.sessionId,
-      );
+      const { userRuntime, accessTokenExpiresAt } = ws.data;
+      // Keyed by the connection id; closed on revocation or token expiry
+      // [BUG-10].
+      WsManager.registerClient(ws, {
+        userId: userRuntime.session.userId,
+        sessionId: userRuntime.session.sessionId,
+        expiresAt: accessTokenExpiresAt,
+      });
       ws.subscribe(`tenant:${userRuntime.tenantId}`);
       ws.subscribe(`user:${userRuntime.session.userId}`);
       ws.send({ event: "connected" });
@@ -82,11 +101,7 @@ export const RouterNotification = new Elysia({
     },
     close(ws) {
       const { userRuntime } = ws.data;
-      WsManager.unregisterClient(
-        userRuntime.session.userId,
-        ws,
-        userRuntime.session.sessionId,
-      );
+      WsManager.unregisterClient(ws);
       ws.unsubscribe(`tenant:${userRuntime.tenantId}`);
       ws.unsubscribe(`user:${userRuntime.session.userId}`);
     },

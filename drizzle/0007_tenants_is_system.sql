@@ -1,0 +1,1 @@
+ALTER TABLE "tenants" ADD COLUMN "isSystem" boolean DEFAULT false NOT NULL;

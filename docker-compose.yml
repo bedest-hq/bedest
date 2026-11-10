@@ -1,45 +1,114 @@
-services:
-  api:
-    container_name: bedest
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "${PORT:-3000}:${PORT:-3000}"
-    env_file:
-      - .env
-    environment:
-      - DATABASE_HOST=db
-      - DATABASE_PORT=5432
-      - NODE_ENV=production
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - bedest_network
+# Production-style stack. Copy .env.example to .env and set real values
+# (NODE_ENV=production requires CORS_ORIGINS, strong SECRET_KEY/REFRESH_KEY,
+# MAIL_PROVIDER=smtp with SMTP_* and MAIL_FROM, and APP_PUBLIC_URL).
+#
+# Start order: db/redis -> provision (creates the bedest_app role and the
+# runtime login, SEC-04) -> migrate (applies drizzle/ as the schema owner)
+# -> api.
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: bedest:local
+  env_file:
+    - .env
+  networks:
+    - bedest_network
 
+services:
   db:
-    container_name: bedest_db
     image: postgres:16-alpine
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       POSTGRES_DB: ${DATABASE_NAME}
-      POSTGRES_USER: ${DATABASE_USER}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-    ports:
-      - "${DATABASE_PORT:-5432}:5432"
+      # The container superuser is the schema owner used by migrations.
+      POSTGRES_USER: ${DATABASE_MIGRATION_USER}
+      POSTGRES_PASSWORD: ${DATABASE_MIGRATION_PASSWORD}
+    # Not published on the host. For local tools, uncomment (loopback only):
+    # ports:
+    #   - "127.0.0.1:${DATABASE_PORT:-5432}:5432"
     volumes:
       - bedest_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     networks:
       - bedest_network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - bedest_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - bedest_network
+
+  # One-shot: creates bedest_app and the DATABASE_USER login (idempotent).
+  provision:
+    <<: *app
+    command: ["bun", "dist/provision-roles.js"]
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_ADMIN_USER: ${DATABASE_MIGRATION_USER}
+      DATABASE_ADMIN_PASSWORD: ${DATABASE_MIGRATION_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # One-shot: applies the committed migrations as the schema owner.
+  migrate:
+    <<: *app
+    command: ["bun", "dist/migrate.js"]
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+    depends_on:
+      provision:
+        condition: service_completed_successfully
+
+  api:
+    <<: *app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      REDIS_URL: redis://redis:6379
+      LOCAL_STORAGE_PATH: /app/uploads
+    volumes:
+      - bedest_uploads:/app/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
 
 networks:
   bedest_network:
@@ -48,3 +117,7 @@ networks:
 volumes:
   bedest_pg_data:
     name: bedest_pg_data
+  bedest_redis_data:
+    name: bedest_redis_data
+  bedest_uploads:
+    name: bedest_uploads

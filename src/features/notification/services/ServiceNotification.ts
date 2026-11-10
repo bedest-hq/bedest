@@ -1,79 +1,24 @@
-import WsManager from "@/infrastructure/websocket/WsManager";
+import { UtilHttp } from "@/common/utils/UtilHttp";
+import { UtilCursor } from "@/common/utils/UtilCursor";
 import { SNotification, SNotificationRead } from "../schemas/SNotification";
-import { and, count, desc, eq, or, sql } from "drizzle-orm";
-import { status } from "elysia";
-import { logger } from "@/infrastructure/logger/logger";
-import { ITenantUserApp, UtilTenantScope } from "bedest-core";
+import { and, count, desc, eq, lt, or, sql } from "drizzle-orm";
+
+import { IApp, ITenantUserApp, UtilTenantScope } from "bedest-core";
 
 class ServiceNotification {
-  /**
-   * Persist a notification for a specific user and push it over WebSocket.
-   * Failures in either step are logged and swallowed — notifications are
-   * best-effort and must never break the calling flow.
-   */
-  async sendToUser(
-    c: ITenantUserApp,
-    targetUserId: string,
-    event: string,
-    payload?: Record<string, unknown>,
-  ) {
-    try {
-      await UtilTenantScope.tenantScope(c, async (tx) => {
-        await tx.insert(SNotification).values({
-          tenantId: c.tenantId,
-          userId: targetUserId,
-          isBroadcast: false,
-          event,
-          payload: payload ?? {},
-          createdAt: c.nowDatetime,
-        });
-      });
-    } catch (err) {
-      logger.error(
-        { err, targetUserId, event },
-        "Failed to persist notification",
-      );
-    }
-
-    WsManager.publishToUser(targetUserId, event, payload);
-  }
-
-  /**
-   * Persist a broadcast notification for every connected user in the tenant
-   * and push over the tenant WebSocket topic.
-   * Per-user persistence is intentionally skipped for broadcasts — store only
-   * a single tenant-scoped record with userId null and isBroadcast true.
-   */
-  async sendToTenant(
-    c: ITenantUserApp,
-    event: string,
-    payload?: Record<string, unknown>,
-  ) {
-    try {
-      await UtilTenantScope.tenantScope(c, async (tx) => {
-        await tx.insert(SNotification).values({
-          tenantId: c.tenantId,
-          userId: null,
-          isBroadcast: true,
-          event,
-          payload: payload ?? {},
-          createdAt: c.nowDatetime,
-        });
-      });
-    } catch (err) {
-      logger.error(
-        { err, tenantId: c.tenantId, event },
-        "Failed to persist tenant notification",
-      );
-    }
-
-    WsManager.publishToTenant(c.tenantId, event, payload);
-  }
-
   async getAll(
     c: ITenantUserApp,
-    query: { limit: number; page: number; unreadOnly?: boolean },
+    query: {
+      limit: number;
+      page: number;
+      unreadOnly?: boolean;
+      cursor?: string;
+    },
   ) {
+    // Decode before opening the transaction: a bad cursor is a 400.
+    const cursor =
+      query.cursor === undefined ? undefined : UtilCursor.decode(query.cursor);
+
     return await UtilTenantScope.tenantScope(c, async (tx) => {
       const readJoinCondition = and(
         eq(SNotificationRead.notificationId, SNotification.id),
@@ -102,6 +47,42 @@ class ServiceNotification {
         ? and(baseVisibility, unreadFilter)
         : baseVisibility;
 
+      const select = () =>
+        tx
+          .select({
+            row: {
+              id: SNotification.id,
+              event: SNotification.event,
+              payload: SNotification.payload,
+              isRead: isReadExpr,
+              readAt: readAtExpr,
+              createdAt: SNotification.createdAt,
+            },
+            cursorKey: UtilCursor.key(SNotification.createdAt),
+          })
+          .from(SNotification)
+          .leftJoin(SNotificationRead, readJoinCondition)
+          .orderBy(desc(SNotification.createdAt), desc(SNotification.id))
+          .$dynamic();
+
+      // Keyset mode: no COUNT, no OFFSET [PERF-02].
+      if (cursor) {
+        const rows = await select()
+          .where(
+            and(
+              whereClause,
+              UtilCursor.after(
+                SNotification.createdAt,
+                SNotification.id,
+                cursor,
+              ),
+            ),
+          )
+          .limit(query.limit + 1);
+        const { data, nextCursor } = UtilCursor.page(rows, query.limit);
+        return { data, meta: { limit: query.limit, nextCursor } };
+      }
+
       const [totalRes] = await tx
         .select({ count: count() })
         .from(SNotification)
@@ -109,23 +90,11 @@ class ServiceNotification {
         .where(whereClause);
 
       const total = Number(totalRes.count);
-      const offset = (query.page - 1) * query.limit;
-
-      const data = await tx
-        .select({
-          id: SNotification.id,
-          event: SNotification.event,
-          payload: SNotification.payload,
-          isRead: isReadExpr,
-          readAt: readAtExpr,
-          createdAt: SNotification.createdAt,
-        })
-        .from(SNotification)
-        .leftJoin(SNotificationRead, readJoinCondition)
+      const rows = await select()
         .where(whereClause)
-        .orderBy(desc(SNotification.createdAt))
-        .limit(query.limit)
-        .offset(offset);
+        .limit(query.limit + 1)
+        .offset((query.page - 1) * query.limit);
+      const { data, nextCursor } = UtilCursor.page(rows, query.limit);
 
       return {
         data,
@@ -134,6 +103,7 @@ class ServiceNotification {
           page: query.page,
           limit: query.limit,
           totalPages: Math.ceil(total / query.limit),
+          nextCursor,
         },
       };
     });
@@ -154,39 +124,31 @@ class ServiceNotification {
         .limit(1);
 
       if (!existing) {
-        throw status("Not Found");
+        throw UtilHttp.fail(404);
       }
 
       if (existing.isBroadcast) {
         if (existing.tenantId !== c.tenantId) {
-          throw status("Forbidden");
+          throw UtilHttp.fail(403);
         }
 
-        const [alreadyRead] = await tx
-          .select({ id: SNotificationRead.id })
-          .from(SNotificationRead)
-          .where(
-            and(
-              eq(SNotificationRead.notificationId, id),
-              eq(SNotificationRead.userId, c.session.userId),
-            ),
-          )
-          .limit(1);
-
-        if (!alreadyRead) {
-          await tx.insert(SNotificationRead).values({
+        // Idempotent under concurrency: the unique (user, notification)
+        // index decides, not a prior SELECT [BUG-05].
+        await tx
+          .insert(SNotificationRead)
+          .values({
             tenantId: c.tenantId,
             notificationId: id,
             userId: c.session.userId,
             readAt: c.nowDatetime,
-          });
-        }
+          })
+          .onConflictDoNothing();
 
         return { success: true };
       }
 
       if (existing.userId !== c.session.userId) {
-        throw status("Forbidden");
+        throw UtilHttp.fail(403);
       }
 
       await tx
@@ -233,18 +195,41 @@ class ServiceNotification {
         );
 
       if (unreadBroadcasts.length > 0) {
-        await tx.insert(SNotificationRead).values(
-          unreadBroadcasts.map((b) => ({
-            tenantId: c.tenantId,
-            notificationId: b.id,
-            userId: c.session.userId,
-            readAt: c.nowDatetime,
-          })),
-        );
+        await tx
+          .insert(SNotificationRead)
+          .values(
+            unreadBroadcasts.map((b) => ({
+              tenantId: c.tenantId,
+              notificationId: b.id,
+              userId: c.session.userId,
+              readAt: c.nowDatetime,
+            })),
+          )
+          .onConflictDoNothing();
       }
 
       return { success: true };
     });
+  }
+
+  /**
+   * Job notifications.retention [FEAT-08]: soft-deletes notifications
+   * created before `olderThan` (NOTIFICATION_RETENTION_DAYS).
+   */
+  async applyRetention(c: IApp, olderThan: Date) {
+    const updated = await UtilTenantScope.systemScope(c.db, (tx) =>
+      tx
+        .update(SNotification)
+        .set({ isDeleted: true, deletedAt: c.nowDatetime })
+        .where(
+          and(
+            eq(SNotification.isDeleted, false),
+            lt(SNotification.createdAt, olderThan),
+          ),
+        )
+        .returning({ id: SNotification.id }),
+    );
+    return { count: updated.length };
   }
 }
 

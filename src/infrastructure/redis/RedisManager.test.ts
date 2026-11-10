@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import RedisManager from "./RedisManager";
+import RedisManager, { redisRetryDelay } from "./RedisManager";
 import WsManager, { IWsClient } from "../websocket/WsManager";
 import ServiceSystem from "@/features/system/services/ServiceSystem";
+import DbManager from "@/infrastructure/database/DbManager";
 import { EventEmitter } from "events";
 
 class MockRedisClient extends EventEmitter {
@@ -127,18 +128,20 @@ describe("RedisManager & Distributed WebSocket State", () => {
     await RedisManager.close();
   });
 
-  it("Distributed Maintenance Mode: get and set maintenance status via Redis key", async () => {
+  it("[BUG-08] Distributed Maintenance Mode: the database is the source of truth and writes publish an invalidation", async () => {
     expect(RedisManager.isAvailable()).toBe(true);
+    const c = { db: DbManager.get(), nowDatetime: new Date() };
+    const published: string[] = [];
+    mockSub.on("message", (channel: string) => published.push(channel));
+    await RedisManager.subscribe("system:settings:invalidate", () => {});
 
-    expect(await ServiceSystem.getMaintenance()).toBe(false);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(false);
+    await ServiceSystem.setMaintenance(c, true);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(true);
+    expect(published).toContain("system:settings:invalidate");
 
-    await ServiceSystem.setMaintenance(true);
-    expect(await ServiceSystem.getMaintenance()).toBe(true);
-    expect(await mockClient.get("system:maintenance_mode")).toBe("true");
-
-    await ServiceSystem.setMaintenance(false);
-    expect(await ServiceSystem.getMaintenance()).toBe(false);
-    expect(await mockClient.get("system:maintenance_mode")).toBe("false");
+    await ServiceSystem.setMaintenance(c, false);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(false);
   });
 
   it("Distributed WebSocket: Multi-node event broadcasting via Redis pub/sub", async () => {
@@ -170,7 +173,9 @@ describe("RedisManager & Distributed WebSocket State", () => {
     let closedReason: string | undefined;
     const sentMessages: unknown[] = [];
 
+    // The registry keys sockets by connection id [BUG-10].
     const mockClientWs: IWsClient = {
+      id: crypto.randomUUID(),
       send: (msg) => {
         sentMessages.push(msg);
       },
@@ -181,7 +186,11 @@ describe("RedisManager & Distributed WebSocket State", () => {
     };
 
     // Client connects to Node B
-    WsManager.registerClient("user-456", mockClientWs, "session-789");
+    WsManager.registerClient(mockClientWs, {
+      userId: "user-456",
+      sessionId: "session-789",
+      expiresAt: Date.now() + 60_000,
+    });
 
     // Another node calls disconnectUser
     WsManager.disconnectUser("user-456");
@@ -197,12 +206,13 @@ describe("RedisManager & Distributed WebSocket State", () => {
     await RedisManager.close();
     expect(RedisManager.isAvailable()).toBe(false);
 
-    // Maintenance mode still works in-memory
-    await ServiceSystem.setMaintenance(true);
-    expect(await ServiceSystem.getMaintenance()).toBe(true);
+    // [BUG-08] Maintenance mode still works: the database is the source.
+    const c = { db: DbManager.get(), nowDatetime: new Date() };
+    await ServiceSystem.setMaintenance(c, true);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(true);
 
-    await ServiceSystem.setMaintenance(false);
-    expect(await ServiceSystem.getMaintenance()).toBe(false);
+    await ServiceSystem.setMaintenance(c, false);
+    expect(await ServiceSystem.getMaintenance(c)).toBe(false);
 
     // WebSocket publishes locally when server is available
     const localBroadcasts: { topic: string; data: string }[] = [];
@@ -215,5 +225,46 @@ describe("RedisManager & Distributed WebSocket State", () => {
     WsManager.publishToTenant("tenant-fallback", "ping", {});
     expect(localBroadcasts.length).toBe(1);
     expect(localBroadcasts[0].topic).toBe("tenant:tenant-fallback");
+  });
+});
+
+describe("BUG-09: RedisManager recovery", () => {
+  afterEach(async () => {
+    await RedisManager.close();
+  });
+
+  it("[BUG-09] retries forever with capped exponential backoff (never gives up)", () => {
+    const delays = [1, 2, 3, 4, 5, 8, 20, 1000].map((t) => redisRetryDelay(t));
+    expect(delays.every((d) => typeof d === "number" && d > 0)).toBe(true);
+    expect(delays[1]).toBeGreaterThan(delays[0]);
+    expect(Math.max(...delays)).toBe(10_000);
+  });
+
+  it("[BUG-09] a pattern registered while the subscriber is down is subscribed on ready and receives messages", async () => {
+    const hub = new MockPubSubHub();
+    const client = new MockRedisClient();
+    const pub = new MockRedisPubSub(hub);
+    const sub = new MockRedisPubSub(hub);
+    RedisManager.setClientsForTesting(client, pub, sub);
+
+    // The subscriber connection drops.
+    sub.status = "reconnecting";
+    sub.patterns.clear();
+    const received: string[] = [];
+    await RedisManager.psubscribe("events:*", (_p, channel) =>
+      received.push(channel),
+    );
+    expect(sub.patterns.has("events:*")).toBe(false);
+    expect(RedisManager.isSubscriberReady()).toBe(false);
+    expect(RedisManager.isPublisherReady()).toBe(true);
+
+    // It comes back: registered patterns are re-issued.
+    sub.status = "ready";
+    sub.emit("ready");
+    await Bun.sleep(1);
+    expect(sub.patterns.has("events:*")).toBe(true);
+
+    await pub.publish("events:user:1", "hello");
+    expect(received).toEqual(["events:user:1"]);
   });
 });

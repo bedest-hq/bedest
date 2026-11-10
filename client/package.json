@@ -1,7 +1,7 @@
 {
   "name": "@bedest/client",
   "version": "1.0.0",
-  "description": "Typed Bedest SDK generated via Elysia Eden Treaty",
+  "description": "Hand-maintained, type-only Eden Treaty client for the Bedest API",
   "main": "./index.ts",
   "types": "./index.ts",
   "dependencies": {

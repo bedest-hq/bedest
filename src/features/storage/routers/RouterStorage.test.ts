@@ -1,21 +1,41 @@
-import { describe, it, expect, spyOn, mock } from "bun:test";
+import { describe, it, expect, spyOn, mock, afterAll } from "bun:test";
 import { treaty } from "@elysiajs/eden";
-import { testHeaders } from "@/common/tests/TestManager.test";
-import { RouterStorage } from "./RouterStorage";
+import { eq } from "drizzle-orm";
+import { test_db, testHeaders } from "@/common/tests/TestManager.test";
+import { SStorage } from "../schemas/SStorage";
+import { EStorageStatus } from "../enums/EStorageStatus";
+import { createRouterStorage } from "./RouterStorage";
+import { test_env as routerTestEnv } from "@/common/tests/TestManager.test";
+
+// Routers are built from an explicit environment [QLT-01].
+const RouterStorage = createRouterStorage(routerTestEnv);
 
 const StorageManager = await import("@/infrastructure/storage/StorageManager");
 
-spyOn(StorageManager.default, "upload").mockImplementation(
+const uploadSpy = spyOn(StorageManager.default, "upload").mockImplementation(
   mock(() => Promise.resolve()),
 );
 
-spyOn(StorageManager.default, "delete").mockImplementation(
+const deleteSpy = spyOn(StorageManager.default, "delete").mockImplementation(
   mock(() => Promise.resolve()),
 );
 
-spyOn(StorageManager.default, "download").mockImplementation(
-  mock(() => Promise.resolve(new Blob(["mock file data"]))),
+const downloadSpy = spyOn(
+  StorageManager.default,
+  "download",
+).mockImplementation(
+  // Providers stream objects [BUG-18].
+  mock(() => {
+    const blob = new Blob(["mock file data"]);
+    return Promise.resolve({ stream: blob.stream(), contentLength: blob.size });
+  }),
 );
+
+afterAll(() => {
+  uploadSpy.mockRestore();
+  deleteSpy.mockRestore();
+  downloadSpy.mockRestore();
+});
 
 const bytes = new Uint8Array([
   137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0,
@@ -41,7 +61,8 @@ describe("RouterStorage", () => {
     expect(res.data).toHaveProperty("key");
   });
 
-  it("Rejects files larger than limit or invalid type", async () => {
+  // [TST-04] One test per rule (the old test only checked the type).
+  it("[TST-04] rejects a file type outside the allowlist → 422", async () => {
     const headers = await testHeaders();
 
     const dummyFile = new File(["fake content"], "malicious.exe", {
@@ -51,6 +72,24 @@ describe("RouterStorage", () => {
     const res = await api.storage.upload.post({ file: dummyFile }, { headers });
 
     expect(res.status).toBe(422);
+  });
+
+  it("[TST-04] rejects a file larger than STORAGE_MAX_BYTES → 422 and stores nothing", async () => {
+    const headers = await testHeaders();
+    const tooBig = new Uint8Array(routerTestEnv.STORAGE_MAX_BYTES + 1);
+    tooBig.set(bytes);
+
+    const dummyFile = new File([tooBig], "too-big.png", { type: "image/png" });
+
+    const res = await api.storage.upload.post({ file: dummyFile }, { headers });
+
+    expect(res.status).toBe(422);
+    expect(
+      await test_db
+        .select({ id: SStorage.id })
+        .from(SStorage)
+        .where(eq(SStorage.name, "too-big.png")),
+    ).toEqual([]);
   });
 
   it("List Files", async () => {
@@ -131,8 +170,16 @@ describe("RouterStorage", () => {
 
     const fileId = presignUploadRes.data!.id;
 
+    // [SEC-10] A presigned upload starts PENDING and is never served until
+    // it is finalized; simulate the finalization (FEAT-12) here.
+    await test_db
+      .update(SStorage)
+      .set({ status: EStorageStatus.READY })
+      .where(eq(SStorage.id, fileId));
+
     // 2. Presign download URL
-    const presignDownloadRes = await api.storage({ id: fileId })["presign-download"].get({
+    const fileApi = api.storage({ id: fileId });
+    const presignDownloadRes = await fileApi["presign-download"].get({
       headers,
     });
 

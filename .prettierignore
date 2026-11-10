@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+drizzle
+uploads
+test_uploads
+bun.lock
